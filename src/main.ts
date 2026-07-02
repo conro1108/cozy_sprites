@@ -15,8 +15,9 @@ import {
 } from "./pet/state";
 import type { AdultForm, FoodId, GameId, PetState } from "./pet/types";
 import { ADULTS } from "./pet/roster";
-import { pickLine } from "./pet/dialogue";
+import { pickLine, teenFlickerLine } from "./pet/dialogue";
 import type { Category } from "./pet/dialogue";
+import { determineAdultForm } from "./pet/evolution";
 import {
   exportSave,
   importSave,
@@ -257,6 +258,9 @@ function doFeed(food: FoodId): void {
   pet = state;
   if (note === "cant") {
     say(pet.stage === "egg" ? "*the egg does not eat*" : "Zzz…");
+  } else if (note === "full") {
+    sayCat("full");
+    scene?.triggerPulse("shake");
   } else {
     say(pickLine(pet, feedCategory(food, note)));
     scene?.triggerPulse("eat");
@@ -306,10 +310,15 @@ function doDiscipline(): void {
   commit();
 }
 
+const DAY_DARK_LINES = ["It is not even dark.", "Mood lighting. Bold.", "Ambience, I suppose."];
+
 function doLight(): void {
   if (!pet) return;
-  pet = toggleLight(pet, Date.now());
-  say(pet.asleep ? pickLine(pet, "sleep") : pickLine(pet, "wake"));
+  const now = Date.now();
+  pet = toggleLight(pet, now);
+  if (pet.asleep) sayCat("sleep");
+  else if (!pet.lightsOn && !isNight(now)) say(pick(DAY_DARK_LINES));
+  else sayCat("wake");
   commit();
 }
 
@@ -355,9 +364,23 @@ function stepPet(now: number, withEvents: boolean): boolean {
   const prevStage = pet.stage;
   const elapsed = now - pet.lastUpdated;
   pet = applyElapsedDecay(pet, now);
-  if (withEvents) pet = stepEvents(pet, elapsed).state;
+  let events: string[] = [];
+  if (withEvents) {
+    const r = stepEvents(pet, elapsed);
+    pet = r.state;
+    events = r.events;
+  }
   const changed = pet.stage !== prevStage;
-  if (changed) handleStageChange(prevStage, pet.stage);
+  if (changed) {
+    handleStageChange(prevStage, pet.stage);
+  } else if (events.includes("sick")) {
+    sayCat("sick");
+  } else if (events.includes("poop")) {
+    sayCat("poop");
+  } else if (events.includes("call") || events.includes("fakecall")) {
+    // Fake calls must sound exactly like real ones — that's the whole game.
+    sayCat("call");
+  }
   return changed;
 }
 
@@ -387,7 +410,14 @@ function handleStageChange(from: PetState["stage"], to: PetState["stage"]): void
 function maybeIdleLine(now: number): void {
   if (!pet || pet.asleep) return;
   if (now < nextIdleAt) return;
-  if (Math.random() < 0.6) sayCat("idle");
+  if (pet.stage === "teen" && Math.random() < 0.35) {
+    // "The Audition" (SPEC §4): the leaning adult personality leaks through
+    // occasionally, at normal idle cadence, never labeled.
+    const leaning = determineAdultForm(pet.hidden, pet.health);
+    say(teenFlickerLine(leaning));
+  } else if (Math.random() < 0.6) {
+    sayCat("idle");
+  }
   nextIdleAt = now + rand(IDLE_MIN_MS, IDLE_MAX_MS);
 }
 
@@ -420,6 +450,10 @@ const ctx = {
 // --- Utils ------------------------------------------------------------------
 function rand(min: number, max: number): number {
   return min + Math.random() * (max - min);
+}
+
+function pick<T>(arr: readonly T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
 document.addEventListener("visibilitychange", () => {

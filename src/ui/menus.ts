@@ -547,8 +547,16 @@ export function openCollection(ctx: MenuCtx): void {
     const el = document.createElement("div");
     el.className = "tile";
     if (found) {
+      // Built with createElement — innerHTML += would re-serialize the canvas
+      // and silently wipe its drawn bitmap.
       el.appendChild(portrait(form));
-      el.innerHTML += `<span class="tile-name">${def.name}</span><span class="tile-note">${def.blurb}</span>`;
+      const name = document.createElement("span");
+      name.className = "tile-name";
+      name.textContent = def.name;
+      const note = document.createElement("span");
+      note.className = "tile-note";
+      note.textContent = def.blurb;
+      el.append(name, note);
     } else {
       el.innerHTML = `<span class="tile-ico">❔</span><span class="tile-name">???</span><span class="tile-note">Undiscovered</span>`;
     }
@@ -599,8 +607,14 @@ export function openBackup(ctx: MenuCtx): void {
   copy.className = "btn";
   copy.textContent = "📋 Copy code";
   copy.addEventListener("click", () => {
+    // navigator.clipboard only exists in secure contexts (not plain-http LAN
+    // testing) — fall back to select + execCommand there.
     ta.select();
-    navigator.clipboard?.writeText(ta.value);
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(ta.value);
+    } else {
+      document.execCommand("copy");
+    }
     copy.textContent = "Copied!";
   });
 

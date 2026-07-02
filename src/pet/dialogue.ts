@@ -11,6 +11,8 @@ export type Category =
   | "feed"
   | "feed_favorite"
   | "feed_disliked"
+  | "full"
+  | "poop"
   | "cake"
   | "carrot"
   | "cube"
@@ -40,7 +42,9 @@ const BABY: Bank = {
   idle: ["AA.", "Why.", "Round.", "More.", "Too much world.", "I just arrived."],
   tap: ["Hi.", "Hi!", "?", "You."],
   feed: ["More.", "Yum.", "Again!"],
-  clean: ["Oops.", "A gift.", "Sorry."],
+  full: ["No.", "Full.", "Too round already."],
+  poop: ["Oops.", "Sorry.", "It happened."],
+  clean: ["Yay.", "Clean!"],
   sick: ["Feel bad.", "Ow.", "No good."],
 };
 
@@ -87,8 +91,10 @@ const GENERAL: Bank = {
   cake: ["Finally, respect.", "Health is temporary.", "Again."],
   carrot: ["Cruel.", "This is a stick.", "I suppose.", "I forgive the carrot."],
   cube: ["The cube understands.", "What flavor was that?", "It hummed.", "This is not food.", "More geometry."],
+  full: ["I am full.", "No. I am at capacity.", "Do I look like storage?", "Later."],
   medicine: ["Betrayal.", "I taste shapes.", "That fixed something."],
-  clean: ["Do not look.", "A gift.", "Handle this.", "Thank you. Unfortunately."],
+  poop: ["Do not look.", "A gift.", "Handle this."],
+  clean: ["Thank you. Unfortunately.", "Much better.", "The floor is legal again."],
   sick: ["I have prepared my will.", "A terrible development.", "I have a condition.", "This is how I perish."],
   win: ["Obviously.", "Easy.", "As predicted."],
   lose: ["The numbers cheated.", "That was your fault.", "Statistics are fake.", "Again."],
@@ -119,7 +125,7 @@ const ADULT: Record<AdultForm, Bank> = {
     idle: ["Wasn't me.", "I know a secret.", "Cube, peasant.", "No witnesses.", "Hehehe."],
     win: ["I cheated. So?", "No witnesses.", "Skill issue, yours."],
     cube: ["MORE GEOMETRY.", "The cube is mine now.", "Give cube. Give."],
-    clean: ["I moved it. For fun.", "You'll never find them all.", "Whoops. On purpose."],
+    poop: ["I moved it. For fun.", "You'll never find them all.", "Whoops. On purpose."],
     farm: ["I will unionize the chickens.", "Finally, room to commit crimes.", "The barn won't know what hit it."],
   },
   scholar: {

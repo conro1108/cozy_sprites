@@ -78,3 +78,23 @@ One-shot build of the "Pet Thing" (working title: **Cozy Sprites**) from SPEC.md
   isValidPet shape check; bad paste now returns "Invalid code".
 - Reviewer confirmed the chunked decay loop is bounded (≤5 iters), the ctx/menu
   wiring is consistent, games can't double-fire, and the core loop matches SPEC.
+
+### Post-launch pass (user report: "eating and playing don't do anything")
+Root cause: pacing mismatch — decay was spec-paced (1♥/20min) while stage
+timers are demo-compressed (~15 min arc), so meters sat at full and actions
+produced no visible change. Fixes in this pass:
+- Decay demo-tuned: hunger 1♥/4min, happiness 1♥/6min (spec values in comment).
+- Feeding a full pet now REFUSES proper meals with a "full" line + shake
+  (treats always accepted) — feedback instead of silence. +2 unit tests.
+- World events (poop/sick/attention call) now speak when they happen; fake
+  calls deliberately use the same lines as real ones.
+- Teen "audition" personality flicker wired into idle (was dead code).
+- Collection portraits were blank (innerHTML += after canvas append wiped the
+  bitmap) — rebuilt with createElement.
+- Clipboard copy fallback for non-secure contexts (LAN http), same class as
+  the earlier crypto.randomUUID crash; also added favicon links (404 noise).
+- Lights-off during daytime gets its own lines instead of a "wake" line.
+Verification: new Playwright(-core, system Chrome) end-to-end drive in
+scratchpad exercising hatch → feed/refuse → all 5 games → clean/medicine/
+discipline/light → tap → status/collection/backup → farm→new-egg. 27/27 PASS,
+zero page errors. tsc, vite build, 38 vitest tests all green.

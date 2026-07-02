@@ -22,8 +22,11 @@ export const TIMING: Record<Exclude<Stage, "adult">, number> = {
 const STAGE_ORDER: Stage[] = ["egg", "baby", "child", "teen", "adult"];
 
 // --- Decay rates (per millisecond) -----------------------------------------
-const HUNGER_DECAY = 1 / (20 * 60_000); // ~1 heart / 20 min baseline
-const HAPPINESS_DECAY = 1 / (30 * 60_000); // ~1 heart / 30 min baseline
+// Demo-tuned to match the compressed stage timers above: needs must actually
+// move during a ~15-minute play session or feeding/playing feels like it does
+// nothing. Spec-paced values (for real-length stages): 1♥/20min and 1♥/30min.
+const HUNGER_DECAY = 1 / (4 * 60_000); // ~1 heart / 4 min baseline
+const HAPPINESS_DECAY = 1 / (6 * 60_000); // ~1 heart / 6 min baseline
 
 // Baby is deliberately hectic (SPEC §4): needs drop faster.
 const STAGE_DECAY_MULT: Record<Stage, number> = {
@@ -178,6 +181,13 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   if (s.stage === "egg" || s.asleep) return { state: s, note: "cant" };
   s = { ...s, hidden: { ...s.hidden } };
   const def = FOODS[food];
+
+  // Refuse proper meals when already full (classic Tamagotchi behaviour);
+  // treats (cake/cube — anything with real happiness value) are always taken.
+  const isTreat = def.happiness >= 0.5;
+  if (!isTreat && s.hunger >= MAX_HEARTS - 0.05) {
+    return { state: s, note: "full" };
+  }
 
   let note: string | undefined;
   let happyBonus = 0;

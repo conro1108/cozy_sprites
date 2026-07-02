@@ -96,6 +96,21 @@ describe("feed", () => {
     const { state } = feed(pet, "cake", T0);
     expect(state.hidden.cakeEaten).toBe(1);
   });
+
+  it("refuses a proper meal when already full", () => {
+    const pet = asStage(createPet("Milo", T0), "child"); // hunger = MAX
+    const { state, note } = feed(pet, "burger", T0);
+    expect(note).toBe("full");
+    expect(state.hunger).toBe(MAX_HEARTS);
+    expect(state.weight).toBe(pet.weight);
+  });
+
+  it("still accepts a treat when full", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    const { note, state } = feed(pet, "cake", T0);
+    expect(note).not.toBe("full");
+    expect(state.hidden.cakeEaten).toBe(1);
+  });
 });
 
 describe("clean", () => {

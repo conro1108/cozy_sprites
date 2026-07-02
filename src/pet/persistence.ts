@@ -13,10 +13,20 @@ const SAVE_VERSION = 1;
 export function getDeviceId(): string {
   let id = localStorage.getItem(DEVICE_KEY);
   if (!id) {
-    id = crypto.randomUUID();
+    id = randomId();
     localStorage.setItem(DEVICE_KEY, id);
   }
   return id;
+}
+
+/** UUID via crypto when available, else a plain fallback. crypto.randomUUID
+ *  only exists in a secure context, so on a plain-http LAN address (phone
+ *  testing) we must not assume it — otherwise startup throws. */
+function randomId(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `dev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 export function savePet(state: PetState): void {
