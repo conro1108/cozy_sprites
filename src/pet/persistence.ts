@@ -1,0 +1,114 @@
+// Local persistence: active pet + farm archive + import/export backup string.
+// localStorage is sufficient for v1; the export string is the backup answer to
+// SPEC §6 ("a backup/export option should exist even in v1").
+
+import type { FarmEntry, PetState } from "./types";
+import { ageMs } from "./state";
+
+const PET_KEY = "cozy-sprites-pet";
+const FARM_KEY = "cozy-sprites-farm";
+const DEVICE_KEY = "cozy-sprites-device";
+const SAVE_VERSION = 1;
+
+export function getDeviceId(): string {
+  let id = localStorage.getItem(DEVICE_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem(DEVICE_KEY, id);
+  }
+  return id;
+}
+
+export function savePet(state: PetState): void {
+  localStorage.setItem(PET_KEY, JSON.stringify(state));
+}
+
+export function loadPet(): PetState | null {
+  const raw = localStorage.getItem(PET_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as PetState;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPet(): void {
+  localStorage.removeItem(PET_KEY);
+}
+
+export function loadFarm(): FarmEntry[] {
+  const raw = localStorage.getItem(FARM_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as FarmEntry[];
+  } catch {
+    return [];
+  }
+}
+
+export function saveFarm(entries: FarmEntry[]): void {
+  localStorage.setItem(FARM_KEY, JSON.stringify(entries));
+}
+
+/** Retire the active pet into the farm archive and return the new archive. */
+export function retireToFarm(state: PetState, now: number): FarmEntry[] {
+  const entry: FarmEntry = {
+    name: state.name,
+    form: state.form,
+    finalStage: state.stage,
+    ageMs: ageMs(state, now),
+    hatchedAt: state.createdAt,
+    retiredAt: now,
+  };
+  const farm = [entry, ...loadFarm()];
+  saveFarm(farm);
+  clearPet();
+  return farm;
+}
+
+// --- Backup string (base64-encoded JSON blob) -------------------------------
+interface Backup {
+  v: number;
+  pet: PetState | null;
+  farm: FarmEntry[];
+}
+
+export function exportSave(): string {
+  const backup: Backup = { v: SAVE_VERSION, pet: loadPet(), farm: loadFarm() };
+  // encodeURIComponent handles any unicode in pet names before base64.
+  return btoa(encodeURIComponent(JSON.stringify(backup)));
+}
+
+/** Guard against a well-formed-but-wrong-shape blob crashing state functions. */
+function isValidPet(p: unknown): p is PetState {
+  if (!p || typeof p !== "object") return false;
+  const s = p as Record<string, unknown>;
+  const hidden = s.hidden as Record<string, unknown> | undefined;
+  return (
+    typeof s.name === "string" &&
+    typeof s.stage === "string" &&
+    typeof s.hunger === "number" &&
+    typeof s.lastUpdated === "number" &&
+    !!hidden &&
+    typeof hidden === "object" &&
+    typeof hidden.gamePlays === "object"
+  );
+}
+
+export function importSave(code: string): boolean {
+  try {
+    const backup = JSON.parse(decodeURIComponent(atob(code.trim()))) as Backup;
+    if (typeof backup !== "object" || backup.v !== SAVE_VERSION) return false;
+    if (backup.pet) {
+      if (!isValidPet(backup.pet)) return false;
+      savePet(backup.pet);
+    } else {
+      clearPet();
+    }
+    saveFarm(Array.isArray(backup.farm) ? backup.farm : []);
+    return true;
+  } catch {
+    return false;
+  }
+}
