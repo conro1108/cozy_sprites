@@ -1,6 +1,14 @@
-// Minimal offline cache: cache-first for same-origin GETs, network fallback.
+// Minimal offline cache: network-first for same-origin GETs, cache fallback.
 // Enough to make the app open offline after the first visit (SPEC §2).
-const CACHE = "cozy-sprites-v1";
+//
+// Network-first (not cache-first) matters here: index.html references
+// content-hashed asset filenames that change every deploy. A cache-first
+// strategy would serve a stale HTML shell forever after a redeploy — the
+// browser only re-installs this worker when *this file's* bytes change, so
+// a cached index.html pointing at a since-deleted hashed bundle would 404
+// silently and blank the page. Network-first always prefers the live
+// deploy and only drops to cache when the network genuinely fails (offline).
+const CACHE = "cozy-sprites-v2";
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();
@@ -20,14 +28,12 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET" || new URL(req.url).origin !== location.origin) return;
   e.respondWith(
-    caches.match(req).then(
-      (hit) =>
-        hit ||
-        fetch(req).then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
-          return res;
-        }).catch(() => hit),
-    ),
+    fetch(req)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy));
+        return res;
+      })
+      .catch(() => caches.match(req)),
   );
 });
