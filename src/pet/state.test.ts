@@ -59,6 +59,14 @@ describe("stage advancement", () => {
     expect(later.stage).toBe("baby");
   });
 
+  it("hatches into a needy baby so care is immediately meaningful", () => {
+    const pet = createPet("Milo", T0);
+    const later = applyElapsedDecay(pet, T0 + 61_000);
+    // Room in both meters for a feed/play to visibly fill.
+    expect(later.hunger).toBeLessThanOrEqual(2);
+    expect(later.happiness).toBeLessThanOrEqual(2);
+  });
+
   it("decays the baby portion of a span that crosses the egg→baby boundary", () => {
     // Egg freezes stats, but once hatched the baby decays fast. A gap that
     // spans the boundary must decay the baby slice, not the whole span at the

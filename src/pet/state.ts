@@ -48,8 +48,11 @@ export function createPet(name: string, now: number): PetState {
     stage: "egg",
     stageStartedAt: now,
     form: null,
-    hunger: MAX_HEARTS,
-    happiness: MAX_HEARTS,
+    // Start with a little headroom so the first feed/play visibly moves a
+    // heart instead of hitting an already-full meter (reads as "nothing
+    // happens"). The egg freezes these until it hatches.
+    hunger: 3,
+    happiness: 3,
     health: 100,
     discipline: 0,
     weight: 5,
@@ -165,7 +168,13 @@ function advanceOne(s: PetState): void {
   // The next stage began when this one ended, not "now".
   s.stageStartedAt = s.stageStartedAt + TIMING[cur];
   s.stage = next;
-  if (next === "baby") s.wantsAttention = false;
+  if (next === "baby") {
+    s.wantsAttention = false;
+    // Baby is deliberately hectic (SPEC §4): it hatches already hungry so care
+    // matters immediately and the player learns the controls right away.
+    s.hunger = Math.min(s.hunger, 2);
+    s.happiness = Math.min(s.happiness, 2);
+  }
   if (next === "adult") s.form = determineAdultForm(s.hidden, s.health);
 }
 
