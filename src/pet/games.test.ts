@@ -70,14 +70,14 @@ describe("resolveFetch", () => {
 describe("randomWouldYou", () => {
   it("has a deep bank of well-formed questions", () => {
     const seen = new Set<string>();
-    for (let i = 0; i < 400; i++) {
-      const q = randomWouldYou(() => i / 400);
+    for (let i = 0; i < 1000; i++) {
+      const q = randomWouldYou(() => i / 1000);
       expect(q.a.length).toBeGreaterThan(0);
       expect(q.b.length).toBeGreaterThan(0);
       expect(q.judgeA.length).toBeGreaterThan(0);
       expect(q.judgeB.length).toBeGreaterThan(0);
       seen.add(q.a);
     }
-    expect(seen.size).toBeGreaterThanOrEqual(75);
+    expect(seen.size).toBeGreaterThanOrEqual(170);
   });
 });
