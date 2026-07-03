@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  dyingLine,
   farmConfirmLine,
   illnessAnnouncement,
+  isDying,
   memorialLine,
   pickLine,
   shouldSpeak,
@@ -58,6 +60,36 @@ describe("farm confirmation lines", () => {
     const stages: PetState["stage"][] = ["egg", "baby", "child", "teen", "adult"];
     const lines = stages.map((s) => farmConfirmLine(s, () => 0));
     expect(new Set(lines).size).toBe(stages.length);
+  });
+});
+
+describe("dying dialogue", () => {
+  it("triggers on low health or an active doom clock, but never after death", () => {
+    expect(isDying({ ...petAt("adult"), health: 10 })).toBe(true);
+    expect(isDying({ ...petAt("adult"), health: 50, zeroHealthMs: 1 })).toBe(true);
+    expect(isDying({ ...petAt("adult"), health: 50 })).toBe(false);
+    expect(isDying({ ...petAt("adult"), health: 0, deadAt: T0 })).toBe(false);
+  });
+
+  it("names the circumstance — sickness beats hunger beats loneliness", () => {
+    const base = { ...petAt("adult"), health: 5 };
+    expect(dyingLine({ ...base, sick: true, hunger: 0 }, () => 0)).toBe(
+      "The end is near.",
+    );
+    expect(dyingLine({ ...base, hunger: 0 }, () => 0)).toBe("So... hungry...");
+    expect(dyingLine({ ...base, hunger: 3, happiness: 0 }, () => 0)).toBe(
+      "It's so quiet...",
+    );
+    expect(dyingLine({ ...base, hunger: 3, happiness: 3 }, () => 0)).toBe(
+      "The end is near.",
+    );
+  });
+});
+
+describe("clean_nothing", () => {
+  it("always comments when you sweep a clean floor", () => {
+    expect(speakChance(petAt("adult", "ghost"), "clean_nothing")).toBe(1);
+    expect(pickLine(petAt("child"), "clean_nothing", () => 0)).toBeTruthy();
   });
 });
 

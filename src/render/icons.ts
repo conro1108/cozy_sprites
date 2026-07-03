@@ -32,7 +32,8 @@ export type IconName =
   | "thermometer"
   | "rock"
   | "paper"
-  | "scissors";
+  | "scissors"
+  | "fist";
 
 interface IconDef {
   rows: string[];
@@ -43,22 +44,22 @@ const K = "#402e3a"; // shared outline ink
 
 const ICONS: Record<IconName, IconDef> = {
   status: {
-    // clipboard
+    // clipboard — text lines in soft brown so they read as writing, not bars
     rows: [
       "....kkkk....",
       "..kkkccckkk.",
       "..kpppppppk.",
-      "..kpkkkkkpk.",
+      "..kplllllpk.",
       "..kpppppppk.",
-      "..kpkkkkkpk.",
+      "..kplllllpk.",
       "..kpppppppk.",
-      "..kpkkkkkpk.",
+      "..kplllllpk.",
       "..kpppppppk.",
       "..kpppppppk.",
       "..kkkkkkkkk.",
       "............",
     ],
-    palette: { k: K, p: "#fdf3e0", c: "#c9a96a" },
+    palette: { k: K, p: "#fdf3e0", c: "#c9a96a", l: "#c9b896" },
   },
   burger: {
     rows: [
@@ -78,22 +79,22 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, b: "#eeb060", s: "#fbe6b6", L: "#7fc45e", t: "#e05c48", m: "#8a5030" },
   },
   play: {
-    // game ball with star
+    // a little gamepad: d-pad left, button diamond right
     rows: [
       "............",
-      "....kkkk....",
-      "...kbbbbk...",
-      "..kbbwbbbk..",
-      ".kbbwwwbbbk.",
-      ".kbwwwwwbbk.",
-      ".kbbwwwbbbk.",
-      ".kbbbwbbbbk.",
-      "..kbbbbbbk..",
-      "...kbbbbk...",
-      "....kkkk....",
+      "............",
+      ".kkkkkkkkkk.",
+      "kggggggggggk",
+      "kggdggggrggk",
+      "kgdddggrgrgk",
+      "kggdggggrggk",
+      "kggggggggggk",
+      ".kkkkkkkkkk.",
+      "............",
+      "............",
       "............",
     ],
-    palette: { k: K, b: "#e07a4a", w: "#fdf3e0" },
+    palette: { k: K, g: "#ddd0b0", d: "#5c4a38", r: "#e05c48" },
   },
   broom: {
     rows: [
@@ -113,21 +114,22 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: "#8a5a3c", h: "#e8c06a" },
   },
   bandage: {
+    // a proper plaster: tan wings, pale pad, dotted texture
     rows: [
       "............",
-      "..kkk.......",
-      ".kbbbkk.....",
-      ".kbbbbbkk...",
-      "..kkbpbbbk..",
-      "....kbpbbbk.",
-      ".....kbbpbk.",
-      "......kbbbk.",
-      ".......kbk..",
-      "........k...",
+      "............",
+      "............",
+      "..kkkkkkkk..",
+      ".kbbppppbbk.",
+      ".kbbpddpbbk.",
+      ".kbbpddpbbk.",
+      ".kbbppppbbk.",
+      "..kkkkkkkk..",
+      "............",
       "............",
       "............",
     ],
-    palette: { k: K, b: "#f0c896", p: "#fdf3e0" },
+    palette: { k: K, b: "#f0c896", p: "#fdf3e0", d: "#e8b088" },
   },
   bulb: {
     rows: [
@@ -334,7 +336,7 @@ const ICONS: Record<IconName, IconDef> = {
       ".....qq.....",
       "............",
     ],
-    palette: { q: "#8a6f57" },
+    palette: { q: "#5e3e29" },
   },
   pill: {
     rows: [
@@ -354,21 +356,22 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, r: "#e05c48", w: "#fdf3e0" },
   },
   hand: {
+    // the scolding finger, raised from a fist — unambiguous discipline
     rows: [
       "............",
-      "....h.h.h...",
-      "...hhhhhhh..",
-      "...hhhhhhh..",
-      "...hhhhhhh..",
-      ".h.hhhhhhh..",
-      ".hhhhhhhhh..",
-      "..hhhhhhhh..",
-      "...hhhhhh...",
-      "....hhhh....",
+      ".....kk.....",
+      "....khhk....",
+      "....khhk....",
+      "....khhk....",
+      "..kkkhhkkk..",
+      ".khhhhhhhhk.",
+      ".khhhhhhhhk.",
+      "..khhhhhhk..",
+      "...kkkkkk...",
       "............",
       "............",
     ],
-    palette: { h: "#f0c896" },
+    palette: { k: K, h: "#f0c896" },
   },
   tractor: {
     rows: [
@@ -456,17 +459,18 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, s: "#b0b4c4", c: "#7c8094", g: "#5aa85a" },
   },
   sparkle: {
+    // a clean four-point star with two glints
     rows: [
       "............",
       ".....y......",
       ".....y......",
-      "...yyyyy....",
+      "....ywy.....",
+      "..yywwwyy...",
+      "....ywy.....",
       ".....y......",
       ".....y......",
-      "..........w.",
-      ".w..........",
+      "..w......w..",
       "............",
-      ".....w......",
       "............",
       "............",
     ],
@@ -539,6 +543,24 @@ const ICONS: Record<IconName, IconDef> = {
       "............",
     ],
     palette: { w: "#fdf3e0", l: "#c9b896" },
+  },
+  fist: {
+    // the RPS countdown pump — a fist, knuckles forward
+    rows: [
+      "............",
+      "............",
+      "...kkkkk....",
+      "..khhhhhk...",
+      ".khhhhhhhk..",
+      ".khkhkhkhk..",
+      ".khhhhhhhk..",
+      ".kthhhhhhk..",
+      ".kthhhhhk...",
+      "..kkkkkk....",
+      "............",
+      "............",
+    ],
+    palette: { k: K, h: "#f0c896", t: "#d9a86f" },
   },
   scissors: {
     rows: [

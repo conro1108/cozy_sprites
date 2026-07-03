@@ -123,6 +123,21 @@ function stageOverlay(ctx: MenuCtx): { el: HTMLDivElement; close: () => void } {
   return { el, close: () => el.remove() };
 }
 
+/** Small dismiss button for in-scene game loops ("that's enough for now"). */
+function doneButton(onClick: () => void): HTMLButtonElement {
+  const b = document.createElement("button");
+  b.className = "btn secondary btn-small";
+  b.textContent = "Done";
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+/** Whether an in-scene game can immediately offer another round. */
+function canReplay(ctx: MenuCtx): boolean {
+  const p = ctx.pet();
+  return p.deadAt === null && p.stage !== "egg" && !p.asleep;
+}
+
 // --- Food -------------------------------------------------------------------
 const FOOD_ICONS: Record<FoodId, IconName> = {
   burger: "burger",
@@ -187,9 +202,8 @@ function startGame(ctx: MenuCtx, p: Panel, game: GameId): void {
       hideSeek(ctx);
       break;
     case "wouldyou":
-      p.body.innerHTML = "";
-      p.setTitle("Would You Rather", "There are no right answers.");
-      wouldYou(ctx, p);
+      p.close();
+      wouldYou(ctx);
       break;
   }
 }
@@ -251,6 +265,7 @@ function higherLower(ctx: MenuCtx, p: Panel): void {
 }
 
 // In-scene game: throw meter over the stage, animation in the scene.
+// Loops: after each throw plays out, the meter comes right back.
 function fetchGame(ctx: MenuCtx): void {
   const { el, close } = stageOverlay(ctx);
   const track = document.createElement("div");
@@ -280,31 +295,36 @@ function fetchGame(ctx: MenuCtx): void {
     raf = requestAnimationFrame(animate);
   };
   raf = requestAnimationFrame(animate);
+  const dismiss = () => {
+    cancelAnimationFrame(raf);
+    close();
+  };
 
   btn.addEventListener("click", () => {
-    cancelAnimationFrame(raf);
-    const res = resolveFetch(pos);
-    close();
+    const res = resolveFetch(pos, undefined, ctx.pet().stage);
+    dismiss();
     // The whole point: you see the throw, the chase, and the (non-)return —
     // and the animation matches the variant (sock, over the fence, wrong way…).
     ctx.scene().playFetch(pos, res.variant, () => {
       ctx.finishGame("fetch", res.success, res.line);
+      if (canReplay(ctx)) fetchGame(ctx);
     });
   });
 
   const hint = document.createElement("p");
   hint.className = "stage-hint";
   hint.textContent = "Stop the marker in the green.";
-  el.append(hint, track, btn);
+  el.append(hint, track, btn, doneButton(dismiss));
 }
 
 // In-scene game: pick a move, watch the countdown play out at the sprite.
-function rps(ctx: MenuCtx): void {
+// Loops: the chooser comes straight back after each round, one tap per throw.
+function rps(ctx: MenuCtx, round = 1): void {
   const cheat = ctx.pet().form === "gremlin";
   const { el, close } = stageOverlay(ctx);
   const hint = document.createElement("p");
   hint.className = "stage-hint";
-  hint.textContent = "Choose your weapon.";
+  hint.textContent = round === 1 ? "Choose your weapon." : "Again. Choose.";
   const choices = document.createElement("div");
   choices.className = "game-choices";
   const moves: { m: RpsMove; icon: IconName; label: string }[] = [
@@ -321,7 +341,7 @@ function rps(ctx: MenuCtx): void {
       const ai = rpsAiMove(m, cheat);
       const outcome = judgeRps(m, ai);
       close();
-      ctx.scene().playRps(m as IconName, ai as IconName, () => {
+      ctx.scene().playRps(m as IconName, ai as IconName, outcome, () => {
         if (outcome === "tie") {
           ctx.finishGame("rps", false, "A tie. How embarrassing for us both.");
         } else if (outcome === "win") {
@@ -329,14 +349,16 @@ function rps(ctx: MenuCtx): void {
         } else {
           ctx.finishGame("rps", false, cheat ? "I definitely cheated." : undefined);
         }
+        if (canReplay(ctx)) rps(ctx, round + 1);
       });
     });
     choices.appendChild(b);
   }
-  el.append(hint, choices);
+  el.append(hint, choices, doneButton(close));
 }
 
 // In-scene game: the sprite actually vanishes, then pops out of its spot.
+// Loops: after the reveal, one tap hides it again.
 function hideSeek(ctx: MenuCtx): void {
   const spot = pickHideSpot();
   ctx.scene().playHide(() => {
@@ -355,6 +377,7 @@ function hideSeek(ctx: MenuCtx): void {
         close();
         ctx.scene().playReveal(spot, () => {
           ctx.finishGame("hideseek", won, won ? "You found me. Unsettling." : `I was ${spot}. Amateur.`);
+          if (canReplay(ctx)) hideSeekAgain(ctx);
         });
       });
       row.appendChild(b);
@@ -363,29 +386,49 @@ function hideSeek(ctx: MenuCtx): void {
   });
 }
 
-// Panel-input game: the question needs room; the judgement comes from the pet.
-function wouldYou(ctx: MenuCtx, p: Panel): void {
-  const wrap = document.createElement("div");
-  wrap.className = "game-body";
-  p.body.appendChild(wrap);
+/** The between-rounds beat: hide again, or call it. */
+function hideSeekAgain(ctx: MenuCtx): void {
+  const { el, close } = stageOverlay(ctx);
+  const row = document.createElement("div");
+  row.className = "game-choices";
+  const again = document.createElement("button");
+  again.className = "btn btn-small";
+  again.textContent = "Hide again";
+  again.addEventListener("click", () => {
+    close();
+    hideSeek(ctx);
+  });
+  row.append(again, doneButton(close));
+  el.append(row);
+}
+
+// In-scene game: the question floats over the stage so the pet's judgement is
+// visible the moment you answer — and the next question is one tap away.
+function wouldYou(ctx: MenuCtx): void {
+  const { el, close } = stageOverlay(ctx);
   const q = randomWouldYou();
+  const hint = document.createElement("p");
+  hint.className = "stage-hint";
+  hint.textContent = "Would you rather…";
   const choices = document.createElement("div");
   choices.className = "game-choices";
-  const a = document.createElement("button");
-  a.className = "btn";
-  a.textContent = q.a;
-  const b = document.createElement("button");
-  b.className = "btn secondary";
-  b.textContent = q.b;
   const answer = (judge: string) => {
-    p.close();
+    close();
     // Not win/lose — always a small happiness bump (SPEC §11).
     ctx.finishGame("wouldyou", true, judge);
+    if (canReplay(ctx)) wouldYou(ctx);
   };
-  a.addEventListener("click", () => answer(q.judgeA));
-  b.addEventListener("click", () => answer(q.judgeB));
-  choices.append(a, b);
-  wrap.append(choices);
+  for (const [label, judge] of [
+    [q.a, q.judgeA],
+    [q.b, q.judgeB],
+  ] as const) {
+    const b = document.createElement("button");
+    b.className = "btn secondary btn-small";
+    b.textContent = label;
+    b.addEventListener("click", () => answer(judge));
+    choices.appendChild(b);
+  }
+  el.append(hint, choices, doneButton(close));
 }
 
 // --- Care -------------------------------------------------------------------

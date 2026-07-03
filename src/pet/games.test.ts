@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   judgeHigherLower,
   judgeRps,
+  randomWouldYou,
   resolveFetch,
   rpsAiMove,
 } from "./games";
@@ -53,5 +54,30 @@ describe("resolveFetch", () => {
     const r = resolveFetch(0.05, () => 0);
     expect(["wrongway", "overfence", "sock", "distracted"]).toContain(r.variant);
     expect(r.line.length).toBeGreaterThan(0);
+  });
+  it("babies fumble even a perfect throw", () => {
+    expect(resolveFetch(0.6, () => 0, "baby").success).toBe(false);
+    expect(resolveFetch(0.6, () => 0, "adult").success).toBe(true);
+  });
+  it("rarely returns the cube instead, and it always counts", () => {
+    const r = resolveFetch(0.05, () => 0.95); // terrible throw, cube anyway
+    expect(r.variant).toBe("cube");
+    expect(r.success).toBe(true);
+    expect(r.line.length).toBeGreaterThan(0);
+  });
+});
+
+describe("randomWouldYou", () => {
+  it("has a deep bank of well-formed questions", () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 200; i++) {
+      const q = randomWouldYou(() => i / 200);
+      expect(q.a.length).toBeGreaterThan(0);
+      expect(q.b.length).toBeGreaterThan(0);
+      expect(q.judgeA.length).toBeGreaterThan(0);
+      expect(q.judgeB.length).toBeGreaterThan(0);
+      seen.add(q.a);
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(24);
   });
 });

@@ -21,6 +21,7 @@ export type Category =
   | "medicine"
   | "dose" // first plague shot: cured of nothing yet
   | "clean"
+  | "clean_nothing" // sweeping a floor with nothing on it
   | "sick"
   | "win"
   | "lose"
@@ -239,6 +240,13 @@ const GENERAL: Bank = {
     "We shall never speak of it.",
     "Civilization returns.",
   ],
+  clean_nothing: [
+    "There is nothing to clean. This is about control, isn't it?",
+    "The floor was already legal. Sweeping it again is a lifestyle.",
+    "You good? You're polishing a meadow.",
+    "*watches you sweep nothing* Riveting.",
+    "Cleanliness is next to... this, apparently. Obsession.",
+  ],
   sick: [
     "I have prepared my will.",
     "A terrible development.",
@@ -447,6 +455,7 @@ const ALWAYS_SPEAK: ReadonlySet<Category> = new Set([
   "medicine",
   "dose",
   "call",
+  "clean_nothing", // the joke only lands if it actually comments
   "win",
   "lose",
   "full",
@@ -507,6 +516,68 @@ export function illnessAnnouncement(
 ): string {
   const t = ILLNESS_TEMPLATES[Math.floor(rng() * ILLNESS_TEMPLATES.length)];
   return t(name, ILLNESSES[illness].label);
+}
+
+// --- Dying dialogue ------------------------------------------------------------
+// When the end is close, the pet's chatter turns to the matter at hand — and it
+// names the circumstance. Ordered by narrative priority: illness trumps hunger
+// trumps loneliness trumps generic doom.
+const DYING_SICK = [
+  "The end is near.",
+  "Tell my story. The dramatic version.",
+  "I see a light. It is shaped like a pill.",
+  "Send... medicine... or a eulogist...",
+];
+const DYING_HUNGRY = [
+  "So... hungry...",
+  "The bowl. Remember the bowl?",
+  "I would eat the carrot. That's how bad it is.",
+  "Food... any food... even a stick...",
+];
+const DYING_LONELY = [
+  "It's so quiet...",
+  "Did we have fun once? I forget.",
+  "Play with me. One last game. Any game.",
+];
+const DYING_GENERIC = [
+  "The end is near.",
+  "I'm cold. Emotionally. Also literally.",
+  "Remember me beautifully.",
+  "This is it, isn't it. Hold my little hand.",
+];
+
+/** True when the pet should be speaking its dying dialogue. */
+export function isDying(state: PetState): boolean {
+  return state.deadAt === null && (state.health <= 15 || state.zeroHealthMs > 0);
+}
+
+export function dyingLine(
+  state: PetState,
+  rng: () => number = Math.random,
+): string {
+  const bank = state.sick
+    ? DYING_SICK
+    : state.hunger <= 0.5
+      ? DYING_HUNGRY
+      : state.happiness <= 0.5
+        ? DYING_LONELY
+        : DYING_GENERIC;
+  return bank[Math.floor(rng() * bank.length)];
+}
+
+// --- Rare idle easter eggs ------------------------------------------------------
+// Once in a while the idle chatter drops a reference for the household. Rolled
+// at low odds by the idle loop, never labeled, never repeated on demand.
+export const RARE_IDLE_CHANCE = 0.07;
+const RARE_IDLE = [
+  "I dreamt a mole screamed at me for leaving without saying goodbye.",
+  "If I'm ever sent to the farm, apparently a very loud mole takes attendance.",
+  "I tried to ford a river once. We do not discuss the oxen.",
+  "Should have caulked the wagon. Everyone says that afterward.",
+];
+
+export function rareIdleLine(rng: () => number = Math.random): string {
+  return RARE_IDLE[Math.floor(rng() * RARE_IDLE.length)];
 }
 
 // --- Farm confirmation lines — darker the younger they are -------------------

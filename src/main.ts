@@ -22,6 +22,10 @@ import {
   illnessAnnouncement,
   memorialLine,
   epitaph,
+  isDying,
+  dyingLine,
+  rareIdleLine,
+  RARE_IDLE_CHANCE,
 } from "./pet/dialogue";
 import type { Category } from "./pet/dialogue";
 import { determineAdultForm } from "./pet/evolution";
@@ -57,6 +61,7 @@ let pet: PetState | null = null;
 let farm = loadFarm();
 let scene: Scene | null = null;
 let bubbleTimer: ReturnType<typeof setTimeout> | undefined;
+let anchorRaf = 0; // rAF loop keeping bubble/attention pinned to the sprite
 let nextIdleAt = 0;
 let nextFlourishAt = 0;
 let tickHandle: ReturnType<typeof setInterval> | undefined;
@@ -98,6 +103,7 @@ function boot(): void {
 // --- Hatch screen -----------------------------------------------------------
 function mountHatch(): void {
   stopTick();
+  stopAnchorLoop();
   scene?.stop();
   scene = null;
   els = null;
@@ -128,6 +134,7 @@ function mountHatch(): void {
 function mountMemorial(): void {
   if (!pet) return;
   stopTick();
+  stopAnchorLoop();
   scene?.stop();
   scene = null;
   els = null;
@@ -212,6 +219,11 @@ function mountGame(): void {
   nav.status.addEventListener("click", () => openStatus(ctx, Date.now()));
   nav.food.addEventListener("click", () => openFood(ctx));
   nav.play.addEventListener("click", () => {
+    if (pet?.stage === "egg") {
+      // No games in the egg phase — it is busy forming.
+      say("*the egg does not play. the egg prepares.*");
+      return;
+    }
     if (!scene?.busy()) openPlay(ctx);
   });
   nav.clean.addEventListener("click", doClean);
@@ -222,6 +234,7 @@ function mountGame(): void {
   nextFlourishAt = Date.now() + rand(FLOURISH_MIN_MS, FLOURISH_MAX_MS);
   render();
   startTick();
+  startAnchorLoop();
 }
 
 // --- Rendering --------------------------------------------------------------
@@ -291,17 +304,42 @@ function stageLabel(stage: PetState["stage"]): string {
 }
 
 // --- Speech -----------------------------------------------------------------
+/** Pin the bubble and attention mark to the creature's current position. */
+function positionAnchored(): void {
+  if (!els || !scene) return;
+  const anchor = scene.creatureAnchor();
+  const stageW = els.stage.clientWidth;
+  if (els.bubble.classList.contains("visible")) {
+    // Keep the bubble on screen while still pointing at the creature.
+    const x = Math.max(stageW * 0.22, Math.min(stageW * 0.78, anchor.x));
+    els.bubble.style.left = `${x}px`;
+    els.bubble.style.top = `${Math.max(30, anchor.y)}px`;
+  }
+  if (els.attn.style.display !== "none") {
+    els.attn.style.left = `${Math.min(stageW - 24, anchor.x + 14)}px`;
+    els.attn.style.top = `${Math.max(4, anchor.y - 28)}px`;
+  }
+}
+
+/** rAF loop: the sprite wanders, so anything anchored to it must follow. */
+function startAnchorLoop(): void {
+  stopAnchorLoop();
+  const loop = () => {
+    positionAnchored();
+    anchorRaf = requestAnimationFrame(loop);
+  };
+  anchorRaf = requestAnimationFrame(loop);
+}
+function stopAnchorLoop(): void {
+  cancelAnimationFrame(anchorRaf);
+}
+
 /** Show a line in a bubble anchored just above the sprite's head. */
 function say(line: string | null): void {
   if (!line || !els || !scene) return;
-  const anchor = scene.creatureAnchor();
-  const stageW = els.stage.clientWidth;
-  // Keep the bubble on screen while still pointing at the creature.
-  const x = Math.max(stageW * 0.22, Math.min(stageW * 0.78, anchor.x));
-  els.bubble.style.left = `${x}px`;
-  els.bubble.style.top = `${anchor.y}px`;
   els.bubble.textContent = line;
   els.bubble.classList.add("visible");
+  positionAnchored();
   clearTimeout(bubbleTimer);
   bubbleTimer = setTimeout(() => els?.bubble.classList.remove("visible"), BUBBLE_MS);
 }
@@ -369,6 +407,9 @@ function doClean(): void {
   if (note === "cleaned") {
     // Sweep first, then the pet reacts to the newly-legal floor.
     scene?.playClean(() => sayCat("clean"));
+  } else if (note === "nothing" && !pet.asleep && pet.stage !== "egg") {
+    // Sweeping an already-clean meadow gets commentary.
+    sayCat("clean_nothing");
   }
   commit();
 }
@@ -549,11 +590,21 @@ function maybeIdleLine(now: number): void {
   if (!pet || pet.asleep || dying) return;
   if (now < nextIdleAt) return;
   if (scene?.busy()) return;
+  if (isDying(pet) && pet.stage !== "egg") {
+    // The end is close: the chatter turns to the matter at hand, names the
+    // circumstance, and comes more often than idle small talk.
+    say(dyingLine(pet));
+    nextIdleAt = now + rand(IDLE_MIN_MS / 3, IDLE_MAX_MS / 3);
+    return;
+  }
   if (pet.stage === "teen" && Math.random() < 0.35) {
     // "The Audition" (SPEC §4): the leaning adult personality leaks through
     // occasionally, at normal idle cadence, never labeled.
     const leaning = determineAdultForm(pet.hidden, pet.health);
     say(teenFlickerLine(leaning));
+  } else if (pet.stage !== "egg" && Math.random() < RARE_IDLE_CHANCE) {
+    // Once in a while, a line from somewhere else entirely.
+    say(rareIdleLine());
   } else if (shouldSpeak(pet, "idle")) {
     say(pickLine(pet, "idle"));
   }

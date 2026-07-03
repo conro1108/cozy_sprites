@@ -1,5 +1,7 @@
 // Mini-game logic. Kept pure and rng-injectable; the UI owns presentation.
 
+import type { Stage } from "./types";
+
 export type RpsMove = "rock" | "paper" | "scissors";
 export type Outcome = "win" | "lose" | "tie";
 
@@ -54,7 +56,8 @@ export type FetchVariant =
   | "wrongway" // sprints off in the wrong direction
   | "overfence" // the ball sails over the fence, gone
   | "sock" // comes back with… a sock
-  | "distracted"; // never even commits to the chase
+  | "distracted" // never even commits to the chase
+  | "cube"; // returns holding the cube. You threw a ball.
 
 export interface FetchResult {
   success: boolean;
@@ -62,13 +65,29 @@ export interface FetchResult {
   line: string;
 }
 
+// Young pets are simply worse at fetch — a baby mostly gets distracted, a
+// child fumbles a lot, and a teen can't be bothered to fully commit.
+const STAGE_FUMBLE: Record<Stage, number> = {
+  egg: 1, // never reachable (Play is gated), but total fumble if it were
+  baby: 0.6, // a baby cannot fetch. It can only participate.
+  child: 0.2,
+  teen: 0.05,
+  adult: 0,
+};
+
 /** power 0..1 (how close to the sweet spot the throw meter stopped). */
 export function resolveFetch(
   power: number,
   rng: () => number = Math.random,
+  stage: Stage = "adult",
 ): FetchResult {
-  // Sweet spot is the middle of the meter; edges fumble.
-  const quality = 1 - Math.abs(power - 0.6) * 2;
+  // Very rarely the ball simply… isn't what comes back. (rng>0.93 rather than
+  // <0.07 so the tests' rng:()=>0 stays on the ordinary path.)
+  if (rng() > 0.93) {
+    return { success: true, variant: "cube", line: pick(FETCH_LINES.cube, rng) };
+  }
+  // Sweet spot is the middle of the meter; edges fumble. Youth fumbles more.
+  const quality = 1 - Math.abs(power - 0.6) * 2 - STAGE_FUMBLE[stage];
   if (quality > 0.45) {
     const variant: FetchVariant = rng() < 0.22 ? "epic" : "return";
     return { success: true, variant, line: pick(FETCH_LINES[variant], rng) };
@@ -111,6 +130,12 @@ const FETCH_LINES: Record<FetchVariant, string[]> = {
     "Lay down halfway.",
     "Watched it land. Did nothing.",
     "Found a beetle instead. The beetle is furious.",
+  ],
+  cube: [
+    "This is not the ball. It is better. It is the cube.",
+    "The cube wished to be fetched. Who am I to argue.",
+    "It hummed the whole way home.",
+    "I threw a ball. It came back a cube. Do not ask me either.",
   ],
 };
 
@@ -196,6 +221,102 @@ const WOULD_YOU: WouldYou[] = [
     b: "Be mildly haunted forever",
     judgeA: "The damp option. Bold. Foul.",
     judgeB: "The corner already agreed to this on your behalf.",
+  },
+  {
+    a: "Be the moon's favorite",
+    b: "Be the sun's favorite",
+    judgeA: "The moon pays in secrets. Take it.",
+    judgeB: "Warm, but the sun favors everyone. Cheap.",
+  },
+  {
+    a: "Speak to bugs",
+    b: "Speak for bugs",
+    judgeA: "They mostly discuss crumbs. Prepare accordingly.",
+    judgeB: "A heavy office. The beetles are litigious.",
+  },
+  {
+    a: "A tiny crown",
+    b: "A tiny cape",
+    judgeA: "Heavy is the head. Adorable, though.",
+    judgeB: "Dramatic exits, unlocked. Approved.",
+  },
+  {
+    a: "Always slightly early",
+    b: "Always slightly late",
+    judgeA: "Punctual. Smug about it. I see you.",
+    judgeB: "Fashionable. Infuriating. Iconic.",
+  },
+  {
+    a: "One enormous pocket",
+    b: "Many secret pockets",
+    judgeA: "Everything in one place. Everything becomes soup.",
+    judgeB: "You will lose things you never knew you had.",
+  },
+  {
+    a: "Rain that smells like cake",
+    b: "Snow that tastes like noodles",
+    judgeA: "Sticky. Delicious. A public health incident.",
+    judgeB: "Cold soup from the sky. I would allow it.",
+  },
+  {
+    a: "Know what the cube knows",
+    b: "Forget what the cube forgot",
+    judgeA: "No. Some hums are not for us.",
+    judgeB: "Merciful. The cube forgets nothing, by the way.",
+  },
+  {
+    a: "Be famous among ducks",
+    b: "Be feared by geese",
+    judgeA: "The ducks will want autographs. Bring bread.",
+    judgeB: "To be feared by geese is to be free.",
+  },
+  {
+    a: "A door to anywhere",
+    b: "A window to anything",
+    judgeA: "Anywhere includes the wrong places. Pack snacks.",
+    judgeB: "You'd just watch the neighbors. Admit it.",
+  },
+  {
+    a: "Live one day twice",
+    b: "Skip one day entirely",
+    judgeA: "Pick a good one. Not a Monday.",
+    judgeB: "Bold of you to assume the day won't notice.",
+  },
+  {
+    a: "Everything slightly softer",
+    b: "Everything slightly bouncier",
+    judgeA: "A gentle world. Suspiciously gentle.",
+    judgeB: "Chaos, but fun chaos. The floor forgives.",
+  },
+  {
+    a: "Talk in your sleep",
+    b: "Walk in your sleep",
+    judgeA: "Your secrets, broadcast nightly. Bold.",
+    judgeB: "You'd wake up on the fence. Again.",
+  },
+  {
+    a: "A hat that judges you",
+    b: "Shoes that gossip",
+    judgeA: "It already judges. Mine says you're fine.",
+    judgeB: "They know where everyone has been. Useful.",
+  },
+  {
+    a: "Smell the future",
+    b: "Hear the past",
+    judgeA: "Tomorrow smells like rain and errands.",
+    judgeB: "Mostly arguments about soup. History is soup.",
+  },
+  {
+    a: "Every meal a feast",
+    b: "Every nap a hibernation",
+    judgeA: "Roundness beckons. Answer it.",
+    judgeB: "See you in spring. Water nothing.",
+  },
+  {
+    a: "Befriend the cube",
+    b: "Rival the cube",
+    judgeA: "It has been waiting for you to ask.",
+    judgeB: "You cannot out-hum the cube. No one can.",
   },
 ];
 
