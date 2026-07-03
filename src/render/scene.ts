@@ -1,17 +1,23 @@
 // The habitat: a cozy garden clearing drawn to a low-res buffer and scaled up
 // crisply (CSS image-rendering: pixelated). Runs its own rAF animation loop and
 // a small "act" system for scripted moments (cleaning, fetch, hide & seek,
-// rock-paper-scissors, death).
+// rock-paper-scissors, death), plus an ambient layer: the creature wanders the
+// clearing, pauses at props, idles with per-personality motion, and now and
+// then does a rare celebratory flourish.
+//
+// The buffer height adapts to the container's aspect ratio so the scene fills
+// the stage right up to the HUD and nav — no letterbox bars.
 
 import { CELL, buildCreatureCanvas } from "./sprites";
 import type { Mood } from "./sprites";
+import type { AdultForm } from "../pet/types";
 import { iconCanvas } from "./icons";
 import type { IconName } from "./icons";
+import type { FetchVariant } from "../pet/games";
 
-export const SCENE_W = 112;
-export const SCENE_H = 132;
+export const SCENE_W = 112; // fixed content width; height adapts to the stage
 
-const FLOOR_Y = 90; // horizon: sky above, grass below
+const GRASS_DEPTH = 42; // grass below the horizon (floor sits this far up)
 const CREATURE_X = 56; // resting center
 
 export interface SceneView {
@@ -21,17 +27,13 @@ export interface SceneView {
   night: boolean;
   asleep: boolean;
   lightsOn: boolean;
+  /** Teen "audition" leaning — tints the sprite with an adult-hint accent. */
+  variant?: AdultForm | null;
+  /** A discipline-worthy fake call: the pet is visibly throwing a tantrum. */
+  tantrum?: boolean;
 }
 
 type Pulse = "none" | "happy" | "shake" | "evolve" | "eat";
-
-/** Where a hide-and-seek reveal pops out, in scene coords. */
-export const HIDE_SPOT_POS: Record<string, { x: number; y: number }> = {
-  "behind the stump": { x: 16, y: FLOOR_Y + 10 },
-  "in the flowers": { x: 68, y: FLOOR_Y + 26 },
-  "behind the fence": { x: 98, y: FLOOR_Y + 6 },
-  "under the mushroom": { x: 82, y: FLOOR_Y + 16 },
-};
 
 interface Act {
   type: "clean" | "fetch" | "hide" | "reveal" | "rps" | "death";
@@ -41,6 +43,24 @@ interface Act {
   onDone?: () => void;
   finished: boolean;
 }
+
+// --- Ambient wander ----------------------------------------------------------
+type WanderPhase = "dwell" | "walk" | "interact";
+interface WanderTarget {
+  dx: number; // offset from CREATURE_X
+  prop: string | null; // a prop to react to on arrival
+}
+// Where the creature likes to potter off to. Props get a little reaction.
+const WANDER_TARGETS: WanderTarget[] = [
+  { dx: 22, prop: "mushroom" },
+  { dx: 8, prop: "flowers" },
+  { dx: -22, prop: "lantern" },
+  { dx: -14, prop: null },
+  { dx: 16, prop: null },
+  { dx: 0, prop: null },
+];
+const WALK_SPEED = 16; // px / second
+const FLOURISH_DUR = 1.7; // seconds
 
 export class Scene {
   private canvas: HTMLCanvasElement;
@@ -63,20 +83,51 @@ export class Scene {
   private hidden = false; // creature is off hiding (hide & seek)
   private curDx = 0; // creature's current x offset (for bubble anchoring)
 
+  // Adaptive sizing.
+  private sh = 132; // scene buffer height
+  private floorY = 90; // horizon within the buffer
+  private ro: ResizeObserver | null = null;
+
+  // Ambient wander state.
+  private wanderPhase: WanderPhase = "dwell";
+  private wanderX = 0;
+  private wanderTargetX = 0;
+  private wanderUntil = 0;
+  private wanderProp: string | null = null;
+  private lastFrame = 0;
+
+  // Flourish (rare easter-egg animation).
+  private flourishStart = -Infinity;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    canvas.width = SCENE_W;
-    canvas.height = SCENE_H;
     this.ctx = canvas.getContext("2d")!;
     this.ctx.imageSmoothingEnabled = false;
+    this.resize();
     this.creatureCanvas = buildCreatureCanvas("egg", "neutral");
+    // Keep the buffer aspect matched to the element so nothing letterboxes.
+    if (typeof ResizeObserver !== "undefined") {
+      this.ro = new ResizeObserver(() => this.resize());
+      this.ro.observe(canvas);
+    }
+  }
+
+  /** Match the buffer height to the element's aspect ratio (fills the stage). */
+  private resize(): void {
+    const rect = this.canvas.getBoundingClientRect();
+    const ratio = rect.width > 0 ? rect.height / rect.width : 132 / SCENE_W;
+    this.sh = Math.max(124, Math.min(240, Math.round(SCENE_W * ratio)));
+    this.floorY = this.sh - GRASS_DEPTH;
+    this.canvas.width = SCENE_W;
+    this.canvas.height = this.sh;
+    this.ctx.imageSmoothingEnabled = false;
   }
 
   update(view: SceneView): void {
     this.view = view;
-    const cacheKey = `${view.key}:${view.mood}`;
+    const cacheKey = `${view.key}:${view.mood}:${view.variant ?? ""}`;
     if (cacheKey !== this.creatureCacheKey) {
-      this.creatureCanvas = buildCreatureCanvas(view.key, view.mood);
+      this.creatureCanvas = buildCreatureCanvas(view.key, view.mood, view.variant);
       this.creatureCacheKey = cacheKey;
     }
   }
@@ -86,6 +137,22 @@ export class Scene {
     this.pulseStart = performance.now();
   }
 
+  /** A rare celebratory flourish (main fires this roughly once an hour). */
+  triggerFlourish(): void {
+    if (this.busy() || this.hidden) return;
+    // Skip while asleep, still an egg, or mid-tantrum — the tantrum animation
+    // takes priority in ambientMotion, so a flourish would just be lost.
+    if (this.view.asleep || this.view.key === "egg" || this.view.tantrum) return;
+    this.flourishStart = performance.now();
+    // Break off any wander so the flourish plays from where it stands.
+    this.wanderPhase = "dwell";
+    this.wanderUntil = performance.now() + FLOURISH_DUR * 1000 + 400;
+  }
+
+  private flourishing(): boolean {
+    return (performance.now() - this.flourishStart) / 1000 < FLOURISH_DUR;
+  }
+
   // --- Acts ------------------------------------------------------------------
   private startAct(
     type: Act["type"],
@@ -93,6 +160,12 @@ export class Scene {
     data: Record<string, unknown> = {},
     onDone?: () => void,
   ): void {
+    // Acts take the stage: reset the wander so the creature doesn't teleport.
+    this.wanderPhase = "dwell";
+    this.wanderX = 0;
+    this.wanderTargetX = 0;
+    this.wanderUntil = performance.now() + 1500;
+    this.flourishStart = -Infinity;
     this.act = { type, start: performance.now(), duration, data, onDone, finished: false };
   }
 
@@ -101,10 +174,12 @@ export class Scene {
     this.startAct("clean", 1000, {}, onDone);
   }
 
-  /** Ball arcs out (power 0..1), creature chases; success = brings it back. */
-  playFetch(power: number, success: boolean, onDone?: () => void): void {
+  /** Ball arcs out (power 0..1); the variant decides how it (doesn't) come back. */
+  playFetch(power: number, variant: FetchVariant, onDone?: () => void): void {
     const dist = 18 + power * 34;
-    this.startAct("fetch", 2400, { dist, success }, onDone);
+    const arc = 18 + Math.random() * 16; // randomized throw height
+    const lateral = (Math.random() - 0.5) * 10; // slight sideways curve
+    this.startAct("fetch", 2500, { dist, variant, arc, lateral }, onDone);
   }
 
   /** Poof — the creature vanishes to go hide. Stays hidden until reveal. */
@@ -118,7 +193,7 @@ export class Scene {
   /** Creature pops out from the actual hiding spot, then returns to center. */
   playReveal(spot: string, onDone?: () => void): void {
     this.hidden = false;
-    const pos = HIDE_SPOT_POS[spot] ?? { x: CREATURE_X, y: FLOOR_Y + 10 };
+    const pos = this.hideSpotPos(spot);
     this.startAct("reveal", 1400, { x: pos.x, y: pos.y }, onDone);
   }
 
@@ -137,17 +212,29 @@ export class Scene {
     return this.act !== null && !this.act.finished;
   }
 
+  /** Where a hide-and-seek reveal pops out, in scene coords (floor-relative). */
+  private hideSpotPos(spot: string): { x: number; y: number } {
+    const f = this.floorY;
+    const spots: Record<string, { x: number; y: number }> = {
+      "behind the stump": { x: 16, y: f + 10 },
+      "in the flowers": { x: 68, y: f + 26 },
+      "behind the fence": { x: 98, y: f + 6 },
+      "under the mushroom": { x: 82, y: f + 16 },
+    };
+    return spots[spot] ?? { x: CREATURE_X, y: f + 10 };
+  }
+
   /**
    * CSS-pixel position (relative to the canvas element) of the point just
    * above the creature's head — where speech bubbles should point.
    */
   creatureAnchor(): { x: number; y: number } {
     const rect = this.canvas.getBoundingClientRect();
-    const scale = Math.min(rect.width / SCENE_W, rect.height / SCENE_H);
+    const scale = Math.min(rect.width / SCENE_W, rect.height / this.sh);
     const ox = (rect.width - SCENE_W * scale) / 2;
-    const oy = (rect.height - SCENE_H * scale) / 2;
+    const oy = (rect.height - this.sh * scale) / 2;
     const sx = CREATURE_X + this.curDx;
-    const sy = FLOOR_Y - CELL * 3 + 16; // just above the sprite's head
+    const sy = this.floorY - CELL * 3 + 16; // just above the sprite's head
     return { x: ox + sx * scale, y: oy + sy * scale };
   }
 
@@ -161,6 +248,7 @@ export class Scene {
 
   stop(): void {
     cancelAnimationFrame(this.raf);
+    this.ro?.disconnect();
   }
 
   // --- Drawing ----------------------------------------------------------------
@@ -169,6 +257,8 @@ export class Scene {
     const t = (now - this.t0) / 1000;
     const v = this.view;
     const dark = v.night && !v.lightsOn;
+    const FLOOR_Y = this.floorY;
+    const SCENE_H = this.sh;
 
     // --- Sky ------------------------------------------------------------------
     ctx.fillStyle = dark ? "#141232" : v.night ? "#2b2552" : "#a8dcec";
@@ -274,6 +364,7 @@ export class Scene {
 
   private drawFence(dark: boolean, night: boolean): void {
     const ctx = this.ctx;
+    const FLOOR_Y = this.floorY;
     ctx.fillStyle = dark ? "#3a2f28" : night ? "#5c4a38" : "#a97b50";
     for (let x = 88; x <= 108; x += 7) {
       ctx.fillRect(x, FLOOR_Y - 8, 3, 14);
@@ -288,7 +379,7 @@ export class Scene {
   private drawStump(dark: boolean, night: boolean): void {
     const ctx = this.ctx;
     const sx = 6;
-    const sy = FLOOR_Y + 2;
+    const sy = this.floorY + 2;
     ctx.fillStyle = dark ? "#3f3128" : night ? "#5e4634" : "#8a5a3c";
     ctx.fillRect(sx, sy, 18, 12);
     ctx.fillStyle = dark ? "#4a3a30" : night ? "#6e543e" : "#a97048";
@@ -302,7 +393,7 @@ export class Scene {
   private drawLantern(t: number, dark: boolean, v: SceneView): void {
     const ctx = this.ctx;
     const lx = 32;
-    const top = FLOOR_Y - 30;
+    const top = this.floorY - 30;
     // post
     ctx.fillStyle = dark ? "#2e2620" : "#6e5138";
     ctx.fillRect(lx, top + 8, 3, 26);
@@ -327,7 +418,7 @@ export class Scene {
   private drawMushroom(dark: boolean, night: boolean): void {
     const ctx = this.ctx;
     const mx = 78;
-    const my = FLOOR_Y + 10;
+    const my = this.floorY + 10;
     // stem
     ctx.fillStyle = dark ? "#8a8478" : "#f0e6d0";
     ctx.fillRect(mx + 3, my, 4, 6);
@@ -343,13 +434,14 @@ export class Scene {
 
   private drawFlowers(t: number, dark: boolean, night: boolean): void {
     const ctx = this.ctx;
+    const H = this.sh;
     const patch: [number, number, string][] = [
-      [60, SCENE_H - 18, "#f2a0bc"],
-      [66, SCENE_H - 12, "#ffd884"],
-      [72, SCENE_H - 20, "#e88aa8"],
-      [90, SCENE_H - 16, "#f2a0bc"],
-      [24, SCENE_H - 10, "#ffd884"],
-      [10, SCENE_H - 20, "#e88aa8"],
+      [60, H - 18, "#f2a0bc"],
+      [66, H - 12, "#ffd884"],
+      [72, H - 20, "#e88aa8"],
+      [90, H - 16, "#f2a0bc"],
+      [24, H - 10, "#ffd884"],
+      [10, H - 20, "#e88aa8"],
     ];
     for (const [fx, fy, color] of patch) {
       const sway = Math.round(Math.sin(t * 1.5 + fx) * 0.6);
@@ -380,6 +472,18 @@ export class Scene {
     ctx.fillRect(Math.round(x) - 1, Math.round(y) - 2, 1, 1);
   }
 
+  /** A single sad sock — what fetch sometimes brings back instead of the ball. */
+  private drawSock(x: number, y: number): void {
+    const ctx = this.ctx;
+    const rx = Math.round(x);
+    const ry = Math.round(y);
+    ctx.fillStyle = "#e8e2d0"; // off-white knit
+    ctx.fillRect(rx - 2, ry - 4, 4, 5);
+    ctx.fillRect(rx - 2, ry + 1, 6, 3); // the foot
+    ctx.fillStyle = "#d0492f"; // a jaunty red stripe
+    ctx.fillRect(rx - 2, ry - 4, 4, 1);
+  }
+
   private drawSparkle(x: number, y: number, phase: number): void {
     const ctx = this.ctx;
     if (Math.sin(phase) < 0) return;
@@ -391,8 +495,13 @@ export class Scene {
   // --- Act orchestration -------------------------------------------------------
   private runAct(now: number, t: number): void {
     const act = this.act;
+    const FLOOR_Y = this.floorY;
     if (!act) {
-      if (!this.hidden) this.drawCreature(t, 0, 1, null);
+      // Idle: advance the ambient wander and draw the creature where it roams.
+      if (!this.hidden) {
+        this.updateWander(now);
+        this.drawCreature(t, this.wanderX, 1, null);
+      }
       return;
     }
     const p = Math.min(1, (now - act.start) / act.duration);
@@ -405,13 +514,13 @@ export class Scene {
         // broom: angled handle + bristles, sweeping wiggle
         const wiggle = Math.sin(p * Math.PI * 10) * 2;
         ctx.fillStyle = "#8a5a3c";
-        ctx.fillRect(Math.round(bx + 3), SCENE_H - 30, 2, 16);
+        ctx.fillRect(Math.round(bx + 3), this.sh - 30, 2, 16);
         ctx.fillStyle = "#e8c06a";
-        ctx.fillRect(Math.round(bx + wiggle), SCENE_H - 15, 8, 6);
+        ctx.fillRect(Math.round(bx + wiggle), this.sh - 15, 8, 6);
         for (let i = 0; i < 4; i++) {
           this.drawSparkle(
             Math.round(bx - 6 - i * 9),
-            SCENE_H - 12 - ((i * 5) % 8),
+            this.sh - 12 - ((i * 5) % 8),
             t * 6 + i,
           );
         }
@@ -419,42 +528,7 @@ export class Scene {
       }
 
       case "fetch": {
-        const dist = act.data.dist as number;
-        const success = act.data.success as boolean;
-        const targetX = CREATURE_X + dist;
-        let dx = 0;
-        let ballX: number | null = null;
-        let ballY: number | null = null;
-        if (p < 0.25) {
-          // ball flies in an arc
-          const q = p / 0.25;
-          ballX = CREATURE_X + q * dist;
-          ballY = FLOOR_Y - 6 - Math.sin(q * Math.PI) * 26;
-        } else if (p < 0.55) {
-          // creature chases
-          const q = (p - 0.25) / 0.3;
-          dx = q * (targetX - CREATURE_X);
-          ballX = targetX;
-          ballY = FLOOR_Y + 8;
-        } else if (p < 0.7) {
-          // sniffing around the ball
-          dx = targetX - CREATURE_X;
-          ballX = targetX;
-          ballY = FLOOR_Y + 8;
-        } else {
-          // return trip — with or without the ball
-          const q = (p - 0.7) / 0.3;
-          dx = (1 - q) * (targetX - CREATURE_X);
-          if (success) {
-            ballX = CREATURE_X + dx + 6;
-            ballY = FLOOR_Y + 4;
-          } else {
-            ballX = targetX;
-            ballY = FLOOR_Y + 8;
-          }
-        }
-        if (ballX !== null && ballY !== null) this.drawBall(ballX, ballY);
-        this.drawCreature(t, dx, 1, null);
+        this.drawFetch(act, p, t);
         break;
       }
 
@@ -542,13 +616,324 @@ export class Scene {
     if (p >= 1 && !act.finished) {
       act.finished = true;
       this.act = null;
+      // Settle back to center and take a beat before wandering again.
+      this.wanderX = 0;
+      this.wanderPhase = "dwell";
+      this.wanderUntil = now + 1200;
       act.onDone?.();
     }
   }
 
+  /** Fetch choreography — each variant reads distinctly (see FetchVariant). */
+  private drawFetch(act: Act, p: number, t: number): void {
+    const FLOOR_Y = this.floorY;
+    const dist = act.data.dist as number;
+    const variant = act.data.variant as FetchVariant;
+    const arc = act.data.arc as number;
+    const lateral = act.data.lateral as number;
+    const targetX = CREATURE_X + dist;
+    let dx = 0;
+    let ball: { x: number; y: number } | null = null;
+    let sock: { x: number; y: number } | null = null;
+
+    const throwArc = (q: number) => ({
+      x: CREATURE_X + q * dist + Math.sin(q * Math.PI) * lateral,
+      y: FLOOR_Y - 6 - Math.sin(q * Math.PI) * (arc + 8),
+    });
+
+    switch (variant) {
+      case "overfence": {
+        // The ball keeps climbing and sails off past the fence, gone.
+        const bx = CREATURE_X + p * (dist + 60);
+        const by = FLOOR_Y - 6 - Math.sin(Math.min(p * 1.5, 1) * Math.PI) * arc - p * 60;
+        if (by > -6) ball = { x: bx, y: by };
+        // trots out a little, then stops and watches it leave
+        dx = Math.min(p / 0.35, 1) * (dist * 0.45);
+        this.drawCreature(t, dx, 1, by > -6 ? -1 : 0);
+        break;
+      }
+
+      case "wrongway": {
+        if (p < 0.22) {
+          const a = throwArc(p / 0.22);
+          ball = a;
+          this.drawCreature(t, 0, 1, null);
+        } else {
+          // sprints off in the *opposite* direction, fully committed
+          const q = (p - 0.22) / 0.78;
+          ball = { x: targetX, y: FLOOR_Y + 8 };
+          dx = -q * 42;
+          this.drawCreature(t, dx, 1, -Math.abs(Math.sin(q * Math.PI * 6)) * 3);
+        }
+        break;
+      }
+
+      case "distracted": {
+        if (p < 0.2) {
+          const a = throwArc(p / 0.2);
+          ball = a;
+          this.drawCreature(t, 0, 1, null);
+        } else {
+          // ambles halfway, then just… stops. Sits down, even.
+          const q = (p - 0.2) / 0.8;
+          ball = { x: targetX, y: FLOOR_Y + 8 };
+          dx = Math.min(q * 2, 1) * (dist * 0.4);
+          const squash = q > 0.5 ? 1 - (q - 0.5) * 0.5 : 1;
+          this.drawCreature(t, dx, 1, null, 1, squash);
+        }
+        break;
+      }
+
+      case "sock": {
+        // Full chase, but returns with a sock instead of the ball.
+        if (p < 0.22) {
+          ball = throwArc(p / 0.22);
+        } else if (p < 0.5) {
+          const q = (p - 0.22) / 0.28;
+          dx = q * dist;
+          ball = { x: targetX, y: FLOOR_Y + 8 };
+        } else if (p < 0.66) {
+          dx = dist;
+          ball = { x: targetX, y: FLOOR_Y + 8 };
+        } else {
+          const q = (p - 0.66) / 0.34;
+          dx = (1 - q) * dist;
+          sock = { x: CREATURE_X + dx + 6, y: FLOOR_Y + 3 };
+        }
+        this.drawCreature(t, dx, 1, null);
+        break;
+      }
+
+      case "epic": {
+        // Runs out, leaps, snatches it mid-air, trots back triumphant.
+        if (p < 0.35) {
+          const q = p / 0.35;
+          const a = throwArc(q);
+          ball = a;
+          dx = q * dist;
+          this.drawCreature(t, dx, 1, -Math.abs(Math.sin(q * Math.PI * 3)) * 3);
+        } else if (p < 0.45) {
+          // the catch — a big hop up to the ball
+          const q = (p - 0.35) / 0.1;
+          const hop = Math.sin(q * Math.PI) * 12;
+          dx = dist;
+          ball = { x: targetX, y: FLOOR_Y - 6 - hop };
+          this.drawCreature(t, dx, 1, -hop);
+        } else {
+          const q = (p - 0.45) / 0.55;
+          dx = (1 - q) * dist;
+          ball = { x: CREATURE_X + dx + 5, y: FLOOR_Y + 2 };
+          this.drawCreature(t, dx, 1, -Math.abs(Math.sin(q * Math.PI * 3)) * 3);
+        }
+        break;
+      }
+
+      default: {
+        // "return": chase, sniff, bring it back.
+        if (p < 0.25) {
+          ball = throwArc(p / 0.25);
+        } else if (p < 0.55) {
+          const q = (p - 0.25) / 0.3;
+          dx = q * dist;
+          ball = { x: targetX, y: FLOOR_Y + 8 };
+        } else if (p < 0.7) {
+          dx = dist;
+          ball = { x: targetX, y: FLOOR_Y + 8 };
+        } else {
+          const q = (p - 0.7) / 0.3;
+          dx = (1 - q) * dist;
+          ball = { x: CREATURE_X + dx + 6, y: FLOOR_Y + 4 };
+        }
+        this.drawCreature(t, dx, 1, null);
+        break;
+      }
+    }
+
+    if (ball) this.drawBall(ball.x, ball.y);
+    if (sock) this.drawSock(sock.x, sock.y);
+  }
+
+  // --- Ambient wander ----------------------------------------------------------
+  /** Stroll the clearing: dwell, walk to a spot, react to a prop, repeat. */
+  private updateWander(now: number): void {
+    const dt = this.lastFrame ? Math.min(0.05, (now - this.lastFrame) / 1000) : 0;
+    this.lastFrame = now;
+    const v = this.view;
+    // Egg stays put; sleep, tantrum and flourish all suspend wandering.
+    if (v.key === "egg" || v.asleep || v.tantrum || this.flourishing()) {
+      if (v.key === "egg") this.wanderX = 0;
+      return;
+    }
+
+    switch (this.wanderPhase) {
+      case "dwell": {
+        if (now >= this.wanderUntil) {
+          const target = WANDER_TARGETS[Math.floor(Math.random() * WANDER_TARGETS.length)];
+          this.wanderTargetX = target.dx;
+          this.wanderProp = target.prop;
+          this.wanderPhase = "walk";
+        }
+        break;
+      }
+      case "walk": {
+        const step = WALK_SPEED * dt;
+        const diff = this.wanderTargetX - this.wanderX;
+        if (Math.abs(diff) <= step + 0.4) {
+          this.wanderX = this.wanderTargetX;
+          if (this.wanderProp) {
+            this.wanderPhase = "interact";
+            this.wanderUntil = now + 1200;
+          } else {
+            this.wanderPhase = "dwell";
+            this.wanderUntil = now + 3000 + Math.random() * 4000;
+          }
+        } else {
+          this.wanderX += Math.sign(diff) * step;
+        }
+        break;
+      }
+      case "interact": {
+        if (now >= this.wanderUntil) {
+          this.wanderPhase = "dwell";
+          this.wanderUntil = now + 3000 + Math.random() * 4000;
+        }
+        break;
+      }
+    }
+  }
+
   /**
-   * Draw the creature. `dxOverride` shifts it, `scaleMul` scales it (acts),
-   * `hopY` overrides bob, `alphaSquashX/Y` deform for the death pose.
+   * The ambient (non-act) motion of the creature: tantrum, flourish, walking,
+   * prop reaction, or a per-personality idle. Returns bob + deformations.
+   */
+  private ambientMotion(
+    t: number,
+    key: string,
+  ): { bob: number; dx: number; sx: number; sy: number; rot: number } {
+    const v = this.view;
+    const m = { bob: 0, dx: 0, sx: 1, sy: 1, rot: 0 };
+
+    if (v.asleep) {
+      m.bob = Math.sin(t * 1.2) * 0.8;
+      m.sy = 0.94;
+      return m;
+    }
+    if (v.tantrum) {
+      // Unmistakably throwing a fit: fast little stomps, jitter, a jerky lean.
+      m.bob = -Math.abs(Math.sin(t * 14)) * 3;
+      m.dx = Math.sin(t * 22) * 2;
+      m.sy = 1 + Math.sin(t * 14) * 0.06;
+      m.rot = Math.sin(t * 18) * 0.05;
+      return m;
+    }
+    if (this.flourishing()) return this.flourishMotion(t, key);
+    if (this.wanderPhase === "walk") {
+      // a little waddle while on the move
+      m.bob = -Math.abs(Math.sin(t * 9)) * 2.2;
+      m.rot = Math.sin(t * 9) * 0.05;
+      return m;
+    }
+    if (this.wanderPhase === "interact") {
+      // pause and lean into whatever it wandered over to
+      m.bob = Math.sin(t * 3) * 0.8 + 1;
+      m.rot = 0.05;
+      return m;
+    }
+    return this.idleMotion(t, key);
+  }
+
+  /** Per-creature idle: same clearing, very different body language. */
+  private idleMotion(
+    t: number,
+    key: string,
+  ): { bob: number; dx: number; sx: number; sy: number; rot: number } {
+    const m = { bob: 0, dx: 0, sx: 1, sy: 1, rot: 0 };
+    switch (key) {
+      case "dog":
+        m.bob = -Math.abs(Math.sin(t * 3)) * 2.6; // eager little bounces
+        break;
+      case "blob":
+        m.bob = Math.sin(t * 1.6) * 0.8;
+        m.sy = 1 + Math.sin(t * 3) * 0.05; // gelatinous wobble
+        m.sx = 1 - Math.sin(t * 3) * 0.04;
+        break;
+      case "gremlin":
+        m.bob = Math.sin(t * 2.4) * 1.4;
+        m.dx = Math.sin(t * 5.5) * 0.6; // twitchy, up to something
+        break;
+      case "scholar":
+        m.bob = Math.sin(t * 1.4) * 0.9;
+        m.rot = Math.sin(t * 0.8) * 0.03; // a contemplative nod
+        break;
+      case "office":
+        m.bob = Math.sin(t * 1.1) * 0.6;
+        m.sy = 0.98; // a permanent, weary slump
+        break;
+      case "menace":
+        m.bob = Math.sin(t * 1.0) * 0.7;
+        m.rot = Math.sin(t * 0.6) * 0.02; // haughtily still, chin up
+        break;
+      case "ghost":
+        m.bob = Math.sin(t * 1.6) * 3 - 5; // hovers off the grass
+        break;
+      case "baby":
+        m.bob = Math.sin(t * 2.6) * 1.6;
+        m.dx = Math.sin(t * 6) * 0.5; // a delighted wiggle
+        break;
+      case "child":
+        m.bob = -Math.abs(Math.sin(t * 2.2)) * 1.6; // can't stop hopping
+        break;
+      case "teen":
+        m.bob = Math.sin(t * 1.2) * 0.8;
+        m.rot = 0.04; // a practiced slouch
+        break;
+      default:
+        m.bob = Math.sin(t * 2) * 1.5;
+    }
+    return m;
+  }
+
+  /** The rare flourish — a joyful spin/hop, flavoured a little by personality. */
+  private flourishMotion(
+    t: number,
+    key: string,
+  ): { bob: number; dx: number; sx: number; sy: number; rot: number } {
+    const p = Math.min(1, (performance.now() - this.flourishStart) / (FLOURISH_DUR * 1000));
+    const env = Math.sin(p * Math.PI); // 0→1→0 over the flourish
+    const m = { bob: 0, dx: 0, sx: 1, sy: 1, rot: 0 };
+    // A double hop for everyone…
+    m.bob = -Math.abs(Math.sin(p * Math.PI * 2)) * 10 * env;
+    switch (key) {
+      case "dog":
+      case "child":
+        m.rot = p * Math.PI * 2; // an exuberant full spin
+        break;
+      case "gremlin":
+        m.dx = Math.sin(p * Math.PI * 12) * 4 * env; // a gleeful shimmy
+        m.rot = Math.sin(p * Math.PI * 6) * 0.2;
+        break;
+      case "blob":
+        m.sy = 1 + Math.sin(p * Math.PI * 3) * 0.25 * env; // big squash bounce
+        m.sx = 1 - Math.sin(p * Math.PI * 3) * 0.18 * env;
+        break;
+      case "ghost":
+        m.dx = Math.sin(p * Math.PI * 2) * 8; // a slow spectral loop
+        m.bob = -env * 14 + Math.sin(t * 3) * 2;
+        break;
+      case "menace":
+      case "office":
+        m.rot = Math.sin(p * Math.PI * 2) * 0.25; // a dignified little sway
+        break;
+      default:
+        m.rot = p * Math.PI * 2;
+    }
+    return m;
+  }
+
+  /**
+   * Draw the creature. `dxAct` shifts it, `scaleMul` scales it (acts),
+   * `hopY` overrides bob, `deathSquashX/Y` deform for the death pose.
+   * When idle (no act, no hop override) the ambient motion layer drives it.
    */
   private drawCreature(
     t: number,
@@ -563,6 +948,7 @@ export class Scene {
     const scale = 3 * scaleMul;
     const cw = CELL * scale;
     const isGhost = v.key === "ghost";
+    const ambient = this.act === null && hopY === null;
 
     // Idle bob + pulse-driven transforms.
     let bob = hopY !== null ? hopY : Math.sin(t * 2) * 1.5;
@@ -571,12 +957,22 @@ export class Scene {
     let dx = dxAct;
     let rot = 0;
 
-    if (v.asleep) {
-      bob = Math.sin(t * 1.2) * 0.8;
-      squashY = 0.94;
-    }
-    if (isGhost) {
-      bob = Math.sin(t * 1.6) * 3 - 5; // hovers above the grass
+    if (ambient) {
+      const m = this.ambientMotion(t, v.key);
+      bob = m.bob;
+      dx += m.dx;
+      squashX *= m.sx;
+      squashY *= m.sy;
+      rot += m.rot;
+    } else {
+      // Act context: keep the old gentle defaults.
+      if (v.asleep) {
+        bob = Math.sin(t * 1.2) * 0.8;
+        squashY = 0.94;
+      }
+      if (isGhost && hopY === null) {
+        bob = Math.sin(t * 1.6) * 3 - 5;
+      }
     }
 
     const pdt = (performance.now() - this.pulseStart) / 1000;
@@ -591,7 +987,7 @@ export class Scene {
         rot = Math.sin(p * Math.PI * 6) * 0.15;
         squashX *= 1 + Math.sin(p * Math.PI * 4) * 0.1;
       }
-    } else if (v.key === "egg") {
+    } else if (v.key === "egg" && ambient) {
       // Egg rocks periodically.
       rot = Math.sin(t * 1.5) * 0.06;
     }
@@ -603,12 +999,12 @@ export class Scene {
     const shW = cw * (isGhost ? 0.5 : 0.7);
     ctx.fillRect(
       Math.round(CREATURE_X + dx - shW / 2),
-      FLOOR_Y + 6,
+      this.floorY + 6,
       Math.round(shW),
       3,
     );
 
-    const baseY = FLOOR_Y - cw + 12;
+    const baseY = this.floorY - cw + 12;
     ctx.save();
     const cx = CREATURE_X + dx;
     const cy = baseY + cw / 2 + bob;

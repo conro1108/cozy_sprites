@@ -249,21 +249,23 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, b: "#e07a4a", w: "#fbe6b6" },
   },
   cube: {
+    // An actual isometric cube: a diamond top face over a darker left face and
+    // a mid-tone right face, split by the front vertical edge down the middle.
     rows: [
       "............",
-      "...kkkkkk...",
-      "..kccccck...",
-      ".kccccwck...",
-      ".kccccccck..",
-      ".kcwcccccck.",
-      ".kccccccck..",
-      ".kccccwcck..",
-      "..kcccccck..",
-      "...kkkkkk...",
-      "............",
-      "............",
+      ".....kk.....",
+      "....kTTk....",
+      "..kkTTTTkk..",
+      ".kTTTTTTTTk.",
+      "kTTTTTTTTTTk",
+      "kLLLLLRRRRRk",
+      "kLLLLLRRRRRk",
+      ".kLLLLRRRRk.",
+      "..kLLLRRRk..",
+      "...kLLRRk...",
+      "....kkkk....",
     ],
-    palette: { k: "#5b88a0", c: "#a8dcec", w: "#e8fbff" },
+    palette: { k: "#5b88a0", T: "#d6f2fa", L: "#6fb8cc", R: "#a3ddec" },
   },
   dice: {
     rows: [

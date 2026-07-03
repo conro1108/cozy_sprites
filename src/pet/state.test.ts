@@ -184,6 +184,20 @@ describe("illness", () => {
     expect(rollIllness(() => 0.95)).toBe("plague");
     expect(rollIllness(() => 0.0)).toBe("sniffles");
   });
+
+  it("keeps the sniffles the most common ailment", () => {
+    // Sweep the whole [0,1) roll space; sniffles must win the largest slice.
+    const counts: Record<string, number> = {};
+    for (let i = 0; i < 1000; i++) {
+      const id = rollIllness(() => i / 1000);
+      counts[id] = (counts[id] ?? 0) + 1;
+    }
+    const ranked = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    expect(ranked[0][0]).toBe("sniffles");
+    // The exotic ones sit in the rare tail, rarer than the sniffles.
+    expect(counts["trimethylaminuria"] ?? 0).toBeLessThan(counts["sniffles"]);
+    expect(counts["plague"] ?? 0).toBeLessThan(counts["sniffles"]);
+  });
 });
 
 describe("death", () => {

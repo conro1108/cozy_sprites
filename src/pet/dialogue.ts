@@ -458,22 +458,25 @@ const ALWAYS_SPEAK: ReadonlySet<Category> = new Set([
   "farm",
 ]);
 
+// Tuned down from the first pass — routine chatter was landing too often and
+// crowding out the moments that matter. Important feedback still always speaks
+// (see ALWAYS_SPEAK); these only govern incidental idle/tap/feed lines.
 const STAGE_CHATTINESS: Record<Stage, number> = {
-  egg: 0.4,
-  baby: 0.5,
-  child: 0.7, // chatty kid
-  teen: 0.35, // won't talk to you
-  adult: 0.55, // overridden per form below
+  egg: 0.28,
+  baby: 0.36,
+  child: 0.5, // still the chatty kid, relatively
+  teen: 0.22, // won't talk to you
+  adult: 0.38, // overridden per form below
 };
 
 const FORM_CHATTINESS: Record<AdultForm, number> = {
-  dog: 0.9,
-  blob: 0.75,
-  gremlin: 0.65,
-  scholar: 0.6,
-  office: 0.4,
-  menace: 0.55,
-  ghost: 0.25,
+  dog: 0.62,
+  blob: 0.5,
+  gremlin: 0.45,
+  scholar: 0.4,
+  office: 0.28,
+  menace: 0.4,
+  ghost: 0.18,
 };
 
 export function speakChance(state: PetState, category: Category): number {

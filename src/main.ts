@@ -43,8 +43,12 @@ import { initMenus, openCare, openFood, openPlay, openStatus } from "./ui/menus"
 
 const TICK_MS = 3_000;
 const BUBBLE_MS = 4_000;
-const IDLE_MIN_MS = 45_000; // demo cadence (SPEC §8 wants 10–20 min in prod)
-const IDLE_MAX_MS = 90_000;
+const IDLE_MIN_MS = 90_000; // demo cadence (SPEC §8 wants 10–20 min in prod)
+const IDLE_MAX_MS = 180_000;
+// The rare "easter egg" flourish. Demo-paced so it's actually discoverable;
+// production wants something closer to once an hour.
+const FLOURISH_MIN_MS = 5 * 60_000;
+const FLOURISH_MAX_MS = 10 * 60_000;
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 getDeviceId(); // ensure anonymous device identity exists (SPEC §6)
@@ -54,6 +58,7 @@ let farm = loadFarm();
 let scene: Scene | null = null;
 let bubbleTimer: ReturnType<typeof setTimeout> | undefined;
 let nextIdleAt = 0;
+let nextFlourishAt = 0;
 let tickHandle: ReturnType<typeof setInterval> | undefined;
 let dying = false; // death act in progress — input paused
 
@@ -214,6 +219,7 @@ function mountGame(): void {
   nav.light.addEventListener("click", doLight);
 
   nextIdleAt = Date.now() + rand(IDLE_MIN_MS, IDLE_MAX_MS);
+  nextFlourishAt = Date.now() + rand(FLOURISH_MIN_MS, FLOURISH_MAX_MS);
   render();
   startTick();
 }
@@ -230,6 +236,13 @@ function render(): void {
   els.sick.style.display = pet.sick ? "flex" : "none";
   els.attn.style.display = pet.wantsAttention && !dying ? "block" : "none";
 
+  // Teens leak a hint of the adult they're becoming; a fake call reads as a
+  // visible tantrum (see scene). The leaning is computed deterministically so
+  // the accent doesn't flicker between tied candidates frame to frame.
+  const variant =
+    pet.stage === "teen" ? determineAdultForm(pet.hidden, pet.health, () => 0) : null;
+  const tantrum = pet.wantsAttention && pet.fakeCall && !dying;
+
   // Nav alert cues (never reveals hidden state — just surfaces visible needs).
   toggleAlert(els.nav.food, pet.hunger <= 1);
   toggleAlert(els.nav.play, pet.happiness <= 1);
@@ -244,6 +257,8 @@ function render(): void {
     night: isNight(now),
     asleep: pet.asleep,
     lightsOn: pet.lightsOn,
+    variant,
+    tantrum,
   });
 }
 
@@ -501,7 +516,17 @@ function tick(): void {
   if (!pet || dying) return;
   const now = Date.now();
   if (!stepPet(now, true)) maybeIdleLine(now);
+  maybeFlourish(now);
   commit();
+}
+
+/** Fire the rare celebratory flourish when its timer comes due. */
+function maybeFlourish(now: number): void {
+  if (!pet || pet.asleep || dying || pet.stage === "egg") return;
+  if (now < nextFlourishAt) return;
+  if (scene?.busy()) return;
+  scene?.triggerFlourish();
+  nextFlourishAt = now + rand(FLOURISH_MIN_MS, FLOURISH_MAX_MS);
 }
 
 function handleStageChange(from: PetState["stage"], to: PetState["stage"]): void {

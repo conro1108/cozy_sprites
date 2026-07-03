@@ -425,14 +425,19 @@ export function stepEvents(
   return { state: s, events };
 }
 
-/** Weighted illness pick — mundane ailments common, the plague rare. */
+/**
+ * Weighted illness pick — the everyday sniffles are common; dysentery, the
+ * plague, and the truly exotic trimethylaminuria are rare. Plague stays last so
+ * the far tail of the roll still lands on it (see state.test).
+ */
 export function rollIllness(rng: () => number = Math.random): IllnessId {
   const table: [IllnessId, number][] = [
-    ["sniffles", 0.3],
-    ["dysentery", 0.25],
-    ["goblinflu", 0.2],
-    ["vapors", 0.15],
-    ["plague", 0.1],
+    ["sniffles", 0.4],
+    ["dysentery", 0.2],
+    ["goblinflu", 0.15],
+    ["vapors", 0.12],
+    ["trimethylaminuria", 0.04],
+    ["plague", 0.09],
   ];
   let r = rng();
   for (const [id, w] of table) {

@@ -285,8 +285,9 @@ function fetchGame(ctx: MenuCtx): void {
     cancelAnimationFrame(raf);
     const res = resolveFetch(pos);
     close();
-    // The whole point: you see the throw, the chase, and the (non-)return.
-    ctx.scene().playFetch(pos, res.success, () => {
+    // The whole point: you see the throw, the chase, and the (non-)return —
+    // and the animation matches the variant (sock, over the fence, wrong way…).
+    ctx.scene().playFetch(pos, res.variant, () => {
       ctx.finishGame("fetch", res.success, res.line);
     });
   });
@@ -395,12 +396,9 @@ export function openCare(ctx: MenuCtx): void {
   const med = document.createElement("button");
   med.className = "btn btn-iconed";
   med.appendChild(iconEl("pill", 20));
-  const medLabel = pet.sick
-    ? pet.illness
-      ? `Give Medicine (${ILLNESSES[pet.illness].label})`
-      : "Give Medicine"
-    : "Give Medicine (not sick)";
-  med.appendChild(document.createTextNode(medLabel));
+  // Like the Food button, the label never advertises the pet's condition —
+  // reading whether it's actually sick is part of the game.
+  med.appendChild(document.createTextNode("Give Medicine"));
   med.addEventListener("click", () => {
     ctx.medicine();
     p.close();

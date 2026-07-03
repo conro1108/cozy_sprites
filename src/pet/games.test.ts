@@ -44,4 +44,14 @@ describe("resolveFetch", () => {
   it("fails at the edges", () => {
     expect(resolveFetch(0.05, () => 0).success).toBe(false);
   });
+  it("tags a success with a success variant and a matching line", () => {
+    const r = resolveFetch(0.6, () => 0);
+    expect(["return", "epic"]).toContain(r.variant);
+    expect(r.line.length).toBeGreaterThan(0);
+  });
+  it("tags a failure with one of the fumble variants", () => {
+    const r = resolveFetch(0.05, () => 0);
+    expect(["wrongway", "overfence", "sock", "distracted"]).toContain(r.variant);
+    expect(r.line.length).toBeGreaterThan(0);
+  });
 });

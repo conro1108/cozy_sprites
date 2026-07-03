@@ -180,7 +180,10 @@ body {
 #scene {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  /* Fill the whole stage right up to the HUD and nav — no letterbox bars.
+     The scene is composed with its subject centered and the sky/grass safe to
+     bleed off-frame, so cover reads as a window into a larger clearing. */
+  object-fit: cover;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   cursor: pointer;

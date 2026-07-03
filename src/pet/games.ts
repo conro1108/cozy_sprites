@@ -44,8 +44,21 @@ export function judgeHigherLower(
 }
 
 // --- Fetch ------------------------------------------------------------------
+/**
+ * How the fetch plays out on screen. Each variant has its own animation in the
+ * scene and its own set of lines, so the words always match what you just saw.
+ */
+export type FetchVariant =
+  | "return" // trots the ball back
+  | "epic" // a heroic mid-air catch
+  | "wrongway" // sprints off in the wrong direction
+  | "overfence" // the ball sails over the fence, gone
+  | "sock" // comes back with… a sock
+  | "distracted"; // never even commits to the chase
+
 export interface FetchResult {
   success: boolean;
+  variant: FetchVariant;
   line: string;
 }
 
@@ -57,31 +70,49 @@ export function resolveFetch(
   // Sweet spot is the middle of the meter; edges fumble.
   const quality = 1 - Math.abs(power - 0.6) * 2;
   if (quality > 0.45) {
-    return { success: true, line: pick(FETCH_GOOD, rng) };
+    const variant: FetchVariant = rng() < 0.22 ? "epic" : "return";
+    return { success: true, variant, line: pick(FETCH_LINES[variant], rng) };
   }
-  return { success: false, line: pick(FETCH_BAD, rng) };
+  const fails: FetchVariant[] = ["wrongway", "overfence", "sock", "distracted"];
+  const variant = fails[Math.floor(rng() * fails.length)];
+  return { success: false, variant, line: pick(FETCH_LINES[variant], rng) };
 }
 
-const FETCH_GOOD = [
-  "Retrieved it. Flawless.",
-  "Got it!",
-  "Perfect return.",
-  "That one felt personal.",
-  "Caught it on the first bounce. Legend.",
-  "It never stood a chance.",
-  "Delivered. Slightly damp. You're welcome.",
-];
-const FETCH_BAD = [
-  "Ran straight past it.",
-  "Brought back a sock.",
-  "Refuses to give it back.",
-  "Lay down halfway.",
-  "Ate it, then spat it out.",
-  "Brought back the wrong object entirely.",
-  "Got distracted by a superior smell.",
-  "Watched it land. Did nothing.",
-  "Brought back a beetle. The beetle is furious.",
-];
+const FETCH_LINES: Record<FetchVariant, string[]> = {
+  return: [
+    "Retrieved it. Flawless.",
+    "Got it!",
+    "Perfect return.",
+    "That one felt personal.",
+    "Delivered. Slightly damp. You're welcome.",
+  ],
+  epic: [
+    "Caught it on the first bounce. Legend.",
+    "Snatched it out of the air. Unreal.",
+    "It never stood a chance.",
+  ],
+  wrongway: [
+    "Ran straight past it.",
+    "Went the wrong way. Fully committed.",
+    "Sprinted confidently away from the ball.",
+  ],
+  overfence: [
+    "The ball has emigrated.",
+    "Watched it sail over the fence. Waved.",
+    "It's the neighbour's ball now.",
+  ],
+  sock: [
+    "Brought back a sock.",
+    "Brought back the wrong object entirely.",
+    "Returned with one damp sock. Whose?",
+  ],
+  distracted: [
+    "Got distracted by a superior smell.",
+    "Lay down halfway.",
+    "Watched it land. Did nothing.",
+    "Found a beetle instead. The beetle is furious.",
+  ],
+};
 
 // --- Hide and Seek ----------------------------------------------------------
 export const HIDE_SPOTS = ["behind the stump", "in the flowers", "behind the fence", "under the mushroom"] as const;

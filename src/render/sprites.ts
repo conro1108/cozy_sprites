@@ -157,9 +157,9 @@ const BABY: BodyDef = {
 const CHILD: BodyDef = {
   rows: [
     "................",
-    "................",
-    ".......k........",
-    "......kLk.......",
+    ".......L........",
+    "......LGL.......",
+    ".......G........",
     ".....kkkkk......",
     "....kBBBBBk.....",
     "...kBBBBBBBk....",
@@ -173,7 +173,9 @@ const CHILD: BodyDef = {
     "................",
     "................",
   ],
-  extra: { L: "#7fc45e" }, // a little sprout — still growing
+  // A proper little leafy sprout (two leaves + a bud on a green stem), not the
+  // old one-pixel nub that read as a hat.
+  extra: { L: "#8fd06a", G: "#5fa347" },
   fill: "#ffcf70",
   shade: "#e8a94a",
   face: "small",
@@ -462,6 +464,94 @@ const BODIES: Record<string, BodyDef> = {
   ghost: GHOST,
 };
 
+// --- Teen "audition" accents --------------------------------------------------
+// A teen is still figuring out what it'll become. When it's leaning toward an
+// adult form, a small tell leaks through — a crown nub, glasses, floppy ears —
+// a slight clue to the eventual look, never a spoiler. Blitted over the teen
+// body+face (see renderPixels). Full-frame 16-wide grids like standard overlays.
+type Accent = { rows: string[]; palette: Palette };
+
+const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
+  dog: {
+    rows: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "..DD.....DD.....",
+      "..DD.....DD.....",
+      "...D.....D......",
+    ],
+    palette: { D: "#a9702f" }, // floppy ears starting to droop
+  },
+  gremlin: {
+    rows: [
+      "....G...G.......",
+      "....G...G.......",
+      "...GG...GG......",
+    ],
+    palette: { G: "#4c8f3c" }, // ears going pointy
+  },
+  scholar: {
+    rows: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "....www.www.....",
+      "....wew.wew.....",
+      "....www.www.....",
+    ],
+    palette: { w: "#dbe7ff", e: EYE }, // studious little glasses
+  },
+  menace: {
+    rows: [
+      "....y.y.y.......",
+      "....yyyyy.......",
+    ],
+    palette: { y: "#f5d572" }, // a crown, obviously
+  },
+  office: {
+    rows: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "......T.........",
+      ".....TTT........",
+      "......T.........",
+    ],
+    palette: { T: "#6f6a80" }, // the tie forms early
+  },
+  blob: {
+    rows: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      ".........d......",
+      ".........d......",
+    ],
+    palette: { d: "#79c7d4" }, // a single dramatic tear
+  },
+  ghost: {
+    rows: [
+      ".......w.w......",
+      "........w.......",
+    ],
+    palette: { w: "#dce8f4" }, // a faint wisp, already half-elsewhere
+  },
+};
+
 // The egg (its own art + palette).
 export const EGG_SPRITE = [
   "................",
@@ -537,7 +627,11 @@ function blit(
  * Composite a creature into a DOM-free RGBA pixel buffer: body + mood face +
  * overlay accessory. Kept pure so it can be rendered off-screen or in tests.
  */
-export function renderPixels(key: string, mood: Mood): PixelBuffer {
+export function renderPixels(
+  key: string,
+  mood: Mood,
+  variant?: AdultForm | null,
+): PixelBuffer {
   const buf: PixelBuffer = { w: CELL, h: CELL, data: new Uint8ClampedArray(CELL * CELL * 4) };
   if (key === "egg") {
     blit(buf, EGG_SPRITE, EGG_PALETTE);
@@ -560,6 +654,11 @@ export function renderPixels(key: string, mood: Mood): PixelBuffer {
       isSmallOverlay ? body.faceDy + 3 : 0,
     );
   }
+  // Teen audition tell — a slight hint at the adult it's leaning toward.
+  if (key === "teen" && variant) {
+    const accent = TEEN_ACCENTS[variant];
+    if (accent) blit(buf, accent.rows, accent.palette);
+  }
   return buf;
 }
 
@@ -574,12 +673,16 @@ export function creatureKey(stage: Stage, form: AdultForm | null): string {
  * Composite a creature onto a fresh 16×16 canvas: body + mood face + accessory.
  * Returns the canvas so the scene can cache and blit it scaled.
  */
-export function buildCreatureCanvas(key: string, mood: Mood): HTMLCanvasElement {
+export function buildCreatureCanvas(
+  key: string,
+  mood: Mood,
+  variant?: AdultForm | null,
+): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = CELL;
   canvas.height = CELL;
   const ctx = canvas.getContext("2d")!;
-  const buf = renderPixels(key, mood);
+  const buf = renderPixels(key, mood, variant);
   const imgData = ctx.createImageData(buf.w, buf.h);
   imgData.data.set(buf.data);
   ctx.putImageData(imgData, 0, 0);

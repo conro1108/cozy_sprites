@@ -24,6 +24,7 @@ export type IllnessId =
   | "dysentery"
   | "goblinflu"
   | "vapors"
+  | "trimethylaminuria"
   | "plague";
 
 export interface IllnessDef {
@@ -39,6 +40,7 @@ export const ILLNESSES: Record<IllnessId, IllnessDef> = {
   dysentery: { id: "dysentery", label: "dysentery", doses: 1 },
   goblinflu: { id: "goblinflu", label: "goblin flu", doses: 1 },
   vapors: { id: "vapors", label: "the vapors", doses: 1 },
+  trimethylaminuria: { id: "trimethylaminuria", label: "trimethylaminuria", doses: 1 },
   plague: { id: "plague", label: "the plague", doses: 2 },
 };
 
