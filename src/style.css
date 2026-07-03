@@ -17,6 +17,16 @@
   box-sizing: border-box;
 }
 
+/* Form controls don't inherit font-family from body by default — without
+   this every button/input falls back to the OS system font instead of the
+   monospace stack. */
+button,
+input,
+textarea,
+select {
+  font-family: inherit;
+}
+
 html,
 body {
   margin: 0;
