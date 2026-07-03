@@ -283,6 +283,9 @@ function fetchGame(ctx: MenuCtx): void {
   let dir = 1;
   let raf = 0;
   const animate = () => {
+    // The overlay can be torn out from under us (death act, save restore) —
+    // don't keep a zombie rAF loop mutating a detached node.
+    if (!el.isConnected) return;
     pos += dir * 0.018;
     if (pos >= 1) {
       pos = 1;

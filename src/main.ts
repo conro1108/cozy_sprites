@@ -224,7 +224,8 @@ function mountGame(): void {
       say("*the egg does not play. the egg prepares.*");
       return;
     }
-    if (!scene?.busy()) openPlay(ctx);
+    // Don't open the picker over a running act or a live in-scene game.
+    if (!scene?.busy() && !app.querySelector(".stage-controls")) openPlay(ctx);
   });
   nav.clean.addEventListener("click", doClean);
   nav.care.addEventListener("click", () => openCare(ctx));
@@ -455,7 +456,7 @@ function doLight(): void {
 }
 
 function doFinishGame(game: GameId, won: boolean, line?: string): void {
-  if (!pet) return;
+  if (!pet || dying) return;
   // Would You Rather is never win/lose — only a slight bump (SPEC §11).
   pet = applyGameResult(pet, game, game === "wouldyou" ? false : won, Date.now());
   if (line) say(line);
@@ -472,6 +473,12 @@ function doSendToFarm(): void {
 }
 
 function commit(): void {
+  // Death can be set by any action (feed/clean/tap/games all apply elapsed
+  // decay), not just the tick — catch it here so the death act always plays.
+  if (pet && pet.deadAt !== null && !dying) {
+    beginDeath();
+    return;
+  }
   if (pet) savePet(pet);
   render();
 }
@@ -546,6 +553,8 @@ function beginDeath(): void {
   notify("dire", "Cozy Sprites", memorialLine(pet.name, pet.causeOfDeath));
   clearTimeout(bubbleTimer);
   els?.bubble.classList.remove("visible");
+  // Any in-scene game controls die with their player.
+  app.querySelectorAll(".stage-controls").forEach((el) => el.remove());
   if (scene) {
     scene.playDeath(() => mountMemorial());
   } else {

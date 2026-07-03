@@ -246,14 +246,16 @@ export class Scene {
     return this.act !== null && !this.act.finished;
   }
 
-  /** Where a hide-and-seek reveal pops out, in scene coords (floor-relative). */
+  /** Where a hide-and-seek reveal pops out, in scene coords (floor-relative).
+   *  Depths sit just behind each spot's prop sort anchor, so "behind the
+   *  fence" genuinely pops out *behind* the fence. */
   private hideSpotPos(spot: string): { x: number; y: number } {
     const f = this.floorY;
     const spots: Record<string, { x: number; y: number }> = {
       "behind the stump": { x: 16, y: f + 10 },
       "in the flowers": { x: 68, y: f + 26 },
-      "behind the fence": { x: 98, y: f + 6 },
-      "under the mushroom": { x: 82, y: f + 16 },
+      "behind the fence": { x: 98, y: f + 2 },
+      "under the mushroom": { x: 82, y: f + 14 },
     };
     return spots[spot] ?? { x: CREATURE_X, y: f + 10 };
   }
@@ -264,7 +266,10 @@ export class Scene {
    */
   creatureAnchor(): { x: number; y: number } {
     const rect = this.canvas.getBoundingClientRect();
-    const scale = Math.min(rect.width / SCENE_W, rect.height / this.sh);
+    // The canvas is displayed with object-fit: cover, so mirror cover math
+    // (max, with negative crop offsets) — contain math drifts whenever the
+    // buffer-height clamp in resize() keeps the aspect from matching exactly.
+    const scale = Math.max(rect.width / SCENE_W, rect.height / this.sh);
     const ox = (rect.width - SCENE_W * scale) / 2;
     const oy = (rect.height - this.sh * scale) / 2;
     const cw = CELL * 3 * this.depthScale(this.curDy);
