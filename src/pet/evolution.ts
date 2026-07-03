@@ -4,24 +4,35 @@
 
 import type { AdultForm, GameId, HiddenStats } from "./types";
 
-function mostPlayed(plays: Record<GameId, number>): { game: GameId; count: number } {
+/**
+ * The pet's favourite game — but only if it's *uniquely* most-played. Playing
+ * everything equally is not an enthusiasm, and must not silently count as one
+ * (it used to resolve to whichever game iterated first, biasing evolution).
+ */
+function mostPlayed(
+  plays: Record<GameId, number>,
+): { game: GameId; count: number; unique: boolean } {
   let best: GameId = "fetch";
   let count = -1;
+  let runnerUp = -1;
   (Object.keys(plays) as GameId[]).forEach((g) => {
     if (plays[g] > count) {
+      runnerUp = count;
       count = plays[g];
       best = g;
+    } else if (plays[g] > runnerUp) {
+      runnerUp = plays[g];
     }
   });
-  return { game: best, count };
+  return { game: best, count, unique: count > runnerUp };
 }
 
 export function scoreForms(
   hidden: HiddenStats,
   health: number,
 ): Record<AdultForm, number> {
-  const { game: topGame, count: topCount } = mostPlayed(hidden.gamePlays);
-  const hasTopGame = topCount > 0;
+  const { game: topGame, count: topCount, unique } = mostPlayed(hidden.gamePlays);
+  const hasTopGame = topCount > 0 && unique;
   const mistakes = hidden.careMistakes;
   const wellCared = mistakes < 3 && health > 60;
 
@@ -34,6 +45,7 @@ export function scoreForms(
     scholar: 0,
     office: 2, // baseline: the default when nothing dominates
     menace: 0,
+    ghost: 0,
   };
 
   // Loyal Dog Thing — fetch enthusiast, well cared for.
@@ -70,21 +82,30 @@ export function scoreForms(
   // Office gets a small nudge from a moderate, balanced cake intake.
   s.office += Math.max(0, 2 - Math.abs(hidden.cakeEaten - 2));
 
+  // Ghost (secret) — raised in the dark: care given with the lights off.
+  // Deliberately steep so it only appears when night care truly dominates.
+  s.ghost += hidden.nightCare * 0.9;
+  if (hidden.nightCare >= 8) s.ghost += 3;
+
   return s;
 }
+
+/** How close two scores must be to count as "the upbringing didn't decide". */
+const TIE_EPSILON = 0.5;
 
 export function determineAdultForm(
   hidden: HiddenStats,
   health: number,
+  rng: () => number = Math.random,
 ): AdultForm {
   const scores = scoreForms(hidden, health);
-  let best: AdultForm = "office";
-  let bestScore = -Infinity;
-  (Object.keys(scores) as AdultForm[]).forEach((f) => {
-    if (scores[f] > bestScore) {
-      bestScore = scores[f];
-      best = f;
-    }
-  });
-  return best;
+  // Sort descending so rng()=0 deterministically yields the top scorer.
+  const ranked = (Object.keys(scores) as AdultForm[]).sort(
+    (a, b) => scores[b] - scores[a],
+  );
+  // Near-ties break randomly — a raising style that didn't clearly commit
+  // shouldn't produce the identical adult on every single run.
+  const top = scores[ranked[0]];
+  const candidates = ranked.filter((f) => top - scores[f] < TIE_EPSILON);
+  return candidates[Math.floor(rng() * candidates.length)];
 }

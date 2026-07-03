@@ -1,10 +1,14 @@
 // Overlay screens: Food, Play (5 games), Care, Status, Help, Collection, Backup.
 // Pure view code — every state change goes back through the MenuCtx callbacks.
+// Games run *in the scene*: panels only collect input, then hand off to scene
+// acts, and all result text comes out of the sprite's mouth.
 
 import type { FoodId, GameId, PetState, FarmEntry, AdultForm } from "../pet/types";
+import { ILLNESSES } from "../pet/types";
 import { FOODS, FOOD_ORDER, ADULTS, ADULT_ORDER } from "../pet/roster";
 import { ageLabel } from "../pet/format";
 import { MAX_HEARTS } from "../pet/state";
+import { farmConfirmLine } from "../pet/dialogue";
 import {
   judgeHigherLower,
   judgeRps,
@@ -17,11 +21,19 @@ import {
 } from "../pet/games";
 import type { RpsMove } from "../pet/games";
 import { buildCreatureCanvas } from "../render/sprites";
+import { iconEl, iconHTML } from "../render/icons";
+import type { IconName } from "../render/icons";
+import type { Scene } from "../render/scene";
+import { getNotifyPref, setNotifyPref } from "./notifications";
+import type { NotifyPref } from "./notifications";
 
 export interface MenuCtx {
   pet(): PetState;
   farm(): FarmEntry[];
   discovered(): Set<AdultForm>;
+  scene(): Scene;
+  /** The .stage element — in-scene game controls overlay onto it. */
+  stageEl(): HTMLElement;
   feed(food: FoodId): void;
   clean(): void;
   medicine(): void;
@@ -85,17 +97,41 @@ function openPanel(title: string, sub?: string): Panel {
   };
 }
 
-function tile(icon: string, name: string, onClick: () => void, note?: string): HTMLElement {
+function tile(icon: IconName, name: string, onClick: () => void, note?: string): HTMLElement {
   const el = document.createElement("button");
   el.className = "tile";
-  el.innerHTML = `<span class="tile-ico">${icon}</span><span class="tile-name">${name}</span>${
-    note ? `<span class="tile-note">${note}</span>` : ""
-  }`;
+  el.appendChild(iconEl(icon, 32));
+  const nameEl = document.createElement("span");
+  nameEl.className = "tile-name";
+  nameEl.textContent = name;
+  el.appendChild(nameEl);
+  if (note) {
+    const noteEl = document.createElement("span");
+    noteEl.className = "tile-note";
+    noteEl.textContent = note;
+    el.appendChild(noteEl);
+  }
   el.addEventListener("click", onClick);
   return el;
 }
 
+/** Compact control strip overlaid on the stage for in-scene games. */
+function stageOverlay(ctx: MenuCtx): { el: HTMLDivElement; close: () => void } {
+  const el = document.createElement("div");
+  el.className = "stage-controls";
+  ctx.stageEl().appendChild(el);
+  return { el, close: () => el.remove() };
+}
+
 // --- Food -------------------------------------------------------------------
+const FOOD_ICONS: Record<FoodId, IconName> = {
+  burger: "burger",
+  cake: "cake",
+  carrot: "carrot",
+  noodles: "noodles",
+  cube: "cube",
+};
+
 export function openFood(ctx: MenuCtx): void {
   const p = openPanel("Kitchen", "What's on the menu?");
   const grid = document.createElement("div");
@@ -103,7 +139,7 @@ export function openFood(ctx: MenuCtx): void {
   for (const id of FOOD_ORDER) {
     const f = FOODS[id];
     grid.appendChild(
-      tile(f.icon, f.name, () => {
+      tile(FOOD_ICONS[id], f.name, () => {
         ctx.feed(id);
         p.close();
       }),
@@ -113,12 +149,12 @@ export function openFood(ctx: MenuCtx): void {
 }
 
 // --- Play (game picker) -----------------------------------------------------
-const GAME_META: { id: GameId; icon: string; name: string }[] = [
-  { id: "higherlower", icon: "🔢", name: "Higher / Lower" },
-  { id: "fetch", icon: "🎾", name: "Fetch" },
-  { id: "rps", icon: "✊", name: "Rock Paper Scissors" },
-  { id: "hideseek", icon: "🙈", name: "Hide & Seek" },
-  { id: "wouldyou", icon: "🤔", name: "Would You Rather" },
+const GAME_META: { id: GameId; icon: IconName; name: string }[] = [
+  { id: "higherlower", icon: "dice", name: "Higher / Lower" },
+  { id: "fetch", icon: "ball", name: "Fetch" },
+  { id: "rps", icon: "rock", name: "Rock Paper Scissors" },
+  { id: "hideseek", icon: "eyes", name: "Hide & Seek" },
+  { id: "wouldyou", icon: "question", name: "Would You Rather" },
 ];
 
 export function openPlay(ctx: MenuCtx): void {
@@ -132,46 +168,38 @@ export function openPlay(ctx: MenuCtx): void {
 }
 
 function startGame(ctx: MenuCtx, p: Panel, game: GameId): void {
-  p.body.innerHTML = "";
-  const wrap = document.createElement("div");
-  wrap.className = "game-body";
-  p.body.appendChild(wrap);
   switch (game) {
     case "higherlower":
+      p.body.innerHTML = "";
       p.setTitle("Higher or Lower", "Best of 5 rounds.");
-      higherLower(ctx, p, wrap);
+      higherLower(ctx, p);
       break;
     case "fetch":
-      p.setTitle("Fetch", "Stop the marker in the green.");
-      fetchGame(ctx, p, wrap);
+      p.close();
+      fetchGame(ctx);
       break;
     case "rps":
-      p.setTitle("Rock Paper Scissors", "Choose your weapon.");
-      rps(ctx, p, wrap);
+      p.close();
+      rps(ctx);
       break;
     case "hideseek":
-      p.setTitle("Hide & Seek", "Where did it go?");
-      hideSeek(ctx, p, wrap);
+      p.close();
+      hideSeek(ctx);
       break;
     case "wouldyou":
+      p.body.innerHTML = "";
       p.setTitle("Would You Rather", "There are no right answers.");
-      wouldYou(ctx, p, wrap);
+      wouldYou(ctx, p);
       break;
   }
 }
 
-function endGameButton(ctx: MenuCtx, p: Panel, game: GameId, won: boolean, line?: string): HTMLElement {
-  const btn = document.createElement("button");
-  btn.className = "btn";
-  btn.textContent = "Done";
-  btn.addEventListener("click", () => {
-    ctx.finishGame(game, won, line);
-    p.close();
-  });
-  return btn;
-}
+// Panel-input game: cards in the panel, verdict spoken by the sprite.
+function higherLower(ctx: MenuCtx, p: Panel): void {
+  const wrap = document.createElement("div");
+  wrap.className = "game-body";
+  p.body.appendChild(wrap);
 
-function higherLower(ctx: MenuCtx, p: Panel, wrap: HTMLElement): void {
   let current = rollCard();
   let round = 0;
   let wins = 0;
@@ -187,10 +215,10 @@ function higherLower(ctx: MenuCtx, p: Panel, wrap: HTMLElement): void {
 
   const higher = document.createElement("button");
   higher.className = "btn";
-  higher.textContent = "⬆ Higher";
+  higher.textContent = "▲ Higher";
   const lower = document.createElement("button");
   lower.className = "btn secondary";
-  lower.textContent = "⬇ Lower";
+  lower.textContent = "▼ Lower";
   choices.append(higher, lower);
 
   const guess = (isHigher: boolean) => {
@@ -200,19 +228,19 @@ function higherLower(ctx: MenuCtx, p: Panel, wrap: HTMLElement): void {
     current = next;
     round++;
     if (outcome === "win") wins++;
-    result.textContent = outcome === "win" ? `${next} — nice!` : `${next} — nope.`;
+    result.textContent = outcome === "win" ? `${next} — yes` : `${next} — no`;
     result.style.color = outcome === "win" ? "#2f8f2f" : "#c0492f";
     numEl.textContent = String(next);
-    if (round >= total) finish();
-    else info.textContent = `Round ${round + 1} of ${total} · ${wins} correct`;
-  };
-  const finish = () => {
-    const won = wins >= 3;
-    choices.remove();
-    info.textContent = `${wins} / ${total} correct.`;
-    result.textContent = won ? "You win!" : "You lose. The numbers cheated.";
-    result.style.color = won ? "#2f8f2f" : "#c0492f";
-    wrap.appendChild(endGameButton(ctx, p, "higherlower", won));
+    if (round >= total) {
+      // Verdict comes from the pet, not the panel.
+      const won = wins >= 3;
+      setTimeout(() => {
+        p.close();
+        ctx.finishGame("higherlower", won);
+      }, 650);
+    } else {
+      info.textContent = `Round ${round + 1} of ${total} · ${wins} correct`;
+    }
   };
 
   higher.addEventListener("click", () => guess(true));
@@ -222,7 +250,9 @@ function higherLower(ctx: MenuCtx, p: Panel, wrap: HTMLElement): void {
   wrap.append(numEl, info, result, choices);
 }
 
-function fetchGame(ctx: MenuCtx, p: Panel, wrap: HTMLElement): void {
+// In-scene game: throw meter over the stage, animation in the scene.
+function fetchGame(ctx: MenuCtx): void {
+  const { el, close } = stageOverlay(ctx);
   const track = document.createElement("div");
   track.className = "throw-track";
   const sweet = document.createElement("div");
@@ -230,11 +260,9 @@ function fetchGame(ctx: MenuCtx, p: Panel, wrap: HTMLElement): void {
   const marker = document.createElement("div");
   marker.className = "marker";
   track.append(sweet, marker);
-  const result = document.createElement("div");
-  result.className = "game-result";
   const btn = document.createElement("button");
   btn.className = "btn";
-  btn.textContent = "🎾 Throw!";
+  btn.textContent = "Throw!";
 
   let pos = 0;
   let dir = 1;
@@ -252,90 +280,94 @@ function fetchGame(ctx: MenuCtx, p: Panel, wrap: HTMLElement): void {
     raf = requestAnimationFrame(animate);
   };
   raf = requestAnimationFrame(animate);
-  // Stop the loop if the player backs out mid-throw (avoids a leaked rAF).
-  p.onClose(() => cancelAnimationFrame(raf));
 
   btn.addEventListener("click", () => {
     cancelAnimationFrame(raf);
     const res = resolveFetch(pos);
-    result.textContent = res.line;
-    result.style.color = res.success ? "#2f8f2f" : "#c0492f";
-    btn.remove();
-    wrap.appendChild(endGameButton(ctx, p, "fetch", res.success));
+    close();
+    // The whole point: you see the throw, the chase, and the (non-)return.
+    ctx.scene().playFetch(pos, res.success, () => {
+      ctx.finishGame("fetch", res.success, res.line);
+    });
   });
 
   const hint = document.createElement("p");
-  hint.className = "muted";
-  hint.textContent = "Tap Throw when the marker is in the green zone.";
-  wrap.append(track, hint, result, btn);
+  hint.className = "stage-hint";
+  hint.textContent = "Stop the marker in the green.";
+  el.append(hint, track, btn);
 }
 
-function rps(ctx: MenuCtx, p: Panel, wrap: HTMLElement): void {
+// In-scene game: pick a move, watch the countdown play out at the sprite.
+function rps(ctx: MenuCtx): void {
   const cheat = ctx.pet().form === "gremlin";
-  const result = document.createElement("div");
-  result.className = "game-result";
+  const { el, close } = stageOverlay(ctx);
+  const hint = document.createElement("p");
+  hint.className = "stage-hint";
+  hint.textContent = "Choose your weapon.";
   const choices = document.createElement("div");
   choices.className = "game-choices";
-  const moves: { m: RpsMove; label: string }[] = [
-    { m: "rock", label: "✊ Rock" },
-    { m: "paper", label: "✋ Paper" },
-    { m: "scissors", label: "✌ Scissors" },
+  const moves: { m: RpsMove; icon: IconName; label: string }[] = [
+    { m: "rock", icon: "rock", label: "Rock" },
+    { m: "paper", icon: "paper", label: "Paper" },
+    { m: "scissors", icon: "scissors", label: "Scissors" },
   ];
-  for (const { m, label } of moves) {
+  for (const { m, icon, label } of moves) {
     const b = document.createElement("button");
-    b.className = "btn secondary";
-    b.textContent = label;
+    b.className = "btn secondary btn-iconed";
+    b.appendChild(iconEl(icon, 20));
+    b.appendChild(document.createTextNode(label));
     b.addEventListener("click", () => {
       const ai = rpsAiMove(m, cheat);
       const outcome = judgeRps(m, ai);
-      const emoji = { rock: "✊", paper: "✋", scissors: "✌" }[ai];
-      result.textContent =
-        outcome === "tie"
-          ? `${emoji} — a tie.`
-          : outcome === "win"
-            ? `${emoji} — you win!`
-            : cheat
-              ? `${emoji} — it definitely cheated.`
-              : `${emoji} — you lose.`;
-      result.style.color = outcome === "win" ? "#2f8f2f" : outcome === "lose" ? "#c0492f" : "#8a6f57";
-      choices.remove();
-      wrap.appendChild(endGameButton(ctx, p, "rps", outcome === "win"));
+      close();
+      ctx.scene().playRps(m as IconName, ai as IconName, () => {
+        if (outcome === "tie") {
+          ctx.finishGame("rps", false, "A tie. How embarrassing for us both.");
+        } else if (outcome === "win") {
+          ctx.finishGame("rps", true);
+        } else {
+          ctx.finishGame("rps", false, cheat ? "I definitely cheated." : undefined);
+        }
+      });
     });
     choices.appendChild(b);
   }
-  wrap.append(result, choices);
+  el.append(hint, choices);
 }
 
-function hideSeek(ctx: MenuCtx, p: Panel, wrap: HTMLElement): void {
+// In-scene game: the sprite actually vanishes, then pops out of its spot.
+function hideSeek(ctx: MenuCtx): void {
   const spot = pickHideSpot();
-  const result = document.createElement("div");
-  result.className = "game-result";
-  const grid = document.createElement("div");
-  grid.className = "tile-grid";
-  const icons: Record<string, string> = {
-    "under the bed": "🛏",
-    "behind the curtain": "🪟",
-    "in the corner": "📐",
-    "the plant": "🪴",
-  };
-  for (const s of HIDE_SPOTS) {
-    grid.appendChild(
-      tile(icons[s] ?? "❓", s, () => {
+  ctx.scene().playHide(() => {
+    const { el, close } = stageOverlay(ctx);
+    const hint = document.createElement("p");
+    hint.className = "stage-hint";
+    hint.textContent = "Where did it go?";
+    const row = document.createElement("div");
+    row.className = "game-choices";
+    for (const s of HIDE_SPOTS) {
+      const b = document.createElement("button");
+      b.className = "btn secondary btn-small";
+      b.textContent = s;
+      b.addEventListener("click", () => {
         const won = s === spot;
-        result.textContent = won ? "Found you!" : `Nope — it was ${spot}.`;
-        result.style.color = won ? "#2f8f2f" : "#c0492f";
-        grid.remove();
-        wrap.appendChild(endGameButton(ctx, p, "hideseek", won));
-      }),
-    );
-  }
-  wrap.append(result, grid);
+        close();
+        ctx.scene().playReveal(spot, () => {
+          ctx.finishGame("hideseek", won, won ? "You found me. Unsettling." : `I was ${spot}. Amateur.`);
+        });
+      });
+      row.appendChild(b);
+    }
+    el.append(hint, row);
+  });
 }
 
-function wouldYou(ctx: MenuCtx, p: Panel, wrap: HTMLElement): void {
+// Panel-input game: the question needs room; the judgement comes from the pet.
+function wouldYou(ctx: MenuCtx, p: Panel): void {
+  const wrap = document.createElement("div");
+  wrap.className = "game-body";
+  p.body.appendChild(wrap);
   const q = randomWouldYou();
-  const result = document.createElement("div");
-  result.className = "game-result";
   const choices = document.createElement("div");
   choices.className = "game-choices";
   const a = document.createElement("button");
@@ -345,16 +377,14 @@ function wouldYou(ctx: MenuCtx, p: Panel, wrap: HTMLElement): void {
   b.className = "btn secondary";
   b.textContent = q.b;
   const answer = (judge: string) => {
-    result.textContent = judge;
-    result.style.color = "#8a6f57";
-    choices.remove();
+    p.close();
     // Not win/lose — always a small happiness bump (SPEC §11).
-    wrap.appendChild(endGameButton(ctx, p, "wouldyou", true, judge));
+    ctx.finishGame("wouldyou", true, judge);
   };
   a.addEventListener("click", () => answer(q.judgeA));
   b.addEventListener("click", () => answer(q.judgeB));
   choices.append(a, b);
-  wrap.append(result, choices);
+  wrap.append(choices);
 }
 
 // --- Care -------------------------------------------------------------------
@@ -363,24 +393,32 @@ export function openCare(ctx: MenuCtx): void {
   const pet = ctx.pet();
 
   const med = document.createElement("button");
-  med.className = "btn";
-  med.textContent = pet.sick ? "💊 Give Medicine" : "💊 Give Medicine (not sick)";
+  med.className = "btn btn-iconed";
+  med.appendChild(iconEl("pill", 20));
+  const medLabel = pet.sick
+    ? pet.illness
+      ? `Give Medicine (${ILLNESSES[pet.illness].label})`
+      : "Give Medicine"
+    : "Give Medicine (not sick)";
+  med.appendChild(document.createTextNode(medLabel));
   med.addEventListener("click", () => {
     ctx.medicine();
     p.close();
   });
 
   const disc = document.createElement("button");
-  disc.className = "btn secondary";
-  disc.textContent = "✋ Discipline";
+  disc.className = "btn secondary btn-iconed";
+  disc.appendChild(iconEl("hand", 20));
+  disc.appendChild(document.createTextNode("Discipline"));
   disc.addEventListener("click", () => {
     ctx.discipline();
     p.close();
   });
 
   const farm = document.createElement("button");
-  farm.className = "btn danger";
-  farm.textContent = "🚜 Send to Farm…";
+  farm.className = "btn danger btn-iconed";
+  farm.appendChild(iconEl("tractor", 20));
+  farm.appendChild(document.createTextNode("Send to Farm…"));
   farm.addEventListener("click", () => confirmFarm(ctx, p));
 
   p.body.append(med, disc, farm);
@@ -395,19 +433,21 @@ export function openCare(ctx: MenuCtx): void {
 
 function confirmFarm(ctx: MenuCtx, p: Panel): void {
   const pet = ctx.pet();
-  p.setTitle("Send to Farm?", "This is permanent. Your sprite retires forever.");
+  const young = pet.stage !== "adult";
+  p.setTitle(
+    "Send to Farm?",
+    young
+      ? "This is permanent. It hasn't finished growing up."
+      : "This is permanent. Your sprite retires forever.",
+  );
   p.body.innerHTML = "";
   const line = document.createElement("p");
-  line.textContent =
-    pet.stage === "adult"
-      ? "“I always suspected agriculture.”"
-      : pet.stage === "baby" || pet.stage === "egg"
-        ? "“Farm? I just got here.”"
-        : "“Will there be Wi-Fi?”";
+  line.textContent = farmConfirmLine(pet.stage);
   line.style.fontStyle = "italic";
+  if (young) line.style.color = "#8a3320";
   const confirm = document.createElement("button");
   confirm.className = "btn danger";
-  confirm.textContent = "Yes, send to the farm";
+  confirm.textContent = young ? "Do it anyway" : "Yes, send to the farm";
   confirm.addEventListener("click", () => {
     ctx.sendToFarm();
     p.close();
@@ -435,6 +475,11 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   list.className = "stat-list";
 
   const formName = pet.form ? ADULTS[pet.form].name : STAGE_LABEL[pet.stage];
+  const condition = pet.sick
+    ? pet.illness
+      ? `Has ${ILLNESSES[pet.illness].label}`
+      : "Sick"
+    : "Well";
   const rows: [string, string | HTMLElement][] = [
     ["Name", pet.name],
     ["Stage", pet.form ? `Adult · ${formName}` : STAGE_LABEL[pet.stage]],
@@ -444,7 +489,7 @@ export function openStatus(ctx: MenuCtx, now: number): void {
     ["Happiness", heartBar(pet.happiness)],
     ["Health", pctBar(pet.health)],
     ["Discipline", pctBar(pet.discipline)],
-    ["Condition", pet.sick ? "🤒 Sick" : "🙂 Well"],
+    ["Condition", condition],
   ];
   for (const [label, val] of rows) {
     const row = document.createElement("div");
@@ -463,28 +508,73 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   }
   p.body.appendChild(list);
 
-  const help = document.createElement("button");
-  help.className = "btn secondary";
-  help.textContent = "❓ How to play";
-  help.addEventListener("click", () => {
-    p.close();
-    openHelp();
-  });
   const coll = document.createElement("button");
-  coll.className = "btn secondary";
-  coll.textContent = "📖 Collection & Farm";
+  coll.className = "btn secondary btn-iconed";
+  coll.appendChild(iconEl("book", 20));
+  coll.appendChild(document.createTextNode("Collection & Farm"));
   coll.addEventListener("click", () => {
     p.close();
     openCollection(ctx);
   });
   const backup = document.createElement("button");
-  backup.className = "btn secondary";
-  backup.textContent = "💾 Backup save";
+  backup.className = "btn secondary btn-iconed";
+  backup.appendChild(iconEl("disk", 20));
+  backup.appendChild(document.createTextNode("Backup save"));
   backup.addEventListener("click", () => {
     p.close();
     openBackup(ctx);
   });
-  p.body.append(help, coll, backup);
+  p.body.append(coll, backup);
+
+  p.body.appendChild(notifySettings());
+
+  // The manual, such as it is, hides in the margin. (Design note: obscure.)
+  const help = document.createElement("button");
+  help.className = "help-hidden";
+  help.textContent = "?";
+  help.setAttribute("aria-label", "About all this");
+  help.addEventListener("click", () => {
+    p.close();
+    openHelp();
+  });
+  p.body.appendChild(help);
+}
+
+function notifySettings(): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "notify-settings";
+  const label = document.createElement("p");
+  label.className = "muted";
+  label.textContent = "Notifications";
+  const row = document.createElement("div");
+  row.className = "notify-row";
+  const options: { pref: NotifyPref; text: string }[] = [
+    { pref: "off", text: "Off" },
+    { pref: "dire", text: "Dire only" },
+    { pref: "all", text: "Any care drop" },
+  ];
+  const paint = (active: NotifyPref) => {
+    row.querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("active", b.dataset.pref === active);
+    });
+  };
+  for (const o of options) {
+    const b = document.createElement("button");
+    b.className = "notify-opt";
+    b.dataset.pref = o.pref;
+    b.textContent = o.text;
+    b.addEventListener("click", async () => {
+      const effective = await setNotifyPref(o.pref);
+      paint(effective);
+      if (effective !== o.pref) {
+        label.textContent = "Notifications (blocked by the browser)";
+      }
+    });
+    row.appendChild(b);
+  }
+  wrap.append(label, row);
+  paint(getNotifyPref());
+  return wrap;
 }
 
 function heartBar(v: number): HTMLElement {
@@ -505,21 +595,18 @@ function pctBar(v: number): HTMLElement {
   return bar;
 }
 
-// --- Help -------------------------------------------------------------------
+// --- Help (deliberately vague — operations, not spoilers) ---------------------
 export function openHelp(): void {
-  const p = openPanel("How to play", "Operations, not spoilers.");
+  const p = openPanel("A note", undefined);
   const body = document.createElement("div");
   body.className = "help-body";
   body.innerHTML = `
-    <p>🍔 <b>Feed</b> when hunger drops. Proper meals fill more than snacks.</p>
-    <p>🎮 <b>Play</b> games to keep happiness up. Your sprite may have a favourite.</p>
-    <p>🧹 <b>Clean</b> up messes quickly — a dirty room hurts health.</p>
-    <p>💊 <b>Medicine</b> cures illness. Only give it when your sprite is actually sick.</p>
-    <p>✋ <b>Discipline</b> when it acts out or makes a fake fuss — not when it truly needs you.</p>
-    <p>💡 <b>Lights</b> off at night so it can sleep.</p>
-    <p class="muted">How your sprite grows up depends on how you raise it. Certain foods,
-    habits, and routines quietly nudge it toward different adults. You'll have to
-    experiment to find out how.</p>`;
+    <p>It eats when hungry. It plays when bored. It sleeps when the lantern is out.</p>
+    <p>Messes fester. Illness lingers. Medicine works, when it's warranted.</p>
+    <p>Some fusses are real. Some are theatre. Learn to tell the difference —
+    it notices whether you can.</p>
+    <p class="muted">Everything else, it will have to show you itself. What it becomes is
+    a record of how it was raised. No, we won't be more specific.</p>`;
   p.body.appendChild(body);
 }
 
@@ -544,6 +631,8 @@ export function openCollection(ctx: MenuCtx): void {
   for (const form of ADULT_ORDER) {
     const found = discovered.has(form);
     const def = ADULTS[form];
+    // Secret forms leave no trace until you've raised one.
+    if (def.secret && !found) continue;
     const el = document.createElement("div");
     el.className = "tile";
     if (found) {
@@ -558,7 +647,11 @@ export function openCollection(ctx: MenuCtx): void {
       note.textContent = def.blurb;
       el.append(name, note);
     } else {
-      el.innerHTML = `<span class="tile-ico">❔</span><span class="tile-name">???</span><span class="tile-note">Undiscovered</span>`;
+      el.appendChild(iconEl("question", 32));
+      el.insertAdjacentHTML(
+        "beforeend",
+        `<span class="tile-name">???</span><span class="tile-note">Undiscovered</span>`,
+      );
     }
     grid.appendChild(el);
   }
@@ -566,7 +659,7 @@ export function openCollection(ctx: MenuCtx): void {
 
   const farm = ctx.farm();
   const h = document.createElement("h2");
-  h.textContent = "🚜 The Farm";
+  h.innerHTML = `${iconHTML("tractor", 18)} The Farm`;
   h.style.fontSize = "1.1rem";
   h.style.marginTop = "18px";
   p.body.appendChild(h);
@@ -582,13 +675,24 @@ export function openCollection(ctx: MenuCtx): void {
     for (const e of farm) {
       const card = document.createElement("div");
       card.className = "farm-card";
-      card.appendChild(portrait(e.form ?? (e.finalStage === "egg" ? "egg" : "generic")));
+      if (e.passedAway) {
+        card.appendChild(iconEl("grave", 48));
+      } else {
+        card.appendChild(portrait(e.form ?? (e.finalStage === "egg" ? "egg" : e.finalStage)));
+      }
       const meta = document.createElement("div");
       meta.className = "meta";
       const name = e.form ? ADULTS[e.form].name : STAGE_LABEL[e.finalStage];
-      meta.innerHTML = `<b>${e.name}</b> — ${name}<div>Lived ${ageLabel(e.ageMs)} · retired ${new Date(
-        e.retiredAt,
-      ).toLocaleDateString()}</div>`;
+      const fate = e.passedAway
+        ? `Lived ${ageLabel(e.ageMs)} · died of ${e.cause ?? "unknown causes"}`
+        : `Lived ${ageLabel(e.ageMs)} · retired ${new Date(e.retiredAt).toLocaleDateString()}`;
+      const b = document.createElement("b");
+      b.textContent = e.name;
+      meta.appendChild(b);
+      meta.appendChild(document.createTextNode(` — ${name}`));
+      const sub = document.createElement("div");
+      sub.textContent = fate;
+      meta.appendChild(sub);
       card.appendChild(meta);
       list.appendChild(card);
     }
@@ -605,7 +709,7 @@ export function openBackup(ctx: MenuCtx): void {
   ta.value = ctx.exportSave();
   const copy = document.createElement("button");
   copy.className = "btn";
-  copy.textContent = "📋 Copy code";
+  copy.textContent = "Copy code";
   copy.addEventListener("click", () => {
     // navigator.clipboard only exists in secure contexts (not plain-http LAN
     // testing) — fall back to select + execCommand there.
@@ -626,7 +730,7 @@ export function openBackup(ctx: MenuCtx): void {
   inp.placeholder = "Paste code here…";
   const restore = document.createElement("button");
   restore.className = "btn secondary";
-  restore.textContent = "↩ Restore";
+  restore.textContent = "Restore";
   restore.addEventListener("click", () => {
     if (ctx.importSave(inp.value)) {
       p.close();

@@ -62,7 +62,15 @@ export function resolveFetch(
   return { success: false, line: pick(FETCH_BAD, rng) };
 }
 
-const FETCH_GOOD = ["Retrieved it. Flawless.", "Got it!", "Perfect return.", "That one felt personal."];
+const FETCH_GOOD = [
+  "Retrieved it. Flawless.",
+  "Got it!",
+  "Perfect return.",
+  "That one felt personal.",
+  "Caught it on the first bounce. Legend.",
+  "It never stood a chance.",
+  "Delivered. Slightly damp. You're welcome.",
+];
 const FETCH_BAD = [
   "Ran straight past it.",
   "Brought back a sock.",
@@ -70,10 +78,13 @@ const FETCH_BAD = [
   "Lay down halfway.",
   "Ate it, then spat it out.",
   "Brought back the wrong object entirely.",
+  "Got distracted by a superior smell.",
+  "Watched it land. Did nothing.",
+  "Brought back a beetle. The beetle is furious.",
 ];
 
 // --- Hide and Seek ----------------------------------------------------------
-export const HIDE_SPOTS = ["under the bed", "behind the curtain", "in the corner", "the plant"] as const;
+export const HIDE_SPOTS = ["behind the stump", "in the flowers", "behind the fence", "under the mushroom"] as const;
 export type HideSpot = (typeof HIDE_SPOTS)[number];
 
 export function pickHideSpot(rng: () => number = Math.random): HideSpot {
@@ -94,6 +105,42 @@ const WOULD_YOU: WouldYou[] = [
     b: "Pet a stranger",
     judgeA: "Predictable. Disappointing. Correct.",
     judgeB: "A stranger?? In this economy?",
+  },
+  {
+    a: "Be a little taller",
+    b: "Be a little rounder",
+    judgeA: "Height is a scam invented by shelves.",
+    judgeB: "Correct. Roundness is the destination.",
+  },
+  {
+    a: "Fight one huge duck",
+    b: "Fight forty tiny cows",
+    judgeA: "The duck remembers. The duck always remembers.",
+    judgeB: "Forty small grudges. Bold.",
+  },
+  {
+    a: "Only whisper",
+    b: "Only announce",
+    judgeA: "Sinister. I'd listen closer, honestly.",
+    judgeB: "EVERY THOUGHT, PROCLAIMED. Chaos. Respect.",
+  },
+  {
+    a: "Free dessert forever",
+    b: "Free naps forever",
+    judgeA: "Cake-forward thinking. The blob in me approves.",
+    judgeB: "Sleep is just free time travel. Wise.",
+  },
+  {
+    a: "Know every secret",
+    b: "Keep every secret",
+    judgeA: "You'd be unbearable at parties.",
+    judgeB: "You'd be a load-bearing friend. Heavy.",
+  },
+  {
+    a: "Live in a boot",
+    b: "Live in a very large hat",
+    judgeA: "Damp. Historic. Full of toes' memories.",
+    judgeB: "Hat society. Rent-free, sun-adjacent. Fine choice.",
   },
   {
     a: "Live in the walls",

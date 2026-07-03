@@ -1,6 +1,9 @@
-// Pixel-art sprite system. Creatures share one chunky 16×16 chibi silhouette
-// recoloured per form, with a mood face + per-form accessory composited on top.
-// Everything is authored as char grids; unknown chars / "." are transparent.
+// Pixel-art sprite system. Every life stage and adult form has its own 16×16
+// silhouette (no more one-blob-fits-all): baby is a pebble, child a sprout,
+// teen a lanky mess, and each adult reads distinctly even before recolour.
+// Mood faces are shared grids ("standard" for wide faces, "small" for narrow
+// bodies) blitted at a per-body offset; face-covering accessories (glasses,
+// eye bags) come last.
 
 import type { AdultForm, Stage } from "../pet/types";
 
@@ -11,27 +14,8 @@ export type Palette = Record<string, string>;
 const OUTLINE = "#402e3a";
 const EYE = "#3a2b3f";
 
-// Shared chibi body. B = body fill, S = shade, k = outline.
-const BODY = [
-  "................",
-  ".....kkkkk......",
-  "...kkBBBBBkk....",
-  "..kBBBBBBBBBk...",
-  "..kBBBBBBBBBk...",
-  ".kBBBBBBBBBBBk..",
-  ".kBBBBBBBBBBBk..",
-  ".kBBBBBBBBBBBk..",
-  ".kBBBBBBBBBBBk..",
-  ".kBBBBBBBBBBBk..",
-  "..kBBBBBBBBBk...",
-  "..kSBBBBBBBSk...",
-  "...kSSBBBSSk....",
-  "....kSSSSSk.....",
-  ".....kkkkk......",
-  "................",
-];
-
-// Mood faces (e = eye, w = highlight). Drawn over the body.
+// --- Mood faces ---------------------------------------------------------------
+// Standard faces: eyes at cols 4-5 / 10-11, rows 5-6 (e = eye, w = highlight).
 const FACE_NEUTRAL = [
   "................",
   "................",
@@ -43,10 +27,6 @@ const FACE_NEUTRAL = [
   "................",
   "................",
   ".......ee.......",
-  "................",
-  "................",
-  "................",
-  "................",
   "................",
   "................",
 ];
@@ -64,10 +44,6 @@ const FACE_HAPPY = [
   "......eeee......",
   "................",
   "................",
-  "................",
-  "................",
-  "................",
-  "................",
 ];
 
 const FACE_SAD = [
@@ -81,10 +57,6 @@ const FACE_SAD = [
   "................",
   "......eeee......",
   ".....e....e.....",
-  "................",
-  "................",
-  "................",
-  "................",
   "................",
   "................",
 ];
@@ -102,111 +74,393 @@ const FACE_SLEEP = [
   "............z...",
   "................",
   "................",
-  "................",
-  "................",
-  "................",
-  "................",
 ];
 
-// --- Per-form accessory overlays (own fixed palettes) -----------------------
-const DOG_FEAT = [
-  "................",
-  "................",
-  "................",
-  ".DD..........DD.",
-  ".DD..........DD.",
-  ".DD..........DD.",
-  ".DD..........DD.",
-  "..D..........D..",
-  "................",
-  "................",
-  ".......tt.......",
-  ".......tt.......",
-  "................",
-  "................",
-  "................",
-  "................",
-];
+// Small faces for narrow bodies (5 wide). Blitted at each body's face offset.
+const SMALL_NEUTRAL = ["e...e", ".....", "..ee."];
+const SMALL_HAPPY = ["e...e", ".....", ".eee."];
+const SMALL_SAD = ["e...e", ".....", ".e.e.", "..e.."];
+const SMALL_SLEEP = ["ee.ee", ".....", "..e.."];
 
-const GREMLIN_FEAT = [
-  "................",
-  "...G........G...",
-  "..GG........GG..",
-  ".GGG........GGG.",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-  ".......ww.......",
-  ".......ww.......",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-];
+const FACE_PALETTE: Palette = { e: EYE, w: "#ffffff", z: "#9a9ab0" };
 
-// Big round nerdy glasses: light lens (w) with dark pupils (e), aligned to the
-// face's eye positions so it reads as spectacles, not eyebrows.
-const SCHOLAR_FEAT = [
-  "................",
-  "................",
-  "................",
-  "................",
-  "..wwwww.wwwww...",
-  "..wweew.wweew...",
-  "..wweew.wweew...",
-  "..wwwww.wwwww...",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-];
+export type Mood = "neutral" | "happy" | "sad" | "sleep";
 
-// Tired office creature: dark under-eye bags. A tie on a headless chibi reads
-// as a tongue, so we lean on "exhausted" instead.
-const OFFICE_FEAT = [
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-  "....bb....bb....",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-];
+type FaceKind = "standard" | "small";
 
-const MENACE_FEAT = [
-  "................",
-  ".....y.y.y......",
-  ".....yyyyy......",
-  "................",
-  "................",
-  ".........kkk....",
-  ".........k.k....",
-  ".........kkk....",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-  "................",
-];
+function faceFor(kind: FaceKind, mood: Mood): string[] {
+  if (kind === "standard") {
+    switch (mood) {
+      case "happy":
+        return FACE_HAPPY;
+      case "sad":
+        return FACE_SAD;
+      case "sleep":
+        return FACE_SLEEP;
+      default:
+        return FACE_NEUTRAL;
+    }
+  }
+  switch (mood) {
+    case "happy":
+      return SMALL_HAPPY;
+    case "sad":
+      return SMALL_SAD;
+    case "sleep":
+      return SMALL_SLEEP;
+    default:
+      return SMALL_NEUTRAL;
+  }
+}
+
+// --- Bodies -------------------------------------------------------------------
+// B = fill, S = shade, k = outline; extra letters are per-body accents.
+interface BodyDef {
+  rows: string[];
+  /** Accent colours beyond B/S/k. */
+  extra?: Palette;
+  fill: string;
+  shade: string;
+  face: FaceKind;
+  faceDx: number;
+  faceDy: number;
+  /** Drawn after the face (glasses, eye bags…). */
+  overlay?: { rows: string[]; palette: Palette };
+}
+
+const BABY: BodyDef = {
+  rows: [
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    "................",
+    "......kkkk......",
+    ".....kBBBBk.....",
+    "....kBBBBBBk....",
+    "....kBBBBBBk....",
+    "....kBBBBBBk....",
+    "....kBBBBBBk....",
+    "....kSBBBBSk....",
+    ".....kSSSSk.....",
+    "......kkkk......",
+    "................",
+  ],
+  fill: "#ffd884",
+  shade: "#eab24a",
+  face: "small",
+  faceDx: 6,
+  faceDy: 9,
+};
+
+const CHILD: BodyDef = {
+  rows: [
+    "................",
+    "................",
+    ".......k........",
+    "......kLk.......",
+    ".....kkkkk......",
+    "....kBBBBBk.....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "...kSBBBBBSk....",
+    "....kSSSSSk.....",
+    ".....kkkkk......",
+    "................",
+    "................",
+  ],
+  extra: { L: "#7fc45e" }, // a little sprout — still growing
+  fill: "#ffcf70",
+  shade: "#e8a94a",
+  face: "small",
+  faceDx: 5,
+  faceDy: 7,
+};
+
+const TEEN: BodyDef = {
+  rows: [
+    "................",
+    "....k...k.......",
+    ".....k.k.k......",
+    ".....kkkkk......",
+    "....kSSBBBk.....",
+    "....kBBBBBk.....",
+    "....kBBBBBk.....",
+    "....kBBBBBk.....",
+    "....kBBBBBk.....",
+    "....kBBBBBk.....",
+    "....kBBBBBk.....",
+    "....kBBBBBk.....",
+    "....kSBBBSk.....",
+    ".....kSSSk......",
+    "......kkk.......",
+    "................",
+  ],
+  fill: "#b9a8d8", // a rental body in an awkward colour
+  shade: "#927cba",
+  face: "small",
+  faceDx: 5,
+  faceDy: 6,
+};
+
+const DOG: BodyDef = {
+  rows: [
+    "................",
+    "..kk......kk....",
+    ".kDDk....kDDk...",
+    ".kDDk....kDDk...",
+    ".kkBBkkkkBBkk...",
+    "..kBBBBBBBBk....",
+    ".kBBBBBBBBBBk...",
+    ".kBBBBBBBBBBk...",
+    ".kBBBBBBBBBBk...",
+    ".kBBBBBBBBBBk...",
+    "..kBBBBBBBBk.kk.",
+    "..kBBBBBBBBkkDk.",
+    "..kSBBBBBBSkkk..",
+    "...kSSSSSSk.....",
+    "....kkkkkk......",
+    "................",
+  ],
+  extra: { D: "#a9702f" }, // floppy ears + tail
+  fill: "#e8ad63",
+  shade: "#cf8a3f",
+  face: "standard",
+  faceDx: 0,
+  faceDy: 1,
+  overlay: {
+    rows: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      ".......nn.......",
+      "................",
+      "................",
+      "................",
+    ],
+    palette: { n: "#6b4a2a" }, // little snout
+  },
+};
+
+const BLOB: BodyDef = {
+  rows: [
+    "................",
+    "................",
+    "................",
+    "................",
+    "......kkkk......",
+    "....kkBBBBkk....",
+    "...kBBBBBBBBk...",
+    "..kBBBBBBBBBBk..",
+    "..kBBBBBBBBBBk..",
+    ".kBBBBBBBBBBBBk.",
+    ".kBBBBBBBBBBBBk.",
+    "kBBBBBBBBBBBBBBk",
+    "kSBBBBBBBBBBBBSk",
+    "kSSBBBBBBBBBBSSk",
+    ".kkkkkkkkkkkkkk.",
+    "................",
+  ],
+  fill: "#79c7d4",
+  shade: "#4fa2b0",
+  face: "standard",
+  faceDx: 0,
+  faceDy: 3,
+};
+
+const GREMLIN: BodyDef = {
+  rows: [
+    "................",
+    ".k..........k...",
+    ".kGk........kGk.",
+    ".kGGk......kGGk.",
+    "..kGGkkkkkkGGk..",
+    "...kGBBBBBBGk...",
+    "....kBBBBBBk....",
+    "....kBBBBBBk....",
+    "....kBBBBBBk....",
+    "....kBBBBBBk....",
+    "....kBBBBBBk....",
+    "....kBBBBBBk....",
+    "....kSBBBBSk....",
+    ".....kSSSSk.....",
+    "......kkkk......",
+    "................",
+  ],
+  extra: { G: "#4c8f3c" }, // big pointy ears
+  fill: "#8fce76",
+  shade: "#5da84a",
+  face: "small",
+  faceDx: 5,
+  faceDy: 7,
+  overlay: {
+    rows: ["......w.w......"],
+    palette: { w: "#ffffff" }, // tiny teeth, offset below the mouth
+  },
+};
+
+const SCHOLAR: BodyDef = {
+  rows: [
+    "................",
+    "....kkkkkkk.....",
+    "...kBBBBBBBk....",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "...kBBBBBBBk....",
+    "....kBBBBBk.....",
+    "....kBBBBBk.....",
+    "....kBBBBBk.....",
+    "....kSBBBSk.....",
+    ".....kSSSk......",
+    "......kkk.......",
+    "................",
+  ],
+  fill: "#b6a1e2",
+  shade: "#8f77c6",
+  face: "standard",
+  faceDx: 0,
+  faceDy: 0,
+  overlay: {
+    // Big round glasses aligned to the standard face's eyes.
+    rows: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "..wwwww.wwwww...",
+      "..wweew.wweew...",
+      "..wweew.wweew...",
+      "..wwwww.wwwww...",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+    palette: { e: EYE, w: "#dbe7ff" },
+  },
+};
+
+const OFFICE: BodyDef = {
+  rows: [
+    "................",
+    "................",
+    "................",
+    "...kkkkkkkkk....",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kBBTBBBBBBk...",
+    "..kBBTBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kSBBBBBBBSk...",
+    "..kSSSSSSSSSk...",
+    "...kkkkkkkkk....",
+    "................",
+  ],
+  extra: { T: "#6f6a80" }, // a sad little tie
+  fill: "#c4c6d4",
+  shade: "#9a9cb0",
+  face: "standard",
+  faceDx: 0,
+  faceDy: 1,
+  overlay: {
+    rows: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "....bb....bb....",
+      "................",
+      "................",
+      "................",
+    ],
+    palette: { b: "#6f6a80" }, // the under-eye bags of the working world
+  },
+};
+
+const MENACE: BodyDef = {
+  rows: [
+    "................",
+    ".....y.y.y......",
+    ".....yyyyy......",
+    ".....kkkkk......",
+    "....kBBBBBk.....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "..wkBBBBBBBkw...",
+    "..wwkSBBBSkww...",
+    "...wkSSSSSkw....",
+    "....kkkkkk......",
+    "................",
+    "................",
+  ],
+  extra: { y: "#f5d572", w: "#fdf3e0" }, // crown + frilled collar
+  fill: "#efa6cf",
+  shade: "#c977a6",
+  face: "small",
+  faceDx: 5,
+  faceDy: 6,
+};
+
+const GHOST: BodyDef = {
+  rows: [
+    "................",
+    ".....kkkkk......",
+    "....kBBBBBk.....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "...kBBBBBBBk....",
+    "...kBkBBBkBk....",
+    "....k.kBk.k.....",
+    "......k.k.......",
+    "................",
+    "................",
+  ],
+  fill: "#dce8f4",
+  shade: "#b0c4dc",
+  face: "small",
+  faceDx: 5,
+  faceDy: 5,
+};
+
+const BODIES: Record<string, BodyDef> = {
+  baby: BABY,
+  child: CHILD,
+  teen: TEEN,
+  dog: DOG,
+  blob: BLOB,
+  gremlin: GREMLIN,
+  scholar: SCHOLAR,
+  office: OFFICE,
+  menace: MENACE,
+  ghost: GHOST,
+};
 
 // The egg (its own art + palette).
 export const EGG_SPRITE = [
@@ -235,57 +489,6 @@ const EGG_PALETTE: Palette = {
   o: "#c69a6a",
 };
 
-// Body colour pairs [fill, shade] per creature key.
-const BODY_COLORS: Record<string, [string, string]> = {
-  generic: ["#ffd884", "#eab24a"],
-  dog: ["#e8ad63", "#cf8a3f"],
-  blob: ["#79c7d4", "#4fa2b0"],
-  gremlin: ["#8fce76", "#5da84a"],
-  scholar: ["#b6a1e2", "#8f77c6"],
-  office: ["#c4c6d4", "#9a9cb0"],
-  menace: ["#efa6cf", "#c977a6"],
-};
-
-const FEATURES: Record<string, { rows: string[]; palette: Palette }> = {
-  dog: {
-    rows: DOG_FEAT,
-    palette: { D: "#a9702f", t: "#e8637a" },
-  },
-  gremlin: {
-    rows: GREMLIN_FEAT,
-    palette: { G: "#4c8f3c", w: "#ffffff" },
-  },
-  scholar: {
-    rows: SCHOLAR_FEAT,
-    palette: { e: EYE, w: "#dbe7ff" },
-  },
-  office: {
-    rows: OFFICE_FEAT,
-    palette: { b: "#6f6a80" },
-  },
-  menace: {
-    rows: MENACE_FEAT,
-    palette: { y: "#f5d572", k: OUTLINE },
-  },
-};
-
-const FACE_PALETTE: Palette = { e: EYE, w: "#ffffff", z: "#9a9ab0" };
-
-export type Mood = "neutral" | "happy" | "sad" | "sleep";
-
-function faceFor(mood: Mood): string[] {
-  switch (mood) {
-    case "happy":
-      return FACE_HAPPY;
-    case "sad":
-      return FACE_SAD;
-    case "sleep":
-      return FACE_SLEEP;
-    default:
-      return FACE_NEUTRAL;
-  }
-}
-
 export interface PixelBuffer {
   w: number;
   h: number;
@@ -301,17 +504,27 @@ function hexToRgb(hex: string): [number, number, number] {
   ];
 }
 
-/** Blit one char-grid over an RGBA buffer (later layers win). */
-function blit(buf: PixelBuffer, rows: string[], palette: Palette): void {
-  for (let y = 0; y < rows.length && y < buf.h; y++) {
+/** Blit one char-grid over an RGBA buffer at an offset (later layers win). */
+function blit(
+  buf: PixelBuffer,
+  rows: string[],
+  palette: Palette,
+  dx = 0,
+  dy = 0,
+): void {
+  for (let y = 0; y < rows.length; y++) {
     const row = rows[y];
-    for (let x = 0; x < row.length && x < buf.w; x++) {
+    const by = y + dy;
+    if (by < 0 || by >= buf.h) continue;
+    for (let x = 0; x < row.length; x++) {
+      const bx = x + dx;
+      if (bx < 0 || bx >= buf.w) continue;
       const ch = row[x];
       if (ch === "." || ch === " ") continue;
       const color = palette[ch];
       if (!color) continue;
       const [r, g, b] = hexToRgb(color);
-      const i = (y * buf.w + x) * 4;
+      const i = (by * buf.w + bx) * 4;
       buf.data[i] = r;
       buf.data[i + 1] = g;
       buf.data[i + 2] = b;
@@ -322,7 +535,7 @@ function blit(buf: PixelBuffer, rows: string[], palette: Palette): void {
 
 /**
  * Composite a creature into a DOM-free RGBA pixel buffer: body + mood face +
- * accessory. Kept pure so it can be rendered off-screen or in tests.
+ * overlay accessory. Kept pure so it can be rendered off-screen or in tests.
  */
 export function renderPixels(key: string, mood: Mood): PixelBuffer {
   const buf: PixelBuffer = { w: CELL, h: CELL, data: new Uint8ClampedArray(CELL * CELL * 4) };
@@ -330,11 +543,23 @@ export function renderPixels(key: string, mood: Mood): PixelBuffer {
     blit(buf, EGG_SPRITE, EGG_PALETTE);
     return buf;
   }
-  const [fill, shade] = BODY_COLORS[key] ?? BODY_COLORS.generic;
-  blit(buf, BODY, { k: OUTLINE, B: fill, S: shade });
-  blit(buf, faceFor(mood), FACE_PALETTE);
-  const feat = FEATURES[key];
-  if (feat) blit(buf, feat.rows, feat.palette);
+  const body = BODIES[key] ?? BODIES.baby;
+  blit(buf, body.rows, { k: OUTLINE, B: body.fill, S: body.shade, ...body.extra });
+  const facePalette =
+    body.face === "small" ? { ...FACE_PALETTE, e: EYE } : FACE_PALETTE;
+  blit(buf, faceFor(body.face, mood), facePalette, body.faceDx, body.faceDy);
+  if (body.overlay) {
+    // Overlays for small-faced bodies sit relative to the face; standard ones
+    // are authored full-frame.
+    const isSmallOverlay = body.overlay.rows.length <= 2;
+    blit(
+      buf,
+      body.overlay.rows,
+      body.overlay.palette,
+      isSmallOverlay ? 0 : 0,
+      isSmallOverlay ? body.faceDy + 3 : 0,
+    );
+  }
   return buf;
 }
 
@@ -342,7 +567,7 @@ export function renderPixels(key: string, mood: Mood): PixelBuffer {
 export function creatureKey(stage: Stage, form: AdultForm | null): string {
   if (stage === "adult" && form) return form;
   if (stage === "egg") return "egg";
-  return "generic";
+  return stage; // baby / child / teen each have their own body now
 }
 
 /**

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DEATH_AFTER_ZERO_HEALTH_MS,
   MAX_HEARTS,
   TAP_ANNOY_THRESHOLD,
   applyElapsedDecay,
@@ -8,6 +9,7 @@ import {
   discipline,
   feed,
   giveMedicine,
+  rollIllness,
   stepEvents,
   tap,
 } from "./state";
@@ -29,7 +31,7 @@ describe("applyElapsedDecay", () => {
   it("freezes stats during the egg stage", () => {
     const pet = createPet("Milo", T0);
     const later = applyElapsedDecay(pet, T0 + 30_000);
-    expect(later.hunger).toBe(MAX_HEARTS);
+    expect(later.hunger).toBe(pet.hunger);
   });
 
   it("decays hunger over time once hatched", () => {
@@ -106,7 +108,7 @@ describe("feed", () => {
   });
 
   it("refuses a proper meal when already full", () => {
-    const pet = asStage(createPet("Milo", T0), "child"); // hunger = MAX
+    const pet = asStage({ ...createPet("Milo", T0), hunger: MAX_HEARTS }, "child");
     const { state, note } = feed(pet, "burger", T0);
     expect(note).toBe("full");
     expect(state.hunger).toBe(MAX_HEARTS);
@@ -137,9 +139,13 @@ describe("clean", () => {
 
 describe("giveMedicine", () => {
   it("cures a sick pet", () => {
-    const pet = asStage({ ...createPet("Milo", T0), sick: true }, "child");
+    const pet = asStage(
+      { ...createPet("Milo", T0), sick: true, illness: "sniffles" as const },
+      "child",
+    );
     const { state, note } = giveMedicine(pet, T0);
     expect(state.sick).toBe(false);
+    expect(state.illness).toBeNull();
     expect(note).toBe("cured");
   });
 
@@ -148,6 +154,75 @@ describe("giveMedicine", () => {
     const { note, state } = giveMedicine(pet, T0);
     expect(note).toBe("notneeded");
     expect(state.hidden.careMistakes).toBe(1);
+  });
+
+  it("requires two doses to cure the plague", () => {
+    const pet = asStage(
+      { ...createPet("Milo", T0), sick: true, illness: "plague" as const },
+      "child",
+    );
+    const first = giveMedicine(pet, T0);
+    expect(first.note).toBe("dose");
+    expect(first.state.sick).toBe(true);
+    const second = giveMedicine(first.state, T0 + 1000);
+    expect(second.note).toBe("cured");
+    expect(second.state.sick).toBe(false);
+    expect(second.state.dosesGiven).toBe(0);
+  });
+});
+
+describe("illness", () => {
+  it("assigns a named illness when a pet falls sick", () => {
+    const pet = asStage({ ...createPet("Milo", T0), health: 10 }, "child");
+    // rng() = 0 → poop fires first; run with rng always tiny so sick also fires
+    const { state, events } = stepEvents(pet, 60_000, () => 0.001);
+    expect(events).toContain("sick");
+    expect(state.illness).not.toBeNull();
+  });
+
+  it("rolls the plague only from the rare tail of the table", () => {
+    expect(rollIllness(() => 0.95)).toBe("plague");
+    expect(rollIllness(() => 0.0)).toBe("sniffles");
+  });
+});
+
+describe("death", () => {
+  function doomed(): PetState {
+    return asStage(
+      { ...createPet("Milo", T0), health: 0, hunger: 0, happiness: 0 },
+      "child",
+    );
+  }
+
+  it("dies after sustained time at zero health", () => {
+    const later = applyElapsedDecay(doomed(), T0 + DEATH_AFTER_ZERO_HEALTH_MS + 60_000);
+    expect(later.deadAt).not.toBeNull();
+    expect(later.causeOfDeath).toBeTruthy();
+  });
+
+  it("does not die immediately at zero health", () => {
+    const later = applyElapsedDecay(doomed(), T0 + 30_000);
+    expect(later.deadAt).toBeNull();
+  });
+
+  it("blames the illness when one is present", () => {
+    const pet = { ...doomed(), sick: true, illness: "dysentery" as const };
+    const later = applyElapsedDecay(pet, T0 + DEATH_AFTER_ZERO_HEALTH_MS + 60_000);
+    expect(later.causeOfDeath).toBe("dysentery");
+  });
+
+  it("eggs cannot die", () => {
+    const egg = { ...createPet("Milo", T0), health: 0 };
+    const later = applyElapsedDecay(egg, T0 + 30_000);
+    expect(later.deadAt).toBeNull();
+  });
+
+  it("dead pets no longer decay or act", () => {
+    const dead = { ...doomed(), deadAt: T0, causeOfDeath: "dysentery" };
+    const later = applyElapsedDecay(dead, T0 + 60 * 60_000);
+    expect(later.stage).toBe("child");
+    expect(feed(later, "burger", T0 + 61 * 60_000).note).toBe("cant");
+    expect(stepEvents(later, 60_000, () => 0).events).toEqual([]);
   });
 });
 

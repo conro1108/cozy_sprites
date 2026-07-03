@@ -4,18 +4,43 @@ export const MAX_HEARTS = 4;
 
 export type Stage = "egg" | "baby" | "child" | "teen" | "adult";
 
-/** The six adult forms shipped in v1 (see SPEC §12). */
+/** The six standard adult forms plus one secret (see SPEC §12). */
 export type AdultForm =
   | "dog"
   | "blob"
   | "gremlin"
   | "scholar"
   | "office"
-  | "menace";
+  | "menace"
+  | "ghost";
 
 export type FoodId = "burger" | "cake" | "carrot" | "noodles" | "cube";
 
 export type GameId = "higherlower" | "fetch" | "rps" | "hideseek" | "wouldyou";
+
+/** Named illnesses in the proud tradition of Oregon Trail. */
+export type IllnessId =
+  | "sniffles"
+  | "dysentery"
+  | "goblinflu"
+  | "vapors"
+  | "plague";
+
+export interface IllnessDef {
+  id: IllnessId;
+  /** Rendered as "NAME has {label}." */
+  label: string;
+  /** Medicine doses required to cure. Only the plague needs two. */
+  doses: number;
+}
+
+export const ILLNESSES: Record<IllnessId, IllnessDef> = {
+  sniffles: { id: "sniffles", label: "the sniffles", doses: 1 },
+  dysentery: { id: "dysentery", label: "dysentery", doses: 1 },
+  goblinflu: { id: "goblinflu", label: "goblin flu", doses: 1 },
+  vapors: { id: "vapors", label: "the vapors", doses: 1 },
+  plague: { id: "plague", label: "the plague", doses: 2 },
+};
 
 /** Hidden stats the player never sees directly (SPEC §7, §15). */
 export interface HiddenStats {
@@ -47,7 +72,17 @@ export interface PetState {
   asleep: boolean;
   lightsOn: boolean;
   sick: boolean;
+  /** Which illness, when sick. Old saves may have sick=true with no illness. */
+  illness: IllnessId | null;
+  /** Medicine doses already given toward the current illness. */
+  dosesGiven: number;
   poops: number; // count of uncleaned messes on the floor
+
+  /** Sustained time (ms) spent at zero health — the road to death. */
+  zeroHealthMs: number;
+  /** Set when the pet dies. The game shows a memorial and starts over. */
+  deadAt: number | null;
+  causeOfDeath: string | null;
 
   /** True when the pet is making a genuine or fake attention call. */
   wantsAttention: boolean;
@@ -67,6 +102,10 @@ export interface FarmEntry {
   ageMs: number;
   hatchedAt: number;
   retiredAt: number;
+  /** True when the sprite died rather than retiring. */
+  passedAway?: boolean;
+  /** e.g. "dysentery" — memorialised on the farm card. */
+  cause?: string | null;
 }
 
 export function emptyHidden(): HiddenStats {

@@ -2,8 +2,8 @@
 // Deterministic math lives in applyElapsedDecay; anything random lives in
 // stepEvents and takes an injectable rng so it stays unit-testable.
 
-import { MAX_HEARTS, emptyHidden } from "./types";
-import type { AdultForm, FoodId, GameId, PetState, Stage } from "./types";
+import { ILLNESSES, MAX_HEARTS, emptyHidden } from "./types";
+import type { AdultForm, FoodId, GameId, IllnessId, PetState, Stage } from "./types";
 import { FOODS } from "./roster";
 import { determineAdultForm } from "./evolution";
 
@@ -39,6 +39,9 @@ const STAGE_DECAY_MULT: Record<Stage, number> = {
 
 const MISTAKE_INTERVAL_MS = 60_000; // one care mistake per minute of neglect
 
+/** How long a pet survives at zero health before dying (demo-paced). */
+export const DEATH_AFTER_ZERO_HEALTH_MS = 6 * 60_000;
+
 // --- Construction -----------------------------------------------------------
 export function createPet(name: string, now: number): PetState {
   return {
@@ -59,7 +62,12 @@ export function createPet(name: string, now: number): PetState {
     asleep: false,
     lightsOn: true,
     sick: false,
+    illness: null,
+    dosesGiven: 0,
     poops: 0,
+    zeroHealthMs: 0,
+    deadAt: null,
+    causeOfDeath: null,
     wantsAttention: false,
     fakeCall: false,
     hidden: emptyHidden(),
@@ -106,10 +114,11 @@ export function needsCare(state: PetState): boolean {
  */
 export function applyElapsedDecay(state: PetState, now: number): PetState {
   if (now <= state.lastUpdated) return state;
+  if (state.deadAt !== null) return { ...state, lastUpdated: now };
   const s: PetState = { ...state, hidden: { ...state.hidden } };
   let cursor = s.lastUpdated;
 
-  while (cursor < now) {
+  while (cursor < now && s.deadAt === null) {
     let segEnd = now;
     if (s.stage !== "adult") {
       const stageEnd = s.stageStartedAt + TIMING[s.stage];
@@ -123,7 +132,9 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
     }
   }
 
-  s.asleep = isNight(now) && !s.lightsOn && s.stage !== "egg";
+  if (s.deadAt === null) {
+    s.asleep = isNight(now) && !s.lightsOn && s.stage !== "egg";
+  }
   s.lastUpdated = now;
   return s;
 }
@@ -159,6 +170,28 @@ function decaySegment(s: PetState, seg: number, segTime: number): void {
   if (neglect > 0) s.hidden.careMistakes += (seg / MISTAKE_INTERVAL_MS) * neglect;
 
   s.weight = Math.max(1, s.weight - 0.02 * minutes);
+
+  // Death: sustained neglect at zero health, past the egg stage. Eggs can't die.
+  if (s.stage !== "egg" && s.health <= 0) {
+    s.zeroHealthMs += seg;
+    if (s.zeroHealthMs >= DEATH_AFTER_ZERO_HEALTH_MS) {
+      s.deadAt = segTime;
+      s.causeOfDeath = causeOfDeath(s);
+      s.asleep = false;
+      s.wantsAttention = false;
+    }
+  } else if (s.health > 10) {
+    s.zeroHealthMs = 0; // meaningfully recovered — reset the doom clock
+  }
+}
+
+/** What gets carved on the memorial. Illness wins; otherwise infer neglect. */
+function causeOfDeath(s: PetState): string {
+  if (s.sick && s.illness) return ILLNESSES[s.illness].label;
+  if (s.sick) return "a mysterious ailment";
+  if (s.hunger <= 0) return "an empty bowl";
+  if (s.happiness <= 0) return "a broken heart";
+  return "general neglect";
 }
 
 /** Move to the next life stage. Mutates `s`. Caller guarantees stage≠adult. */
@@ -187,7 +220,9 @@ export interface ActionResult {
 
 export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   let s = applyElapsedDecay(state, now);
-  if (s.stage === "egg" || s.asleep) return { state: s, note: "cant" };
+  if (s.stage === "egg" || s.asleep || s.deadAt !== null) {
+    return { state: s, note: "cant" };
+  }
   s = { ...s, hidden: { ...s.hidden } };
   const def = FOODS[food];
 
@@ -258,7 +293,15 @@ export function giveMedicine(state: PetState, now: number): ActionResult {
     s = { ...s, hidden: { ...s.hidden, careMistakes: s.hidden.careMistakes + 1 } };
     return { state: s, note: "notneeded" };
   }
-  s = { ...s, sick: false, health: clamp100(s.health + 12) };
+  // The plague takes two shots; everything else one (same mechanic otherwise).
+  const needed = s.illness ? ILLNESSES[s.illness].doses : 1;
+  const given = s.dosesGiven + 1;
+  if (given < needed) {
+    s = { ...s, dosesGiven: given, health: clamp100(s.health + 4) };
+    if (!s.lightsOn) s.hidden = { ...s.hidden, nightCare: s.hidden.nightCare + 1 };
+    return { state: s, note: "dose" };
+  }
+  s = { ...s, sick: false, illness: null, dosesGiven: 0, health: clamp100(s.health + 12) };
   if (!s.lightsOn) s.hidden = { ...s.hidden, nightCare: s.hidden.nightCare + 1 };
   return { state: s, note: "cured" };
 }
@@ -345,7 +388,9 @@ export function stepEvents(
   rng: () => number = Math.random,
 ): EventResult {
   const events: string[] = [];
-  if (state.stage === "egg" || state.asleep) return { state, events };
+  if (state.stage === "egg" || state.asleep || state.deadAt !== null) {
+    return { state, events };
+  }
   let s: PetState = { ...state, hidden: { ...state.hidden } };
   const perMin = elapsed / 60_000;
 
@@ -364,6 +409,8 @@ export function stepEvents(
     if (s.hidden.cakeEaten > 6) sickRate += 0.05;
     if (rng() < sickRate * perMin) {
       s.sick = true;
+      s.illness = rollIllness(rng);
+      s.dosesGiven = 0;
       events.push("sick");
     }
   }
@@ -376,6 +423,23 @@ export function stepEvents(
   }
 
   return { state: s, events };
+}
+
+/** Weighted illness pick — mundane ailments common, the plague rare. */
+export function rollIllness(rng: () => number = Math.random): IllnessId {
+  const table: [IllnessId, number][] = [
+    ["sniffles", 0.3],
+    ["dysentery", 0.25],
+    ["goblinflu", 0.2],
+    ["vapors", 0.15],
+    ["plague", 0.1],
+  ];
+  let r = rng();
+  for (const [id, w] of table) {
+    r -= w;
+    if (r < 0) return id;
+  }
+  return "sniffles";
 }
 
 // --- Food preference lookups (re-exported for convenience) ------------------
@@ -393,4 +457,5 @@ const ADULT_FOOD: Record<AdultForm, { favorite: FoodId; disliked: FoodId | null 
   scholar: { favorite: "carrot", disliked: "cake" },
   office: { favorite: "noodles", disliked: "cube" },
   menace: { favorite: "cake", disliked: "burger" },
+  ghost: { favorite: "cube", disliked: "burger" },
 };

@@ -27,10 +27,19 @@ body {
 body {
   background:
     radial-gradient(circle at 50% 0%, #8a5f3f 0%, #6b4630 60%, #4a2f20 100%);
-  font-family: "Segoe UI Rounded", ui-rounded, "Nunito", system-ui, sans-serif;
+  font-family: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono",
+    "Courier New", monospace;
   display: flex;
   justify-content: center;
   color: var(--ink);
+}
+
+/* Pixel icons everywhere — keep them crisp at any size */
+.pxicon {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
 
 #app {
@@ -70,10 +79,10 @@ body {
   gap: 6px;
 }
 
-.meter-row .icon {
-  font-size: 0.95rem;
-  width: 18px;
-  text-align: center;
+.badge-sick {
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
 }
 
 .hearts {
@@ -168,22 +177,24 @@ body {
   display: block;
 }
 
+/* Anchored just above the sprite's head — left/top set inline from the scene */
 .speech-bubble {
   position: absolute;
-  top: 8%;
+  top: 20%;
   left: 50%;
-  transform: translateX(-50%) translateY(6px) scale(0.95);
-  max-width: 78%;
+  transform: translate(-50%, calc(-100% - 4px)) scale(0.95);
+  width: max-content;
+  max-width: 72%;
   background: #fffdf7;
   color: #2c2216;
-  padding: 8px 14px;
-  border-radius: 14px;
+  padding: 8px 12px;
+  border-radius: 12px;
   border: 2px solid var(--wood);
-  font-size: 0.92rem;
+  font-size: 0.84rem;
   font-weight: 600;
   text-align: center;
   opacity: 0;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition: opacity 0.15s ease;
   pointer-events: none;
   box-shadow: var(--panel-shadow);
   z-index: 4;
@@ -191,7 +202,7 @@ body {
 
 .speech-bubble.visible {
   opacity: 1;
-  transform: translateX(-50%) translateY(0) scale(1);
+  transform: translate(-50%, calc(-100% - 10px)) scale(1);
 }
 
 .speech-bubble::after {
@@ -570,6 +581,113 @@ body {
 .muted {
   color: var(--ink-soft);
   font-size: 0.85rem;
+}
+
+/* --- In-scene game controls (overlaid on the stage) ----------------------- */
+.stage-controls {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  background: rgba(247, 236, 216, 0.94);
+  border: 2px solid var(--wood);
+  border-radius: 14px;
+  padding: 10px 12px;
+  z-index: 6;
+  text-align: center;
+  box-shadow: var(--panel-shadow);
+}
+
+.stage-controls .btn {
+  margin-top: 8px;
+}
+
+.stage-hint {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--wood-dark);
+}
+
+.stage-controls .game-choices {
+  margin: 6px 0 2px;
+}
+
+/* Buttons with a pixel icon inline */
+.btn-iconed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-small {
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  min-width: 0;
+}
+
+/* --- Notification settings ------------------------------------------------ */
+.notify-settings {
+  margin-top: 16px;
+}
+
+.notify-settings > p {
+  margin: 0 0 6px;
+}
+
+.notify-row {
+  display: flex;
+  gap: 8px;
+}
+
+.notify-opt {
+  flex: 1;
+  padding: 9px 4px;
+  border: 2px solid var(--wood);
+  border-radius: 10px;
+  background: #fffdf7;
+  color: var(--wood-dark);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notify-opt.active {
+  background: var(--wood);
+  color: #fff;
+}
+
+/* --- The deliberately-hard-to-find help ----------------------------------- */
+.help-hidden {
+  display: block;
+  margin: 14px 0 0 auto;
+  border: none;
+  background: transparent;
+  color: rgba(138, 111, 87, 0.45);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+/* --- Memorial --------------------------------------------------------------*/
+.memorial h1 {
+  font-size: 1.15rem;
+  line-height: 1.5;
+}
+
+/* Collection portraits stay crisp */
+.tile canvas {
+  image-rendering: pixelated;
+  width: 48px;
+  height: 48px;
+}
+
+.farm-card > img {
+  flex-shrink: 0;
 }
 
 textarea.code {

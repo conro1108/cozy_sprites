@@ -15,7 +15,14 @@ import {
 } from "./pet/state";
 import type { AdultForm, FoodId, GameId, PetState } from "./pet/types";
 import { ADULTS } from "./pet/roster";
-import { pickLine, teenFlickerLine } from "./pet/dialogue";
+import {
+  pickLine,
+  shouldSpeak,
+  teenFlickerLine,
+  illnessAnnouncement,
+  memorialLine,
+  epitaph,
+} from "./pet/dialogue";
 import type { Category } from "./pet/dialogue";
 import { determineAdultForm } from "./pet/evolution";
 import {
@@ -30,6 +37,8 @@ import {
 import { Scene } from "./render/scene";
 import { creatureKey } from "./render/sprites";
 import type { Mood } from "./render/sprites";
+import { iconHTML, iconUrl } from "./render/icons";
+import { notify } from "./ui/notifications";
 import { initMenus, openCare, openFood, openPlay, openStatus } from "./ui/menus";
 
 const TICK_MS = 3_000;
@@ -46,9 +55,11 @@ let scene: Scene | null = null;
 let bubbleTimer: ReturnType<typeof setTimeout> | undefined;
 let nextIdleAt = 0;
 let tickHandle: ReturnType<typeof setInterval> | undefined;
+let dying = false; // death act in progress — input paused
 
 // Elements populated when the game screen mounts.
 let els: {
+  stage: HTMLDivElement;
   bubble: HTMLDivElement;
   attn: HTMLDivElement;
   name: HTMLDivElement;
@@ -65,14 +76,17 @@ boot();
 
 function boot(): void {
   pet = loadPet();
-  if (pet) {
+  if (!pet) {
+    mountHatch();
+  } else if (pet.deadAt !== null) {
+    // Died while we were away — no animation replay, straight to the memorial.
+    mountMemorial();
+  } else {
     // Mount first so the scene/HUD exist, then catch up — this way an evolution
     // or hatch that completed while the app was closed still plays its fanfare.
     mountGame();
     stepPet(Date.now(), true);
     commit();
-  } else {
-    mountHatch();
   }
 }
 
@@ -82,9 +96,11 @@ function mountHatch(): void {
   scene?.stop();
   scene = null;
   els = null;
+  dying = false;
   app.innerHTML = `
     <div class="hatch-screen">
-      <h1>🥚 A new egg</h1>
+      ${iconHTML("egg", 56)}
+      <h1>A new egg</h1>
       <p class="muted">Something is about to hatch. What will you call it?</p>
       <input id="petname" maxlength="12" placeholder="Name your sprite" value="Milo" />
       <button class="btn" id="hatchbtn">Begin</button>
@@ -103,33 +119,67 @@ function mountHatch(): void {
   });
 }
 
+// --- Memorial screen ---------------------------------------------------------
+function mountMemorial(): void {
+  if (!pet) return;
+  stopTick();
+  scene?.stop();
+  scene = null;
+  els = null;
+  dying = false;
+  const p = pet;
+  const lived = (p.deadAt ?? Date.now()) - p.createdAt;
+  app.innerHTML = `
+    <div class="hatch-screen memorial">
+      ${iconHTML("grave", 56)}
+      <h1>${memorialLine(p.name, p.causeOfDeath)}</h1>
+      <p class="muted">${epitaph()}</p>
+      <p class="muted">It lived ${formatAge(lived)}.</p>
+      <button class="btn" id="restbtn">Lay to rest</button>
+    </div>`;
+  app.querySelector("#restbtn")!.addEventListener("click", () => {
+    farm = retireToFarm(p, Date.now());
+    pet = null;
+    mountHatch();
+  });
+}
+
+function formatAge(ms: number): string {
+  const m = Math.floor(ms / 60_000);
+  if (m < 60) return `${m} minutes`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} hours`;
+  return `${Math.floor(h / 24)} days`;
+}
+
 // --- Game screen ------------------------------------------------------------
 function mountGame(): void {
+  dying = false;
   app.innerHTML = `
     <div class="hud">
       <div class="meters">
-        <div class="meter-row"><span class="icon">🍔</span><div class="hearts" data-hunger></div></div>
-        <div class="meter-row"><span class="icon">💛</span><div class="hearts" data-happy></div></div>
-        <div class="meter-row"><span class="icon">❤️</span><div class="health-bar"><div class="fill" data-health></div></div></div>
+        <div class="meter-row">${iconHTML("burger", 16)}<div class="hearts" data-hunger></div></div>
+        <div class="meter-row">${iconHTML("heartgold", 16)}<div class="hearts" data-happy></div></div>
+        <div class="meter-row">${iconHTML("heart", 16)}<div class="health-bar"><div class="fill" data-health></div></div></div>
       </div>
       <div class="idcol">
         <div class="pet-name" data-name></div>
         <div class="pet-sub" data-sub></div>
-        <div class="badge-sick" data-sick style="display:none">🤒 sick</div>
+        <div class="badge-sick" data-sick style="display:none">${iconHTML("thermometer", 14)} sick</div>
       </div>
     </div>
-    <div class="stage">
+    <div class="stage" data-stage>
       <canvas id="scene"></canvas>
       <div class="speech-bubble" data-bubble></div>
-      <div class="attention" data-attn style="display:none">❗</div>
+      <div class="attention" data-attn style="display:none">${iconHTML("alert", 22)}</div>
     </div>
     <nav class="nav">
-      <button data-action="status"><span class="ico">📋</span>Status</button>
-      <button data-action="food"><span class="ico">🍔</span>Food</button>
-      <button data-action="play"><span class="ico">🎮</span>Play</button>
-      <button data-action="clean"><span class="ico">🧹</span>Clean</button>
-      <button data-action="care"><span class="ico">🩹</span>Care</button>
-      <button data-action="light"><span class="ico">💡</span>Light</button>
+      <button data-action="status">${iconHTML("status", 26)}Status</button>
+      <button data-action="food">${iconHTML("burger", 26)}Food</button>
+      <button data-action="play">${iconHTML("play", 26)}Play</button>
+      <button data-action="clean">${iconHTML("broom", 26)}Clean</button>
+      <button data-action="care">${iconHTML("bandage", 26)}Care</button>
+      <button data-action="light">${iconHTML("bulb", 26)}Light</button>
     </nav>`;
 
   const nav: Record<string, HTMLButtonElement> = {};
@@ -137,6 +187,7 @@ function mountGame(): void {
     nav[b.dataset.action!] = b;
   });
   els = {
+    stage: app.querySelector("[data-stage]")!,
     bubble: app.querySelector("[data-bubble]")!,
     attn: app.querySelector("[data-attn]")!,
     name: app.querySelector("[data-name]")!,
@@ -155,7 +206,9 @@ function mountGame(): void {
 
   nav.status.addEventListener("click", () => openStatus(ctx, Date.now()));
   nav.food.addEventListener("click", () => openFood(ctx));
-  nav.play.addEventListener("click", () => openPlay(ctx));
+  nav.play.addEventListener("click", () => {
+    if (!scene?.busy()) openPlay(ctx);
+  });
   nav.clean.addEventListener("click", doClean);
   nav.care.addEventListener("click", () => openCare(ctx));
   nav.light.addEventListener("click", doLight);
@@ -174,19 +227,19 @@ function render(): void {
   els.health.style.width = `${pet.health}%`;
   els.name.textContent = pet.name;
   els.sub.textContent = pet.form ? ADULTS[pet.form].name : stageLabel(pet.stage);
-  els.sick.style.display = pet.sick ? "block" : "none";
-  els.attn.style.display = pet.wantsAttention ? "block" : "none";
+  els.sick.style.display = pet.sick ? "flex" : "none";
+  els.attn.style.display = pet.wantsAttention && !dying ? "block" : "none";
 
   // Nav alert cues (never reveals hidden state — just surfaces visible needs).
   toggleAlert(els.nav.food, pet.hunger <= 1);
   toggleAlert(els.nav.play, pet.happiness <= 1);
   toggleAlert(els.nav.clean, pet.poops > 0);
   toggleAlert(els.nav.care, pet.sick);
-  els.nav.light.querySelector(".ico")!.textContent = pet.lightsOn ? "💡" : "🌙";
+  els.nav.light.querySelector("img")!.src = iconUrl(pet.lightsOn ? "bulb" : "moon");
 
   scene.update({
     key: creatureKey(pet.stage, pet.form),
-    mood: moodOf(pet),
+    mood: dying ? "sleep" : moodOf(pet),
     poops: pet.poops,
     night: isNight(now),
     asleep: pet.asleep,
@@ -223,21 +276,35 @@ function stageLabel(stage: PetState["stage"]): string {
 }
 
 // --- Speech -----------------------------------------------------------------
+/** Show a line in a bubble anchored just above the sprite's head. */
 function say(line: string | null): void {
-  if (!line || !els) return;
+  if (!line || !els || !scene) return;
+  const anchor = scene.creatureAnchor();
+  const stageW = els.stage.clientWidth;
+  // Keep the bubble on screen while still pointing at the creature.
+  const x = Math.max(stageW * 0.22, Math.min(stageW * 0.78, anchor.x));
+  els.bubble.style.left = `${x}px`;
+  els.bubble.style.top = `${anchor.y}px`;
   els.bubble.textContent = line;
   els.bubble.classList.add("visible");
   clearTimeout(bubbleTimer);
   bubbleTimer = setTimeout(() => els?.bubble.classList.remove("visible"), BUBBLE_MS);
 }
 
+/**
+ * Speak a category line — maybe. Routine chatter rolls against the pet's
+ * talkativeness (varies by age and creature); important feedback always lands.
+ */
 function sayCat(cat: Category): void {
-  if (pet) say(pickLine(pet, cat));
+  if (!pet) return;
+  if (!shouldSpeak(pet, cat)) return;
+  say(pickLine(pet, cat));
 }
 
 // --- Actions ----------------------------------------------------------------
 function onTapPet(): void {
-  if (!pet) return;
+  if (!pet || dying || pet.deadAt !== null) return;
+  if (scene?.busy()) return;
   const r = tap(pet, Date.now());
   pet = r.state;
   if (r.annoyed) {
@@ -253,7 +320,7 @@ function onTapPet(): void {
 }
 
 function doFeed(food: FoodId): void {
-  if (!pet) return;
+  if (!pet || dying) return;
   const { state, note } = feed(pet, food, Date.now());
   pet = state;
   if (note === "cant") {
@@ -262,7 +329,9 @@ function doFeed(food: FoodId): void {
     sayCat("full");
     scene?.triggerPulse("shake");
   } else {
-    say(pickLine(pet, feedCategory(food, note)));
+    if (pet && shouldSpeak(pet, feedCategory(food, note))) {
+      say(pickLine(pet, feedCategory(food, note)));
+    }
     scene?.triggerPulse("eat");
   }
   commit();
@@ -278,20 +347,27 @@ function feedCategory(food: FoodId, note?: string): Category {
 }
 
 function doClean(): void {
-  if (!pet) return;
+  if (!pet || dying) return;
+  if (scene?.busy()) return;
   const { state, note } = clean(pet, Date.now());
   pet = state;
-  if (note === "cleaned") sayCat("clean");
+  if (note === "cleaned") {
+    // Sweep first, then the pet reacts to the newly-legal floor.
+    scene?.playClean(() => sayCat("clean"));
+  }
   commit();
 }
 
 function doMedicine(): void {
-  if (!pet) return;
+  if (!pet || dying) return;
   const { state, note } = giveMedicine(pet, Date.now());
   pet = state;
   if (note === "cured") {
     sayCat("medicine");
     scene?.triggerPulse("happy");
+  } else if (note === "dose") {
+    // Plague: one shot down, one to go.
+    sayCat("dose");
   } else if (note === "notneeded") {
     say("I'm not sick. But thank you, I guess.");
   }
@@ -299,7 +375,7 @@ function doMedicine(): void {
 }
 
 function doDiscipline(): void {
-  if (!pet) return;
+  if (!pet || dying) return;
   const { state, note } = discipline(pet, Date.now());
   pet = state;
   if (note === "correct") sayCat("discipline_correct");
@@ -313,7 +389,7 @@ function doDiscipline(): void {
 const DAY_DARK_LINES = ["It is not even dark.", "Mood lighting. Bold.", "Ambience, I suppose."];
 
 function doLight(): void {
-  if (!pet) return;
+  if (!pet || dying) return;
   const now = Date.now();
   pet = toggleLight(pet, now);
   if (pet.asleep) sayCat("sleep");
@@ -360,8 +436,10 @@ function stopTick(): void {
  * while backgrounded aren't silently missed. Returns whether the stage changed.
  */
 function stepPet(now: number, withEvents: boolean): boolean {
-  if (!pet) return false;
+  if (!pet || dying) return false;
   const prevStage = pet.stage;
+  const prevHunger = pet.hunger;
+  const wasDead = pet.deadAt !== null;
   const elapsed = now - pet.lastUpdated;
   pet = applyElapsedDecay(pet, now);
   let events: string[] = [];
@@ -370,22 +448,57 @@ function stepPet(now: number, withEvents: boolean): boolean {
     pet = r.state;
     events = r.events;
   }
+
+  // Death — handled before anything else can chatter over it.
+  if (!wasDead && pet.deadAt !== null) {
+    beginDeath();
+    return false;
+  }
+
   const changed = pet.stage !== prevStage;
   if (changed) {
     handleStageChange(prevStage, pet.stage);
   } else if (events.includes("sick")) {
-    sayCat("sick");
+    // The Oregon Trail moment. Always announced, never diluted.
+    if (pet.illness) say(illnessAnnouncement(pet.name, pet.illness));
+    else sayCat("sick");
+    notify("dire", "Cozy Sprites", pet.illness ? illnessAnnouncement(pet.name, pet.illness) : `${pet.name} is sick.`);
   } else if (events.includes("poop")) {
     sayCat("poop");
+    notify("care", "Cozy Sprites", `${pet.name} made a mess.`);
   } else if (events.includes("call") || events.includes("fakecall")) {
     // Fake calls must sound exactly like real ones — that's the whole game.
     sayCat("call");
+    notify("care", "Cozy Sprites", `${pet.name} wants your attention.`);
+  }
+
+  if (prevHunger > 1 && pet.hunger <= 1) {
+    notify("care", "Cozy Sprites", `${pet.name} is getting hungry.`);
+  }
+  if (pet.health <= 15 && pet.health > 0 && !pet.sick && Math.random() < 0.2) {
+    notify("dire", "Cozy Sprites", `${pet.name} is not doing well.`);
   }
   return changed;
 }
 
-function tick(): void {
+/** Play the death act, then move to the memorial. */
+function beginDeath(): void {
   if (!pet) return;
+  dying = true;
+  savePet(pet);
+  render(); // sad/sleep face, no attention mark
+  notify("dire", "Cozy Sprites", memorialLine(pet.name, pet.causeOfDeath));
+  clearTimeout(bubbleTimer);
+  els?.bubble.classList.remove("visible");
+  if (scene) {
+    scene.playDeath(() => mountMemorial());
+  } else {
+    mountMemorial();
+  }
+}
+
+function tick(): void {
+  if (!pet || dying) return;
   const now = Date.now();
   if (!stepPet(now, true)) maybeIdleLine(now);
   commit();
@@ -408,15 +521,16 @@ function handleStageChange(from: PetState["stage"], to: PetState["stage"]): void
 }
 
 function maybeIdleLine(now: number): void {
-  if (!pet || pet.asleep) return;
+  if (!pet || pet.asleep || dying) return;
   if (now < nextIdleAt) return;
+  if (scene?.busy()) return;
   if (pet.stage === "teen" && Math.random() < 0.35) {
     // "The Audition" (SPEC §4): the leaning adult personality leaks through
     // occasionally, at normal idle cadence, never labeled.
     const leaning = determineAdultForm(pet.hidden, pet.health);
     say(teenFlickerLine(leaning));
-  } else if (Math.random() < 0.6) {
-    sayCat("idle");
+  } else if (shouldSpeak(pet, "idle")) {
+    say(pickLine(pet, "idle"));
   }
   nextIdleAt = now + rand(IDLE_MIN_MS, IDLE_MAX_MS);
 }
@@ -425,6 +539,8 @@ function maybeIdleLine(now: number): void {
 const ctx = {
   pet: () => pet!,
   farm: () => farm,
+  scene: () => scene!,
+  stageEl: () => els!.stage,
   discovered: (): Set<AdultForm> => {
     const set = new Set<AdultForm>();
     for (const e of farm) if (e.form) set.add(e.form);
@@ -458,7 +574,7 @@ function pick<T>(arr: readonly T[]): T {
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") commit();
-  else if (pet) {
+  else if (pet && !dying) {
     stepPet(Date.now(), true);
     commit();
   }

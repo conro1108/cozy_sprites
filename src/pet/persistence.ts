@@ -37,10 +37,22 @@ export function loadPet(): PetState | null {
   const raw = localStorage.getItem(PET_KEY);
   if (!raw) return null;
   try {
-    return JSON.parse(raw) as PetState;
+    return migratePet(JSON.parse(raw) as PetState);
   } catch {
     return null;
   }
+}
+
+/** Backfill fields added after a save was written so old saves keep working. */
+function migratePet(p: PetState): PetState {
+  return {
+    ...p,
+    illness: p.illness ?? (p.sick ? "sniffles" : null),
+    dosesGiven: p.dosesGiven ?? 0,
+    zeroHealthMs: p.zeroHealthMs ?? 0,
+    deadAt: p.deadAt ?? null,
+    causeOfDeath: p.causeOfDeath ?? null,
+  };
 }
 
 export function clearPet(): void {
@@ -61,15 +73,18 @@ export function saveFarm(entries: FarmEntry[]): void {
   localStorage.setItem(FARM_KEY, JSON.stringify(entries));
 }
 
-/** Retire the active pet into the farm archive and return the new archive. */
+/** Retire the active pet into the farm archive and return the new archive.
+ *  Dead pets get a memorial entry instead of a retirement one. */
 export function retireToFarm(state: PetState, now: number): FarmEntry[] {
   const entry: FarmEntry = {
     name: state.name,
     form: state.form,
     finalStage: state.stage,
-    ageMs: ageMs(state, now),
+    ageMs: ageMs(state, state.deadAt ?? now),
     hatchedAt: state.createdAt,
-    retiredAt: now,
+    retiredAt: state.deadAt ?? now,
+    passedAway: state.deadAt !== null,
+    cause: state.causeOfDeath,
   };
   const farm = [entry, ...loadFarm()];
   saveFarm(farm);

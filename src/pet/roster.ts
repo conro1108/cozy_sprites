@@ -28,6 +28,8 @@ export interface AdultDef {
   favorite: FoodId;
   disliked: FoodId | null;
   preferredGame: GameId;
+  /** Secret forms don't appear in the collection until discovered. */
+  secret?: boolean;
 }
 
 export const ADULTS: Record<AdultForm, AdultDef> = {
@@ -79,6 +81,15 @@ export const ADULTS: Record<AdultForm, AdultDef> = {
     disliked: "burger",
     preferredGame: "higherlower",
   },
+  ghost: {
+    id: "ghost",
+    name: "Quiet Ghost",
+    blurb: "Nobody remembers raising one. It remembers being raised. In the dark.",
+    favorite: "cube",
+    disliked: "burger",
+    preferredGame: "hideseek",
+    secret: true,
+  },
 };
 
 export const ADULT_ORDER: AdultForm[] = [
@@ -88,4 +99,5 @@ export const ADULT_ORDER: AdultForm[] = [
   "scholar",
   "office",
   "menace",
+  "ghost",
 ];
