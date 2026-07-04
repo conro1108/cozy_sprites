@@ -46,6 +46,7 @@ export function scoreForms(
     office: 2, // baseline: the default when nothing dominates
     menace: 0,
     ghost: 0,
+    humcube: 0,
   };
 
   // Loyal Dog Thing — fetch enthusiast, well cared for. Ordinary wear and tear
@@ -61,9 +62,12 @@ export function scoreForms(
   if (hasTopGame && topGame === "higherlower") s.blob += 1;
   if (mistakes >= 2 && mistakes < 6) s.blob += 2;
 
-  // Gremlin — chaos: cube abuse, care mistakes, low discipline.
-  s.gremlin += hidden.cubeEaten * 1.2;
-  s.gremlin += mistakes * 0.8;
+  // Gremlin — chaos: care mistakes and low discipline, with a little cube.
+  // The cube used to dominate this score, which made it read as a "bad" food.
+  // It's meant to be neutral/mysterious: fed chaotically it still nudges the
+  // gremlin, but its *devoted* path is the Humming Cube (below), not this one.
+  s.gremlin += hidden.cubeEaten * 0.5;
+  s.gremlin += mistakes * 0.9;
   if ((hidden.cubeEaten > 0 || mistakes > 0) && hidden.discipline < 10) {
     s.gremlin += 2;
   }
@@ -87,6 +91,16 @@ export function scoreForms(
   // Deliberately steep so it only appears when night care truly dominates.
   s.ghost += hidden.nightCare * 0.9;
   if (hidden.nightCare >= 8) s.ghost += 3;
+
+  // The Humming Cube (secret) — devotion to the cube, done calmly. A real cube
+  // diet, and especially a habit of its humming game, without the gremlin's
+  // chaos. Steep like the ghost: a casual cube taste won't summon it, but feed
+  // the cube deliberately (and hum along) and something patient answers.
+  s.humcube += hidden.cubeEaten * 0.5;
+  if (hasTopGame && topGame === "cubehum") {
+    s.humcube += 4;
+    if (hidden.cubeEaten >= 3) s.humcube += 3; // the diet and the game together
+  }
 
   return s;
 }

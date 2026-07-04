@@ -44,6 +44,27 @@ describe("determineAdultForm", () => {
     expect(determineAdultForm(h, 80)).toBe("ghost");
   });
 
+  it("produces the secret humming cube from a devoted, calm cube diet + its game", () => {
+    const h = hidden({
+      cubeEaten: 10,
+      careMistakes: 0,
+      gamePlays: { ...emptyHidden().gamePlays, cubehum: 8 },
+    });
+    expect(determineAdultForm(h, 90)).toBe("humcube");
+  });
+
+  it("keeps chaotic cube abuse on the gremlin path, not the humming cube", () => {
+    // Same cube intake, but messy and undisciplined — this is the gremlin, and
+    // the point of the rebalance is that cube alone no longer decides.
+    const h = hidden({ cubeEaten: 15, careMistakes: 8, discipline: 0 });
+    expect(determineAdultForm(h, 50, () => 0)).toBe("gremlin");
+  });
+
+  it("does not summon the humming cube from a casual cube taste", () => {
+    const h = hidden({ cubeEaten: 2 });
+    expect(determineAdultForm(h, 80, () => 0)).not.toBe("humcube");
+  });
+
   it("does not produce a ghost from casual night care", () => {
     // rng()=0 → deterministic top scorer, so a near-tie can't flake the test.
     const h = hidden({ nightCare: 2 });

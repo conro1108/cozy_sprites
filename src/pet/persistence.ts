@@ -3,6 +3,7 @@
 // SPEC §6 ("a backup/export option should exist even in v1").
 
 import type { FarmEntry, PetState } from "./types";
+import { emptyHidden } from "./types";
 import { ageMs } from "./state";
 
 const PET_KEY = "cozy-sprites-pet";
@@ -45,6 +46,7 @@ export function loadPet(): PetState | null {
 
 /** Backfill fields added after a save was written so old saves keep working. */
 function migratePet(p: PetState): PetState {
+  const defaults = emptyHidden();
   return {
     ...p,
     illness: p.illness ?? (p.sick ? "sniffles" : null),
@@ -54,6 +56,13 @@ function migratePet(p: PetState): PetState {
     causeOfDeath: p.causeOfDeath ?? null,
     attentionWant: p.attentionWant ?? (p.wantsAttention ? "pat" : null),
     tapStreak: p.tapStreak ?? 0,
+    // Backfill hidden stats + any newly-added game counters (e.g. cubehum) so an
+    // old save doesn't turn gamePlays[newGame]++ into NaN and poison scoring.
+    hidden: {
+      ...defaults,
+      ...p.hidden,
+      gamePlays: { ...defaults.gamePlays, ...p.hidden?.gamePlays },
+    },
   };
 }
 

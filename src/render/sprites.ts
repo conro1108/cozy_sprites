@@ -451,6 +451,35 @@ const GHOST: BodyDef = {
   faceDy: 5,
 };
 
+// A calm little cube-being. Boxy silhouette, a lighter top face for a hint of
+// 3D, and a pale inner square low on the body that "hums" (its resonating core).
+const HUMCUBE: BodyDef = {
+  rows: [
+    "................",
+    "...kkkkkkkkkk...",
+    "..kTTTTTTTTTTk..",
+    "..kBBBBBBBBBBk..",
+    "..kBBBBBBBBBBk..",
+    "..kBBBBBBBBBBk..",
+    "..kBBBBBBBBBBk..",
+    "..kBBBBBBBBBBk..",
+    "..kBBBBBBBBBBk..",
+    "..kBBBBBBBBBBk..",
+    "..kBBhhhhhhBBk..",
+    "..kBBhBBBBhBBk..",
+    "..kSShhhhhhSSk..",
+    "...kkkkkkkkkk...",
+    "................",
+    "................",
+  ],
+  extra: { T: "#b3abe0", h: "#d6f2fa" }, // top face + the humming core
+  fill: "#8f86c4",
+  shade: "#655d9a",
+  face: "standard",
+  faceDx: 0,
+  faceDy: 1,
+};
+
 const BODIES: Record<string, BodyDef> = {
   baby: BABY,
   child: CHILD,
@@ -462,6 +491,7 @@ const BODIES: Record<string, BodyDef> = {
   office: OFFICE,
   menace: MENACE,
   ghost: GHOST,
+  humcube: HUMCUBE,
 };
 
 // --- Teen "audition" accents --------------------------------------------------
@@ -549,6 +579,14 @@ const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
       "........w.......",
     ],
     palette: { w: "#dce8f4" }, // a faint wisp, already half-elsewhere
+  },
+  humcube: {
+    rows: [
+      "..ccc...........",
+      "..c.c...........",
+      "..ccc...........",
+    ],
+    palette: { c: "#9a8fd0" }, // a tiny hollow cube, quietly orbiting its head
   },
 };
 

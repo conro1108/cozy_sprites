@@ -401,6 +401,25 @@ const ADULT: Record<AdultForm, Bank> = {
     sleep: ["The dark is home.", "At last.", "*fades slightly, contentedly*"],
     farm: ["I will haunt it gently.", "The barn and I will get along.", "Every farm needs one of me."],
   },
+  humcube: {
+    idle: [
+      "...",
+      "The angles are kind today.",
+      "*hums, one flat, endless note*",
+      "You fed me squares. I remember every one.",
+      "Six faces. I have counted them a thousand times. Still six.",
+      "The cube is not negative. The cube simply is.",
+      "I am mostly corners now. It is peaceful.",
+      "Ask me later. I am resonating.",
+    ],
+    tap: ["*a low hum, in acknowledgement*", "You touched a face. It was fine.", "..."],
+    win: ["The pattern was always going to be this.", "I heard it coming. I always do.", "The cube keeps score. The cube says: yes."],
+    lose: ["The hum went on without me. No matter.", "A wrong note. I forgive it. Mostly.", "Even the cube misses one. Allegedly."],
+    cube: ["Home.", "Ah. Myself.", "We understand each other, the cube and I."],
+    feed_favorite: ["Home.", "The cube returns to the cube. Thank you.", "*hums a whole step higher*"],
+    sleep: ["I fold inward.", "The humming quiets. A little.", "Goodnight. Mind the corners."],
+    farm: ["The fields are also, technically, a grid.", "I will hum to the crops.", "A flat field. My favorite shape. Nearly."],
+  },
 };
 
 function bankForStage(stage: Stage): Bank {
@@ -489,6 +508,7 @@ const FORM_CHATTINESS: Record<AdultForm, number> = {
   office: 0.28,
   menace: 0.4,
   ghost: 0.18,
+  humcube: 0.2, // quiet and cryptic, like the ghost — speaks when it matters
 };
 
 export function speakChance(state: PetState, category: Category): number {

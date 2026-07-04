@@ -551,4 +551,5 @@ const ADULT_FOOD: Record<AdultForm, { favorite: FoodId; disliked: FoodId | null 
   office: { favorite: "noodles", disliked: "cube" },
   menace: { favorite: "cake", disliked: "burger" },
   ghost: { favorite: "cube", disliked: "burger" },
+  humcube: { favorite: "cube", disliked: null },
 };

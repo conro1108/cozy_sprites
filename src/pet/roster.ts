@@ -90,6 +90,15 @@ export const ADULTS: Record<AdultForm, AdultDef> = {
     preferredGame: "hideseek",
     secret: true,
   },
+  humcube: {
+    id: "humcube",
+    name: "The Humming Cube",
+    blurb: "Reportedly the result of feeding the cube to something patient until it agreed.",
+    favorite: "cube",
+    disliked: null, // it holds no grudge against any food. Or anything.
+    preferredGame: "cubehum",
+    secret: true,
+  },
 };
 
 export const ADULT_ORDER: AdultForm[] = [
@@ -100,4 +109,5 @@ export const ADULT_ORDER: AdultForm[] = [
   "office",
   "menace",
   "ghost",
+  "humcube",
 ];

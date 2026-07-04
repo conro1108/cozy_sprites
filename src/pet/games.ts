@@ -167,6 +167,46 @@ const HIDE_LOST_LINES: ((spot: HideSpot) => string)[] = [
   (s) => `I was ${s}. The mushroom saw everything.`,
 ];
 
+// --- The Cube's Hum ---------------------------------------------------------
+// A memory game (Simon-style). The cube hums a growing sequence of its four
+// faces; you hum it back. Match all the way to the target length to win.
+// "You cannot out-hum the cube. No one can." — you, occasionally, can.
+export const CUBE_FACES = 4;
+export const CUBE_HUM_TARGET = 4; // repeat a four-note hum to win
+
+/** Grow the hum by one more face. The cube never repeats itself the easy way. */
+export function extendHum(seq: number[], rng: () => number = Math.random): number[] {
+  return [...seq, Math.floor(rng() * CUBE_FACES)];
+}
+
+/** Did the player's taps reproduce the hum exactly (so far)? Prefix input is
+ *  "not wrong yet"; only a mismatched face or a completed full-length hum
+ *  resolves the round — see cubeHum() in menus.ts. */
+export function humMatches(seq: number[], input: number[]): boolean {
+  if (input.length > seq.length) return false;
+  return input.every((f, i) => f === seq[i]);
+}
+
+const CUBE_HUM_WIN = [
+  "You hummed it back. The cube is pleased. The cube is rarely pleased.",
+  "Correct. The angles align.",
+  "You heard it. Most don't.",
+  "The hum lives in you now. Sorry.",
+  "Perfect recall. The cube keeps its own notes on you.",
+];
+
+const CUBE_HUM_LOSE = [
+  "Close. The cube forgives. The cube also remembers.",
+  "A wrong note. It hums on regardless.",
+  "Not quite. The seventh face is not for you yet.",
+  "You lost the thread. The cube did not.",
+  "The hum went somewhere you couldn't follow. It's fine. It's fine.",
+];
+
+export function cubeHumLine(won: boolean, rng: () => number = Math.random): string {
+  return pick(won ? CUBE_HUM_WIN : CUBE_HUM_LOSE, rng);
+}
+
 /** How often the reveal earns the withering classic. Rare, for comedy. */
 export const HIDE_AMATEUR_CHANCE = 0.08;
 

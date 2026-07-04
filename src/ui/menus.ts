@@ -1,4 +1,4 @@
-// Overlay screens: Food, Play (5 games), Care, Status, Help, Collection, Backup.
+// Overlay screens: Food, Play (6 games), Care, Status, Help, Collection, Backup.
 // Pure view code — every state change goes back through the MenuCtx callbacks.
 // Games run *in the scene*: panels only collect input, then hand off to scene
 // acts, and all result text comes out of the sprite's mouth.
@@ -19,6 +19,11 @@ import {
   hideSeekLine,
   randomWouldYou,
   HIDE_SPOTS,
+  extendHum,
+  humMatches,
+  cubeHumLine,
+  CUBE_FACES,
+  CUBE_HUM_TARGET,
 } from "../pet/games";
 import type { RpsMove } from "../pet/games";
 import { buildCreatureCanvas } from "../render/sprites";
@@ -171,6 +176,7 @@ const GAME_META: { id: GameId; icon: IconName; name: string }[] = [
   { id: "rps", icon: "rock", name: "Rock Paper Scissors" },
   { id: "hideseek", icon: "eyes", name: "Hide & Seek" },
   { id: "wouldyou", icon: "question", name: "Would You Rather" },
+  { id: "cubehum", icon: "cube", name: "The Cube's Hum" },
 ];
 
 export function openPlay(ctx: MenuCtx): void {
@@ -205,6 +211,11 @@ function startGame(ctx: MenuCtx, p: Panel, game: GameId): void {
     case "wouldyou":
       p.close();
       wouldYou(ctx);
+      break;
+    case "cubehum":
+      p.body.innerHTML = "";
+      p.setTitle("The Cube's Hum", "Repeat what the cube hums.");
+      cubeHum(ctx, p);
       break;
   }
 }
@@ -263,6 +274,104 @@ function higherLower(ctx: MenuCtx, p: Panel): void {
   numEl.textContent = String(current);
   info.textContent = `Round 1 of ${total}`;
   wrap.append(numEl, info, result, choices);
+}
+
+// Panel-input game: the cube hums a growing sequence of its four faces; you hum
+// it back. Match all the way to CUBE_HUM_TARGET to win. The verdict — like every
+// game — comes out of the sprite's mouth via finishGame().
+const CUBE_PAD_COLORS = ["#8f86c4", "#d6f2fa", "#6fb8cc", "#b3abe0"];
+
+function cubeHum(ctx: MenuCtx, p: Panel): void {
+  const wrap = document.createElement("div");
+  wrap.className = "game-body";
+  p.body.appendChild(wrap);
+
+  const info = document.createElement("p");
+  const status = document.createElement("div");
+  status.className = "game-result";
+  const pads = document.createElement("div");
+  pads.className = "cube-pads";
+
+  const padEls: HTMLButtonElement[] = [];
+  for (let i = 0; i < CUBE_FACES; i++) {
+    const b = document.createElement("button");
+    b.className = "cube-pad";
+    b.style.setProperty("--pad", CUBE_PAD_COLORS[i]);
+    b.appendChild(iconEl("cube", 26));
+    b.addEventListener("click", () => onTap(i));
+    padEls.push(b);
+    pads.appendChild(b);
+  }
+
+  let seq = extendHum([]);
+  let input: number[] = [];
+  let accepting = false;
+  let resolved = false;
+
+  const flash = (i: number) => {
+    const el = padEls[i];
+    el.classList.add("lit");
+    setTimeout(() => el.classList.remove("lit"), 260);
+  };
+
+  // Play the current sequence back to the player, then open the input window.
+  const playSeq = () => {
+    accepting = false;
+    input = [];
+    status.textContent = "Listen…";
+    info.textContent = `A ${seq.length}-note hum.`;
+    seq.forEach((face, idx) => {
+      setTimeout(() => {
+        // The panel can be torn out mid-hum (close, save restore) — don't keep
+        // flashing a detached node or reopen input on a dead panel.
+        if (!wrap.isConnected || resolved) return;
+        flash(face);
+        if (idx === seq.length - 1) {
+          setTimeout(() => {
+            if (!wrap.isConnected || resolved) return;
+            accepting = true;
+            status.textContent = "Hum it back.";
+          }, 420);
+        }
+      }, 480 + idx * 520);
+    });
+  };
+
+  const finishAndClose = (won: boolean) => {
+    if (resolved) return;
+    resolved = true;
+    accepting = false;
+    status.textContent = won ? "…" : "✕";
+    setTimeout(() => {
+      p.close();
+      ctx.finishGame("cubehum", won, cubeHumLine(won));
+    }, 520);
+  };
+
+  const onTap = (face: number) => {
+    if (!accepting || resolved) return;
+    flash(face);
+    input.push(face);
+    if (!humMatches(seq, input)) {
+      finishAndClose(false);
+      return;
+    }
+    if (input.length === seq.length) {
+      if (seq.length >= CUBE_HUM_TARGET) {
+        finishAndClose(true);
+        return;
+      }
+      accepting = false;
+      status.textContent = "Yes. Again, longer.";
+      seq = extendHum(seq);
+      setTimeout(() => {
+        if (wrap.isConnected && !resolved) playSeq();
+      }, 720);
+    }
+  };
+
+  wrap.append(info, pads, status);
+  playSeq();
 }
 
 // In-scene game: throw meter over the stage, animation in the scene.

@@ -4,7 +4,7 @@ export const MAX_HEARTS = 4;
 
 export type Stage = "egg" | "baby" | "child" | "teen" | "adult";
 
-/** The six standard adult forms plus one secret (see SPEC §12). */
+/** The six standard adult forms plus two secrets (ghost, humcube). */
 export type AdultForm =
   | "dog"
   | "blob"
@@ -12,7 +12,8 @@ export type AdultForm =
   | "scholar"
   | "office"
   | "menace"
-  | "ghost";
+  | "ghost"
+  | "humcube";
 
 export type FoodId = "burger" | "cake" | "carrot" | "noodles" | "cube";
 
@@ -20,7 +21,13 @@ export type FoodId = "burger" | "cake" | "carrot" | "noodles" | "cube";
  *  only works if it sounds exactly like a real request. */
 export type AttentionWant = "pat" | "play" | "snack";
 
-export type GameId = "higherlower" | "fetch" | "rps" | "hideseek" | "wouldyou";
+export type GameId =
+  | "higherlower"
+  | "fetch"
+  | "rps"
+  | "hideseek"
+  | "wouldyou"
+  | "cubehum";
 
 /** Named illnesses in the proud tradition of Oregon Trail. */
 export type IllnessId =
@@ -133,6 +140,7 @@ export function emptyHidden(): HiddenStats {
       rps: 0,
       hideseek: 0,
       wouldyou: 0,
+      cubehum: 0,
     },
   };
 }

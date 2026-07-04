@@ -5,6 +5,10 @@ import {
   randomWouldYou,
   resolveFetch,
   rpsAiMove,
+  extendHum,
+  humMatches,
+  cubeHumLine,
+  CUBE_FACES,
 } from "./games";
 
 describe("judgeRps", () => {
@@ -64,6 +68,31 @@ describe("resolveFetch", () => {
     expect(r.variant).toBe("cube");
     expect(r.success).toBe(true);
     expect(r.line.length).toBeGreaterThan(0);
+  });
+});
+
+describe("The Cube's Hum", () => {
+  it("extends the hum by exactly one valid face", () => {
+    const seq = extendHum([1, 2], () => 0.5);
+    expect(seq).toHaveLength(3);
+    expect(seq.slice(0, 2)).toEqual([1, 2]); // keeps the existing hum
+    const face = seq[2];
+    expect(face).toBeGreaterThanOrEqual(0);
+    expect(face).toBeLessThan(CUBE_FACES);
+  });
+
+  it("treats a correct prefix as still-alive but a wrong note as a miss", () => {
+    const seq = [0, 3, 1];
+    expect(humMatches(seq, [])).toBe(true); // nothing wrong yet
+    expect(humMatches(seq, [0, 3])).toBe(true); // correct prefix
+    expect(humMatches(seq, [0, 3, 1])).toBe(true); // full, correct
+    expect(humMatches(seq, [0, 2])).toBe(false); // wrong note
+    expect(humMatches(seq, [0, 3, 1, 0])).toBe(false); // over-hummed
+  });
+
+  it("has a spoken verdict for both outcomes", () => {
+    expect(cubeHumLine(true, () => 0).length).toBeGreaterThan(0);
+    expect(cubeHumLine(false, () => 0).length).toBeGreaterThan(0);
   });
 });
 
