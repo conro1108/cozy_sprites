@@ -255,6 +255,9 @@ const GENERAL: Bank = {
     "Avenge me. Or at least feed me.",
     "Tell my story. Embellish it.",
   ],
+  // win/lose are the fallback for every mini-game via sayCat(); a game with
+  // something more specific to say passes its own `line` to finishGame()
+  // instead (see fetch/hideseek/rps in menus.ts). Keep these game-agnostic.
   win: ["Obviously.", "Easy.", "As predicted.", "Skill. Pure skill.", "Write this down."],
   lose: [
     "That doesn't count.",
@@ -262,7 +265,7 @@ const GENERAL: Bank = {
     "This game is rigged.",
     "Again.",
     "I demand a rematch.",
-    "The wind interfered.",
+    "Definitely interference.",
   ],
   call: ["Hey.", "Come here.", "I require you.", "Psst.", "You. Now. Please.", "Attention. Urgently. Casually."],
   discipline_correct: ["Fair.", "Understood.", "Rude, but fair.", "...I did do that.", "Justice. Annoying."],
@@ -315,7 +318,7 @@ const ADULT: Record<AdultForm, Bank> = {
       "I felt a draft. This may be the end.",
       "My memoirs are nearly complete. Chapter one: hunger.",
     ],
-    lose: ["The odds betrayed me.", "This is how I perish.", "Remember me.", "Defeat. My oldest friend."],
+    lose: ["Fate betrayed me.", "This is how I perish.", "Remember me.", "Defeat. My oldest friend."],
     sick: ["It is finally happening.", "Cake may save me.", "Tell the others.", "I always knew it would end rurally... wait, wrong speech."],
     carrot: ["A carrot? Now?", "Cruel and unusual.", "You wish to see me suffer."],
     farm: ["I will perish rurally.", "The fields will mourn me.", "So this is goodbye."],
