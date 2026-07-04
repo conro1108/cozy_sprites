@@ -451,33 +451,40 @@ const GHOST: BodyDef = {
   faceDy: 5,
 };
 
-// A calm little cube-being. Boxy silhouette, a lighter top face for a hint of
-// 3D, and a pale inner square low on the body that "hums" (its resonating core).
+// A translucent crystal cube-being — drawn isometric (corner-on) so it reads as
+// a solid 3D gem, not a flat square: a bright glassy top face (T) over a shadowed
+// left face (fill B) and a lit right face (S), a cool glass-edge outline, a white
+// specular glint (g) up top, and a pale front-edge highlight (i) to catch light.
+// Its little face rides the two front faces, one eye per side.
 const HUMCUBE: BodyDef = {
   rows: [
     "................",
-    "...kkkkkkkkkk...",
+    ".......kk.......",
+    "......kTTk......",
+    ".....kTTTTk.....",
+    "....kTgTTTTk....",
+    "...kgTTTTTTTk...",
     "..kTTTTTTTTTTk..",
-    "..kBBBBBBBBBBk..",
-    "..kBBBBBBBBBBk..",
-    "..kBBBBBBBBBBk..",
-    "..kBBBBBBBBBBk..",
-    "..kBBBBBBBBBBk..",
-    "..kBBBBBBBBBBk..",
-    "..kBBBBBBBBBBk..",
-    "..kBBhhhhhhBBk..",
-    "..kBBhBBBBhBBk..",
-    "..kSShhhhhhSSk..",
-    "...kkkkkkkkkk...",
-    "................",
-    "................",
+    ".kTTTTTTTTTTTTk.",
+    ".kBBBBBBiSSSSSk.",
+    ".kBBBBBBiSSSSSk.",
+    ".kBBBBBBiSSSSSk.",
+    "..kBBBBBSSSSSk..",
+    "...kBBBBSSSSk...",
+    "....kBBBSSSk....",
+    ".....kBBSSk.....",
+    "......kBSk......",
   ],
-  extra: { T: "#b3abe0", h: "#d6f2fa" }, // top face + the humming core
-  fill: "#8f86c4",
-  shade: "#655d9a",
-  face: "standard",
-  faceDx: 0,
-  faceDy: 1,
+  // Crystalline ice palette: fill = shadowed left face, shade = lit right face.
+  // The three tones (top brightest, left darkest, right mid) are what read as a
+  // solid cube seen on the diagonal. k overrides the default near-black outline
+  // with a cool glass edge (extra is spread after k in renderPixels, so wins).
+  extra: { k: "#3f6470", T: "#e2f6fc", g: "#ffffff", i: "#eafaff" },
+  fill: "#6bb6cd",
+  shade: "#a3d9ea",
+  face: "small",
+  faceDx: 5,
+  faceDy: 9,
 };
 
 const BODIES: Record<string, BodyDef> = {
