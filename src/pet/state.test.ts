@@ -329,10 +329,15 @@ describe("tap", () => {
     }
     expect(reaction).toBe("annoyed");
 
-    // The very next poke should not be another complaint — it has to be
-    // pestered for a few more taps first.
-    const next = tap(pet, T0 + TAP_ANNOY_THRESHOLD * 100);
-    expect(next.reaction).toBe("react");
+    // The full react -> ignore -> ... -> annoyed cycle should repeat, not
+    // just the immediate next tap.
+    const reactions: string[] = [];
+    for (let i = 0; i < TAP_ANNOY_THRESHOLD; i++) {
+      const r = tap(pet, T0 + (TAP_ANNOY_THRESHOLD + i) * 100);
+      pet = r.state;
+      reactions.push(r.reaction);
+    }
+    expect(reactions).toEqual(["react", "ignore", "ignore", "annoyed"]);
   });
 
   it("answers a genuine pat call", () => {
