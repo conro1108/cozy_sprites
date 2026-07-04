@@ -357,6 +357,30 @@ describe("tap", () => {
     expect(afterQuiet.reaction).toBe("react");
   });
 
+  it("doesn't resume a stale pre-call streak once a snack/play call resolves", () => {
+    // A stale streak from long ago, now well outside the tap window.
+    const pet = asStage(
+      {
+        ...createPet("Milo", T0),
+        tapStreak: 3,
+        recentTaps: [],
+        wantsAttention: true,
+        fakeCall: false,
+        attentionWant: "snack" as const,
+      },
+      "child",
+    );
+    // Poking while a non-pat call is open just hints — it shouldn't revive
+    // the old streak.
+    const hint = tap(pet, T0);
+    expect(hint.reaction).toBe("hint");
+
+    // The call gets resolved some other way (feeding), not via tap().
+    const resolved: PetState = { ...hint.state, wantsAttention: false, attentionWant: null };
+    const afterResolve = tap(resolved, T0 + 50);
+    expect(afterResolve.reaction).toBe("ignore");
+  });
+
   it("answers a genuine pat call", () => {
     const pet = asStage(
       { ...createPet("Milo", T0), wantsAttention: true, fakeCall: false, attentionWant: "pat" as const },

@@ -425,7 +425,11 @@ export function tap(state: PetState, now: number): TapResult {
   // earns a fresh "react" instead of continuing the ignore/annoyed streak.
   const wasQuiet = s.recentTaps.every((t) => now - t >= TAP_WINDOW_MS);
   const recentTaps = [...s.recentTaps, now].filter((t) => now - t < TAP_WINDOW_MS);
-  const next: PetState = { ...s, recentTaps };
+  // A genuine quiet gap resets the streak even if it happened while an
+  // attention call was open — exploratory hint-pokes for a call shouldn't
+  // keep a stale pre-call streak alive once the call resolves.
+  const streakBase = wasQuiet ? 0 : s.tapStreak;
+  const next: PetState = { ...s, recentTaps, tapStreak: streakBase };
 
   // An active call takes priority over poke etiquette — it asked for you.
   if (next.wantsAttention) {
@@ -442,7 +446,7 @@ export function tap(state: PetState, now: number): TapResult {
     return { state: next, reaction: "react", want: null };
   }
 
-  next.tapStreak = s.tapStreak + 1;
+  next.tapStreak = streakBase + 1;
   if (next.tapStreak % TAP_ANNOY_THRESHOLD === 0) {
     next.happiness = clampHearts(next.happiness - 0.2);
     return { state: next, reaction: "annoyed", want: null };
