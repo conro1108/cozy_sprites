@@ -351,7 +351,9 @@ function rps(ctx: MenuCtx, round = 1): void {
         } else if (outcome === "win") {
           ctx.finishGame("rps", true);
         } else {
-          ctx.finishGame("rps", false, cheat ? "I definitely cheated." : undefined);
+          // The pick-after-you animation already shows the cheat; no need to
+          // confess it out loud every single round.
+          ctx.finishGame("rps", false, cheat && Math.random() < 0.3 ? "I definitely cheated." : undefined);
         }
         if (canReplay(ctx)) rps(ctx, round + 1);
       });
