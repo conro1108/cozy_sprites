@@ -52,6 +52,7 @@ function migratePet(p: PetState): PetState {
     zeroHealthMs: p.zeroHealthMs ?? 0,
     deadAt: p.deadAt ?? null,
     causeOfDeath: p.causeOfDeath ?? null,
+    attentionWant: p.attentionWant ?? (p.wantsAttention ? "pat" : null),
   };
 }
 

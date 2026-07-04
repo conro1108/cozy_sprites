@@ -147,6 +147,40 @@ export function pickHideSpot(rng: () => number = Math.random): HideSpot {
   return HIDE_SPOTS[Math.floor(rng() * HIDE_SPOTS.length)];
 }
 
+const HIDE_FOUND_LINES = [
+  "You found me. Unsettling.",
+  "How?! I was so quiet.",
+  "Fine. Found. This changes nothing.",
+  "I let you win. Remember that.",
+  "Impossible. I was one with the scenery.",
+  "Noted: you can be relied upon to find things.",
+  "Okay, that was genuinely impressive. Forget I said that.",
+];
+
+const HIDE_LOST_LINES: ((spot: HideSpot) => string)[] = [
+  (s) => `I was ${s}. The whole time.`,
+  (s) => `I was ${s}. I could hear you guessing.`,
+  (s) => `Wrong. I was ${s}. Try to act less surprised.`,
+  (s) => `I was ${s}, breathing extremely quietly.`,
+  (s) => `You checked everywhere except ${s}. Astonishing.`,
+  (s) => `I was ${s}. I nearly fell asleep waiting.`,
+  (s) => `I was ${s}. The mushroom saw everything.`,
+];
+
+/** How often the reveal earns the withering classic. Rare, for comedy. */
+export const HIDE_AMATEUR_CHANCE = 0.08;
+
+/** The post-reveal remark. "Amateur." is saved for rare occasions. */
+export function hideSeekLine(
+  found: boolean,
+  spot: HideSpot,
+  rng: () => number = Math.random,
+): string {
+  if (found) return pick(HIDE_FOUND_LINES, rng);
+  if (rng() < HIDE_AMATEUR_CHANCE) return `I was ${spot}. Amateur.`;
+  return pick(HIDE_LOST_LINES, rng)(spot);
+}
+
 // --- Would You Rather -------------------------------------------------------
 export interface WouldYou {
   a: string;

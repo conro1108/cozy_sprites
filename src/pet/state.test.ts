@@ -4,6 +4,7 @@ import {
   MAX_HEARTS,
   TAP_ANNOY_THRESHOLD,
   applyElapsedDecay,
+  applyGameResult,
   clean,
   createPet,
   discipline,
@@ -266,25 +267,95 @@ describe("discipline", () => {
 });
 
 describe("tap", () => {
+  it("reacts to the first poke, then ignores the next few", () => {
+    let pet = asStage(createPet("Milo", T0), "child");
+    const first = tap(pet, T0);
+    expect(first.reaction).toBe("react");
+    pet = first.state;
+    const second = tap(pet, T0 + 100);
+    expect(second.reaction).toBe("ignore");
+  });
+
   it("becomes annoyed after rapid taps", () => {
     let pet = asStage(createPet("Milo", T0), "child");
-    let annoyed = false;
+    let reaction = "";
     for (let i = 0; i < TAP_ANNOY_THRESHOLD; i++) {
       const r = tap(pet, T0 + i * 100);
       pet = r.state;
-      annoyed = r.annoyed;
+      reaction = r.reaction;
     }
-    expect(annoyed).toBe(true);
+    expect(reaction).toBe("annoyed");
   });
 
-  it("answers a genuine attention call", () => {
+  it("answers a genuine pat call", () => {
     const pet = asStage(
-      { ...createPet("Milo", T0), wantsAttention: true, fakeCall: false },
+      { ...createPet("Milo", T0), wantsAttention: true, fakeCall: false, attentionWant: "pat" as const },
       "child",
     );
     const r = tap(pet, T0);
-    expect(r.answered).toBe(true);
+    expect(r.reaction).toBe("answered");
     expect(r.state.wantsAttention).toBe(false);
+  });
+
+  it("hints when the call wants something a poke isn't", () => {
+    const pet = asStage(
+      { ...createPet("Milo", T0), wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
+      "child",
+    );
+    const r = tap(pet, T0);
+    expect(r.reaction).toBe("hint");
+    expect(r.want).toBe("snack");
+    expect(r.state.wantsAttention).toBe(true); // still waiting for the snack
+  });
+
+  it("comforting a fake pat call spoils the pet (a care mistake)", () => {
+    const pet = asStage(
+      { ...createPet("Milo", T0), wantsAttention: true, fakeCall: true, attentionWant: "pat" as const },
+      "teen",
+    );
+    const r = tap(pet, T0);
+    expect(r.reaction).toBe("spoiled");
+    expect(r.state.wantsAttention).toBe(false);
+    expect(r.state.hidden.careMistakes).toBe(1);
+  });
+});
+
+describe("attention wants", () => {
+  it("feeding satisfies a genuine snack call", () => {
+    const pet = asStage(
+      { ...createPet("Milo", T0), hunger: 1, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
+      "child",
+    );
+    const { state, call } = feed(pet, "burger", T0);
+    expect(call).toBe("satisfied");
+    expect(state.wantsAttention).toBe(false);
+  });
+
+  it("feeding a fake snack call rewards the con", () => {
+    const pet = asStage(
+      { ...createPet("Milo", T0), hunger: 1, wantsAttention: true, fakeCall: true, attentionWant: "snack" as const },
+      "teen",
+    );
+    const { state, call } = feed(pet, "burger", T0);
+    expect(call).toBe("spoiled");
+    expect(state.hidden.careMistakes).toBe(1);
+  });
+
+  it("a finished game satisfies a genuine play call", () => {
+    const pet = asStage(
+      { ...createPet("Milo", T0), wantsAttention: true, fakeCall: false, attentionWant: "play" as const },
+      "child",
+    );
+    const { state, call } = applyGameResult(pet, "fetch", true, T0);
+    expect(call).toBe("satisfied");
+    expect(state.wantsAttention).toBe(false);
+  });
+
+  it("every new call comes with a want attached", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    const { state, events } = stepEvents(pet, 60_000, () => 0.001);
+    expect(events).toContain("call");
+    expect(state.attentionWant).not.toBeNull();
   });
 });
 

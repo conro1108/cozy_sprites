@@ -16,6 +16,10 @@ export type AdultForm =
 
 export type FoodId = "burger" | "cake" | "carrot" | "noodles" | "cube";
 
+/** What an attention call is actually about. Fake calls pick one too — the con
+ *  only works if it sounds exactly like a real request. */
+export type AttentionWant = "pat" | "play" | "snack";
+
 export type GameId = "higherlower" | "fetch" | "rps" | "hideseek" | "wouldyou";
 
 /** Named illnesses in the proud tradition of Oregon Trail. */
@@ -90,6 +94,8 @@ export interface PetState {
   wantsAttention: boolean;
   /** When true the current attention call is fake (disciplining it is correct). */
   fakeCall: boolean;
+  /** What the current call is asking for. Null when no call is active. */
+  attentionWant: AttentionWant | null;
 
   hidden: HiddenStats;
 

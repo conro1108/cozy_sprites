@@ -3,7 +3,7 @@
 // House rule: profanity caps out at "hell", used sparingly.
 
 import { ILLNESSES } from "./types";
-import type { AdultForm, IllnessId, PetState, Stage } from "./types";
+import type { AdultForm, AttentionWant, IllnessId, PetState, Stage } from "./types";
 
 export type Category =
   | "hatch"
@@ -500,6 +500,106 @@ export function shouldSpeak(
   rng: () => number = Math.random,
 ): boolean {
   return rng() < speakChance(state, category);
+}
+
+// --- Attention calls ----------------------------------------------------------
+// Every call asks for something specific. Fake calls use the exact same lines —
+// the whole con depends on sounding sincere.
+const CALL_WANT_LINES: Record<AttentionWant, string[]> = {
+  pat: [
+    "One pat. I require exactly one pat.",
+    "The head. It needs patting. Yours are the only hands here.",
+    "Affection. Now. Briefly.",
+    "A pat, please. This is time-sensitive.",
+    "Pat me and we never speak of this request.",
+  ],
+  play: [
+    "I demand entertainment.",
+    "A game. Any game. Now-ish.",
+    "Play with me or I begin a one-creature theatre production.",
+    "I am so bored my thoughts have echoes.",
+    "Entertain me. It's in your contract. I wrote it in.",
+  ],
+  snack: [
+    "A snack. Urgently. Casually.",
+    "The bowl situation is dire. Emotionally.",
+    "Feed me and nobody gets dramatized.",
+    "I require a small something. Food-shaped.",
+    "Snack. This is a snack-based summons.",
+  ],
+};
+
+// The cute payoff for actually giving it what it asked for.
+const CALL_SATISFIED_LINES: Record<AttentionWant, string[]> = {
+  pat: [
+    "*melts slightly*",
+    "Worth it. You're kept.",
+    "*leans into it* Okay. Okay okay okay.",
+    "Precisely the pat I ordered. Five stars.",
+  ],
+  play: [
+    "YES. That's the stuff.",
+    "*delighted wiggle* We should do everything together.",
+    "My boredom has been defeated. You may bow.",
+    "That was it. That was the thing I wanted.",
+  ],
+  snack: [
+    "*happy crumbs*",
+    "You DO listen.",
+    "Exactly what the summons specified. Excellent work.",
+    "*vibrating contentedly* Snack acquired.",
+  ],
+};
+
+// You fell for a fake call and rewarded the tantrum. It gloats.
+const CALL_SPOILED_LINES = [
+  "Hehehe. Worked.",
+  "You fell for the oldest trick in the meadow.",
+  "Sucker. Beloved sucker.",
+  "I wasn't even upset. Incredible.",
+  "*smug beyond description*",
+];
+
+// Poked when the call wants something a poke isn't.
+const CALL_WRONG_LINES: Record<Exclude<AttentionWant, "pat">, string[]> = {
+  play: [
+    "A poke is not a game. A GAME is a game.",
+    "Nice tap. Now entertain me properly.",
+    "That's not playing. That's inventory-checking.",
+  ],
+  snack: [
+    "I cannot eat a poke.",
+    "That was not food. Try again with food.",
+    "Your finger is not a snack. Probably.",
+  ],
+};
+
+export function attentionCallLine(
+  want: AttentionWant | null,
+  rng: () => number = Math.random,
+): string {
+  const bank = CALL_WANT_LINES[want ?? "pat"];
+  return bank[Math.floor(rng() * bank.length)];
+}
+
+export function attentionSatisfiedLine(
+  want: AttentionWant,
+  rng: () => number = Math.random,
+): string {
+  const bank = CALL_SATISFIED_LINES[want];
+  return bank[Math.floor(rng() * bank.length)];
+}
+
+export function attentionSpoiledLine(rng: () => number = Math.random): string {
+  return CALL_SPOILED_LINES[Math.floor(rng() * CALL_SPOILED_LINES.length)];
+}
+
+export function attentionWrongLine(
+  want: Exclude<AttentionWant, "pat">,
+  rng: () => number = Math.random,
+): string {
+  const bank = CALL_WRONG_LINES[want];
+  return bank[Math.floor(rng() * bank.length)];
 }
 
 // --- Illness announcements (the joy of OG Oregon Trail) ----------------------

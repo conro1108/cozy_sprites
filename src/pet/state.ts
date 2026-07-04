@@ -3,7 +3,15 @@
 // stepEvents and takes an injectable rng so it stays unit-testable.
 
 import { ILLNESSES, MAX_HEARTS, emptyHidden } from "./types";
-import type { AdultForm, FoodId, GameId, IllnessId, PetState, Stage } from "./types";
+import type {
+  AdultForm,
+  AttentionWant,
+  FoodId,
+  GameId,
+  IllnessId,
+  PetState,
+  Stage,
+} from "./types";
 import { FOODS } from "./roster";
 import { determineAdultForm } from "./evolution";
 
@@ -70,6 +78,7 @@ export function createPet(name: string, now: number): PetState {
     causeOfDeath: null,
     wantsAttention: false,
     fakeCall: false,
+    attentionWant: null,
     hidden: emptyHidden(),
     recentTaps: [],
     lastIdleLineAt: 0,
@@ -84,10 +93,15 @@ function clamp100(v: number): number {
   return Math.max(0, Math.min(100, v));
 }
 
-/** Night runs 21:00–06:59 local. Drives sleep + the Light button. */
+// Demo-paced day/night: a full cycle every 10 minutes (7 day + 3 night) so a
+// real sleep happens inside the compressed Egg→Adult arc above. Spec (§5)
+// wants the real clock instead: night 21:00–06:59 local.
+export const DAY_CYCLE_MS = 10 * 60_000;
+const NIGHT_START_MS = 7 * 60_000;
+
+/** Whether it's night. Drives sleep, the Light button, and the scene sky. */
 export function isNight(now: number): boolean {
-  const h = new Date(now).getHours();
-  return h >= 21 || h < 7;
+  return now % DAY_CYCLE_MS >= NIGHT_START_MS;
 }
 
 export function ageMs(state: PetState, now: number): number {
@@ -179,6 +193,7 @@ function decaySegment(s: PetState, seg: number, segTime: number): void {
       s.causeOfDeath = causeOfDeath(s);
       s.asleep = false;
       s.wantsAttention = false;
+      s.attentionWant = null;
     }
   } else if (s.health > 10) {
     s.zeroHealthMs = 0; // meaningfully recovered — reset the doom clock
@@ -203,6 +218,7 @@ function advanceOne(s: PetState): void {
   s.stage = next;
   if (next === "baby") {
     s.wantsAttention = false;
+    s.attentionWant = null;
     // Baby is deliberately hectic (SPEC §4): it hatches already hungry so care
     // matters immediately and the player learns the controls right away.
     s.hunger = Math.min(s.hunger, 2);
@@ -216,6 +232,27 @@ export interface ActionResult {
   state: PetState;
   /** Optional signal for the UI (e.g. "disliked", "favorite", "toosick"). */
   note?: string;
+  /** Set when this action resolved an attention call: a genuine want was met
+   *  ("satisfied") or a fake call was rewarded ("spoiled" — a care mistake). */
+  call?: "satisfied" | "spoiled";
+}
+
+/** Resolve an active attention call whose want this action just met. Mutates
+ *  `s` (callers pass a fresh copy) and returns how it landed. */
+function resolveCall(s: PetState, want: AttentionWant): "satisfied" | "spoiled" | undefined {
+  if (!s.wantsAttention || (s.attentionWant ?? "pat") !== want) return undefined;
+  const spoiled = s.fakeCall;
+  s.wantsAttention = false;
+  s.fakeCall = false;
+  s.attentionWant = null;
+  if (spoiled) {
+    // The con worked. It is thrilled; the ledger is not.
+    s.hidden = { ...s.hidden, careMistakes: s.hidden.careMistakes + 1 };
+    s.happiness = clampHearts(s.happiness + 0.3);
+    return "spoiled";
+  }
+  s.happiness = clampHearts(s.happiness + 0.4);
+  return "satisfied";
 }
 
 export function feed(state: PetState, food: FoodId, now: number): ActionResult {
@@ -260,7 +297,8 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   }
   if (food === "carrot") s.health = clamp100(s.health + 4);
 
-  return { state: s, note };
+  const call = resolveCall(s, "snack");
+  return { state: s, note, call };
 }
 
 /** Apply the happiness reward from a finished mini-game. */
@@ -269,7 +307,7 @@ export function applyGameResult(
   game: GameId,
   won: boolean,
   now: number,
-): PetState {
+): ActionResult {
   let s = applyElapsedDecay(state, now);
   s = { ...s, hidden: { ...s.hidden, gamePlays: { ...s.hidden.gamePlays } } };
   s.hidden.gamePlays[game]++;
@@ -277,13 +315,19 @@ export function applyGameResult(
   s.happiness = clampHearts(s.happiness + gain);
   s.hunger = clampHearts(s.hunger - 0.2);
   s.weight = Math.max(1, s.weight - 0.3);
-  return s;
+  const call = resolveCall(s, "play");
+  return { state: s, call };
 }
 
 export function clean(state: PetState, now: number): ActionResult {
   const s = applyElapsedDecay(state, now);
   if (s.poops === 0) return { state: s, note: "nothing" };
-  return { state: { ...s, poops: 0 }, note: "cleaned" };
+  const next = { ...s, poops: 0 };
+  // Tidying up in the dark counts toward the Ghost path, like other night care.
+  if (isNight(now) && !next.lightsOn) {
+    next.hidden = { ...next.hidden, nightCare: next.hidden.nightCare + 1 };
+  }
+  return { state: next, note: "cleaned" };
 }
 
 export function giveMedicine(state: PetState, now: number): ActionResult {
@@ -323,6 +367,7 @@ export function discipline(state: PetState, now: number): ActionResult {
     s.discipline = clamp100(s.discipline + (s.stage === "teen" ? 12 : 8));
     s.wantsAttention = false;
     s.fakeCall = false;
+    s.attentionWant = null;
     return { state: s, note: "correct" };
   }
   s.hidden.careMistakes += 1;
@@ -344,14 +389,26 @@ export function toggleLight(state: PetState, now: number): PetState {
 }
 
 // --- Tap interaction --------------------------------------------------------
-export const TAP_WINDOW_MS = 10_000;
-export const TAP_ANNOY_THRESHOLD = 5;
+export const TAP_WINDOW_MS = 12_000;
+/** Pokes within the window before the pet gets pissy. */
+export const TAP_ANNOY_THRESHOLD = 4;
+
+/**
+ * How a poke lands:
+ *  - "react": the first poke in a while — a friendly line.
+ *  - "ignore": pokes 2..N are acknowledged with body language only.
+ *  - "annoyed": poke N+ — it has had quite enough of your finger.
+ *  - "answered": a genuine pat-call, satisfied. The cute payoff.
+ *  - "hint": a call wants something a poke isn't (see `want`).
+ *  - "spoiled": you comforted a fake tantrum. It's delighted. That's the trap.
+ */
+export type TapReaction = "react" | "ignore" | "annoyed" | "answered" | "hint" | "spoiled";
 
 export interface TapResult {
   state: PetState;
-  annoyed: boolean;
-  /** If the pet was making a genuine call, tapping answers it. */
-  answered: boolean;
+  reaction: TapReaction;
+  /** The active call's want, when reaction is "hint". */
+  want: AttentionWant | null;
 }
 
 export function tap(state: PetState, now: number): TapResult {
@@ -359,17 +416,23 @@ export function tap(state: PetState, now: number): TapResult {
   const recentTaps = [...s.recentTaps, now].filter(
     (t) => now - t < TAP_WINDOW_MS,
   );
-  const annoyed = recentTaps.length >= TAP_ANNOY_THRESHOLD;
-  let next: PetState = { ...s, recentTaps };
-  let answered = false;
-  if (s.wantsAttention && !s.fakeCall) {
-    next = { ...next, wantsAttention: false, happiness: clampHearts(next.happiness + 0.5) };
-    answered = true;
+  const next: PetState = { ...s, recentTaps };
+
+  // An active call takes priority over poke etiquette — it asked for you.
+  if (next.wantsAttention) {
+    const want = next.attentionWant ?? "pat";
+    if (want !== "pat") {
+      return { state: next, reaction: "hint", want };
+    }
+    const call = resolveCall(next, "pat");
+    return { state: next, reaction: call === "spoiled" ? "spoiled" : "answered", want: null };
   }
-  if (annoyed) {
+
+  if (recentTaps.length >= TAP_ANNOY_THRESHOLD) {
     next.happiness = clampHearts(next.happiness - 0.2);
+    return { state: next, reaction: "annoyed", want: null };
   }
-  return { state: next, annoyed, answered };
+  return { state: next, reaction: recentTaps.length === 1 ? "react" : "ignore", want: null };
 }
 
 // --- Stochastic events (game-loop level, rng injectable) --------------------
@@ -416,9 +479,15 @@ export function stepEvents(
   }
 
   // Attention calls. From teen on, some are fake (boundary-testing, SPEC §4).
-  if (!s.wantsAttention && rng() < 0.25 * perMin) {
+  // Teens call noticeably more — at demo pace the teen window is short, and
+  // it's the main place discipline opportunities come from.
+  const callRate = s.stage === "teen" ? 0.5 : 0.25;
+  if (!s.wantsAttention && rng() < callRate * perMin) {
     s.wantsAttention = true;
-    s.fakeCall = (s.stage === "teen" || s.stage === "adult") && rng() < 0.5;
+    const fakeChance = s.stage === "teen" ? 0.6 : s.stage === "adult" ? 0.45 : 0;
+    s.fakeCall = rng() < fakeChance;
+    const wants: AttentionWant[] = ["pat", "play", "snack"];
+    s.attentionWant = wants[Math.floor(rng() * wants.length)];
     events.push(s.fakeCall ? "fakecall" : "call");
   }
 

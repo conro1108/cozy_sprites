@@ -31,12 +31,14 @@ export interface SceneView {
   variant?: AdultForm | null;
   /** A discipline-worthy fake call: the pet is visibly throwing a tantrum. */
   tantrum?: boolean;
+  /** 0..1 — how energetic the creature is. Old-timers rest more, walk slower. */
+  activity?: number;
 }
 
-type Pulse = "none" | "happy" | "shake" | "evolve" | "eat";
+type Pulse = "none" | "happy" | "shake" | "evolve" | "eat" | "nudge" | "love";
 
 interface Act {
-  type: "clean" | "fetch" | "hide" | "reveal" | "rps" | "death";
+  type: "clean" | "fetch" | "hide" | "reveal" | "rps" | "death" | "poop";
   start: number;
   duration: number;
   data: Record<string, unknown>;
@@ -49,7 +51,7 @@ interface Act {
 // (dy) as well as a sideways offset, and everything that stands on the grass —
 // props, poops, the creature — is depth-sorted and drawn back-to-front. That's
 // what lets the sprite duck behind the stump or wade *into* the flowers.
-type WanderPhase = "dwell" | "walk" | "interact";
+type WanderPhase = "dwell" | "walk" | "interact" | "yawn" | "rest";
 interface WanderTarget {
   dx: number; // offset from CREATURE_X
   dy: number; // depth offset from the resting line (- = toward the hills)
@@ -114,7 +116,11 @@ export class Scene {
   private wanderTargetY = 0;
   private wanderUntil = 0;
   private wanderProp: string | null = null;
+  private phaseStart = 0; // when the current yawn/rest began (for easing)
   private lastFrame = 0;
+
+  // Where each mess landed on the ground plane (index-matched to view.poops).
+  private poopSpots: { x: number; y: number }[] = [];
 
   // Flourish (rare easter-egg animation).
   private flourishStart = -Infinity;
@@ -198,10 +204,28 @@ export class Scene {
 
   /** Ball arcs out (power 0..1); the variant decides how it (doesn't) come back. */
   playFetch(power: number, variant: FetchVariant, onDone?: () => void): void {
-    const dist = 18 + power * 34;
+    // Throws go either way — except over-the-fence, which needs the fence (right).
+    const dir = variant === "overfence" ? 1 : Math.random() < 0.5 ? 1 : -1;
+    const dist = (18 + power * 34) * dir;
     const arc = 18 + Math.random() * 16; // randomized throw height
     const lateral = (Math.random() - 0.5) * 10; // slight sideways curve
     this.startAct("fetch", 2500, { dist, variant, arc, lateral }, onDone);
+  }
+
+  /** Nature calls: squat, tremble, produce. The mess lands where it stands. */
+  playPoop(onDone?: () => void): void {
+    if (this.busy() || this.hidden || this.view.asleep || this.view.key === "egg") {
+      onDone?.();
+      return;
+    }
+    const dx = this.wanderX;
+    const dy = this.wanderY;
+    this.startAct("poop", 1100, { dx, dy }, onDone);
+    // Poop where it stands — don't let startAct snap it back to center.
+    this.wanderX = dx;
+    this.wanderY = dy;
+    this.wanderTargetX = dx;
+    this.wanderTargetY = dy;
   }
 
   /** Poof — the creature vanishes to go hide. Stays hidden until reveal. */
@@ -385,10 +409,9 @@ export class Scene {
     for (const [fx, fy, color] of this.flowerPatch()) {
       layers.push({ y: fy + 4, draw: () => this.drawFlower(fx, fy, color, t, dark, v.night) });
     }
-    for (let i = 0; i < Math.min(v.poops, 4); i++) {
-      const px = 14 + i * 22;
-      const py = SCENE_H - 12;
-      layers.push({ y: py + 3, draw: () => this.drawPoop(px, py) });
+    this.syncPoopSpots();
+    for (const spot of this.poopSpots.slice(0, 4)) {
+      layers.push({ y: spot.y + 3, draw: () => this.drawPoop(spot.x, spot.y) });
     }
     // The creature (plus any act fx) sorts at last frame's ground point — one
     // frame of lag is invisible at walking speed.
@@ -407,14 +430,40 @@ export class Scene {
         if (Math.sin(t * 3 + i * 2.4) > 0.2) ctx.fillRect(Math.round(fx), Math.round(fy), 1, 1);
       }
     }
-    // Warm lantern glow when the lantern is lit at night
+    // Warm lantern glow washing over the clearing when lit at night
     if (v.night && v.lightsOn) {
-      const g = ctx.createRadialGradient(34, FLOOR_Y - 22, 4, 34, FLOOR_Y - 22, 60);
-      g.addColorStop(0, "rgba(255,220,150,0.3)");
+      const g = ctx.createRadialGradient(33, FLOOR_Y - 33, 5, 33, FLOOR_Y - 33, 85);
+      g.addColorStop(0, "rgba(255,220,150,0.45)");
+      g.addColorStop(0.5, "rgba(255,220,150,0.18)");
       g.addColorStop(1, "rgba(255,220,150,0)");
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, SCENE_W, SCENE_H);
     }
+
+    // The "love" pulse floats a few little hearts up off the creature.
+    const lp = (now - this.pulseStart) / 1000;
+    if (this.pulse === "love" && lp < 1.2) {
+      const cx = CREATURE_X + this.curDx;
+      const headY = FLOOR_Y + this.curDy - 26;
+      for (let i = 0; i < 3; i++) {
+        const q = lp - i * 0.18;
+        if (q < 0 || q > 0.9) continue;
+        const hx = cx - 7 + i * 7 + Math.sin(q * 5 + i * 2) * 2;
+        const hy = headY - q * 16;
+        ctx.globalAlpha = Math.max(0, 1 - q * 1.1);
+        this.drawTinyHeart(Math.round(hx), Math.round(hy));
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  private drawTinyHeart(x: number, y: number): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = "#ff5c7a";
+    ctx.fillRect(x, y, 1, 1);
+    ctx.fillRect(x + 2, y, 1, 1);
+    ctx.fillRect(x, y + 1, 3, 1);
+    ctx.fillRect(x + 1, y + 2, 1, 1);
   }
 
   private drawFence(dark: boolean, night: boolean): void {
@@ -448,26 +497,38 @@ export class Scene {
   private drawLantern(t: number, dark: boolean, v: SceneView): void {
     const ctx = this.ctx;
     const lx = 32;
-    const top = this.floorY - 30;
+    const top = this.floorY - 40; // taller: the lantern is the heart of the clearing
+    const lit = v.lightsOn;
+    // a soft halo right around the glass, day or night, whenever it's lit
+    if (lit) {
+      const g = ctx.createRadialGradient(lx + 1, top + 7, 2, lx + 1, top + 7, 16);
+      g.addColorStop(0, v.night ? "rgba(255,223,142,0.55)" : "rgba(255,233,163,0.35)");
+      g.addColorStop(1, "rgba(255,223,142,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(lx - 16, top - 10, 34, 34);
+    }
     // post
     ctx.fillStyle = dark ? "#2e2620" : "#6e5138";
-    ctx.fillRect(lx, top + 8, 3, 26);
-    // lantern box
+    ctx.fillRect(lx, top + 13, 3, 31);
+    ctx.fillStyle = dark ? "#241f1a" : "#5c4230";
+    ctx.fillRect(lx - 2, this.floorY + 2, 7, 2); // base plate
+    // lantern box — bigger glass, proper frame
     ctx.fillStyle = dark ? "#241f1a" : "#4a3527";
-    ctx.fillRect(lx - 2, top, 7, 9);
-    const lit = v.lightsOn;
+    ctx.fillRect(lx - 3, top, 9, 13);
     ctx.fillStyle = lit ? (v.night ? "#ffdf8e" : "#f5e6bc") : "#3a3448";
-    ctx.fillRect(lx - 1, top + 1, 5, 7);
-    if (lit && v.night) {
-      // flicker
-      if (Math.sin(t * 7) > -0.6) {
-        ctx.fillStyle = "#fff3c8";
-        ctx.fillRect(lx, top + 3, 3, 3);
-      }
+    ctx.fillRect(lx - 2, top + 1, 7, 11);
+    if (lit) {
+      // the flame itself, flickering
+      const fl = Math.sin(t * 7) > -0.6;
+      ctx.fillStyle = "#fff3c8";
+      ctx.fillRect(lx, top + (fl ? 4 : 5), 3, fl ? 5 : 4);
+      ctx.fillStyle = "#ffb84a";
+      ctx.fillRect(lx + 1, top + 7, 1, 2);
     }
-    // cap
+    // cap + finial
     ctx.fillStyle = dark ? "#241f1a" : "#4a3527";
-    ctx.fillRect(lx - 3, top - 2, 9, 2);
+    ctx.fillRect(lx - 4, top - 2, 11, 2);
+    ctx.fillRect(lx, top - 4, 3, 2);
   }
 
   private drawMushroom(dark: boolean, night: boolean): void {
@@ -516,6 +577,26 @@ export class Scene {
     ctx.fillRect(fx + sway, fy - 3, 3, 3);
     ctx.fillStyle = dark ? "#78708a" : "#fff7dc";
     ctx.fillRect(fx + 1 + sway, fy - 2, 1, 1);
+  }
+
+  /** Keep the recorded mess positions in step with the pet's poop count.
+   *  New messes appear wherever the creature currently stands (jittered so a
+   *  restored save with several poops doesn't stack them). */
+  private syncPoopSpots(): void {
+    const want = this.view.poops;
+    if (this.poopSpots.length > want) this.poopSpots.length = want;
+    while (this.poopSpots.length < want) {
+      const behind = -this.facing * (5 + Math.random() * 4);
+      const x = Math.max(
+        6,
+        Math.min(SCENE_W - 12, CREATURE_X + this.curDx + behind + (Math.random() - 0.5) * 10),
+      );
+      const y = Math.max(
+        this.floorY + 4,
+        Math.min(this.sh - 6, this.floorY + this.curDy + 8 + (Math.random() - 0.5) * 8),
+      );
+      this.poopSpots.push({ x, y });
+    }
   }
 
   private drawPoop(x: number, y: number): void {
@@ -640,6 +721,30 @@ export class Scene {
         break;
       }
 
+      case "poop": {
+        // Squat low, tremble with effort, then pop back up relieved.
+        const dx = act.data.dx as number;
+        const dy = act.data.dy as number;
+        const squat =
+          p < 0.75
+            ? 1 - Math.min(p / 0.15, 1) * 0.3
+            : 0.7 + ((p - 0.75) / 0.25) * 0.3;
+        const jitter = p > 0.15 && p < 0.75 ? Math.sin(p * 46) * 0.7 : 0;
+        this.drawCreature(t, dx + jitter, 1, 0, 1.08, squat, dy);
+        // little effort marks over its head
+        if (p > 0.25 && p < 0.7) {
+          const ctx = this.ctx;
+          ctx.fillStyle = "#fff7dc";
+          const hx = CREATURE_X + dx;
+          const hy = FLOOR_Y + dy - 20;
+          if (Math.sin(t * 10) > 0) {
+            ctx.fillRect(hx - 8, hy, 1, 2);
+            ctx.fillRect(hx + 8, hy + 2, 1, 2);
+          }
+        }
+        break;
+      }
+
       case "death": {
         const ctx = this.ctx;
         if (p < 0.4) {
@@ -670,9 +775,17 @@ export class Scene {
     if (p >= 1 && !act.finished) {
       act.finished = true;
       this.act = null;
-      // Settle back to center and take a beat before wandering again.
-      this.wanderX = 0;
-      this.wanderY = 0;
+      if (act.type === "poop") {
+        // Stay where it, uh, was. Take a slightly embarrassed beat.
+        this.wanderX = act.data.dx as number;
+        this.wanderY = act.data.dy as number;
+        this.wanderTargetX = this.wanderX;
+        this.wanderTargetY = this.wanderY;
+      } else {
+        // Settle back to center and take a beat before wandering again.
+        this.wanderX = 0;
+        this.wanderY = 0;
+      }
       this.wanderPhase = "dwell";
       this.wanderUntil = now + 1200;
       act.onDone?.();
@@ -682,10 +795,11 @@ export class Scene {
   /** Fetch choreography — each variant reads distinctly (see FetchVariant). */
   private drawFetch(act: Act, p: number, t: number): void {
     const FLOOR_Y = this.floorY;
-    const dist = act.data.dist as number;
+    const dist = act.data.dist as number; // signed: negative throws go left
     const variant = act.data.variant as FetchVariant;
     const arc = act.data.arc as number;
     const lateral = act.data.lateral as number;
+    const dir = Math.sign(dist) || 1;
     const targetX = CREATURE_X + dist;
     let dx = 0;
     let ball: { x: number; y: number } | null = null;
@@ -717,7 +831,7 @@ export class Scene {
           // sprints off in the *opposite* direction, fully committed
           const q = (p - 0.22) / 0.78;
           ball = { x: targetX, y: FLOOR_Y + 8 };
-          dx = -q * 42;
+          dx = -dir * q * 42;
           this.drawCreature(t, dx, 1, -Math.abs(Math.sin(q * Math.PI * 6)) * 3);
         }
         break;
@@ -753,7 +867,7 @@ export class Scene {
         } else {
           const q = (p - 0.66) / 0.34;
           dx = (1 - q) * dist;
-          sock = { x: CREATURE_X + dx + 6, y: FLOOR_Y + 3 };
+          sock = { x: CREATURE_X + dx + 6 * dir, y: FLOOR_Y + 3 };
         }
         this.drawCreature(t, dx, 1, null);
         break;
@@ -778,7 +892,7 @@ export class Scene {
           const q = (p - 0.62) / 0.38;
           dx = (1 - q) * dist;
           this.drawCreature(t, dx, 1, null);
-          const cx = CREATURE_X + dx + 7;
+          const cx = CREATURE_X + dx + 7 * dir;
           const cy = FLOOR_Y + 1;
           this.ctx.drawImage(iconCanvas("cube"), Math.round(cx) - 4, Math.round(cy) - 5, 9, 9);
           this.drawSparkle(Math.round(cx) + 5, Math.round(cy) - 6, t * 5);
@@ -805,7 +919,7 @@ export class Scene {
         } else {
           const q = (p - 0.45) / 0.55;
           dx = (1 - q) * dist;
-          ball = { x: CREATURE_X + dx + 5, y: FLOOR_Y + 2 };
+          ball = { x: CREATURE_X + dx + 5 * dir, y: FLOOR_Y + 2 };
           this.drawCreature(t, dx, 1, -Math.abs(Math.sin(q * Math.PI * 3)) * 3);
         }
         break;
@@ -825,7 +939,7 @@ export class Scene {
         } else {
           const q = (p - 0.7) / 0.3;
           dx = (1 - q) * dist;
-          ball = { x: CREATURE_X + dx + 6, y: FLOOR_Y + 4 };
+          ball = { x: CREATURE_X + dx + 6 * dir, y: FLOOR_Y + 4 };
         }
         this.drawCreature(t, dx, 1, null);
         break;
@@ -909,9 +1023,20 @@ export class Scene {
       return;
     }
 
+    // Older creatures dwell longer, walk slower, and flop down more often.
+    const activity = v.activity ?? 1;
+    const dwellFor = () => (3000 + Math.random() * 4000) * (2 - activity);
+
     switch (this.wanderPhase) {
       case "dwell": {
         if (now >= this.wanderUntil) {
+          if (Math.random() < 0.12 + 0.55 * (1 - activity)) {
+            // Take a breather: a big yawn, then blob down for a while.
+            this.wanderPhase = "yawn";
+            this.phaseStart = now;
+            this.wanderUntil = now + 1100;
+            break;
+          }
           const target = WANDER_TARGETS[Math.floor(Math.random() * WANDER_TARGETS.length)];
           this.wanderTargetX = target.dx;
           this.wanderTargetY = target.dy;
@@ -922,7 +1047,7 @@ export class Scene {
       }
       case "walk": {
         // Walk the ground plane as a straight line in (x, depth).
-        const step = WALK_SPEED * dt;
+        const step = WALK_SPEED * (0.55 + 0.45 * activity) * dt;
         const dxDiff = this.wanderTargetX - this.wanderX;
         const dyDiff = this.wanderTargetY - this.wanderY;
         const remaining = Math.hypot(dxDiff, dyDiff);
@@ -934,7 +1059,7 @@ export class Scene {
             this.wanderUntil = now + 1200;
           } else {
             this.wanderPhase = "dwell";
-            this.wanderUntil = now + 3000 + Math.random() * 4000;
+            this.wanderUntil = now + dwellFor();
           }
         } else {
           this.wanderX += (dxDiff / remaining) * step;
@@ -945,7 +1070,28 @@ export class Scene {
       case "interact": {
         if (now >= this.wanderUntil) {
           this.wanderPhase = "dwell";
-          this.wanderUntil = now + 3000 + Math.random() * 4000;
+          this.wanderUntil = now + dwellFor();
+        }
+        break;
+      }
+      case "yawn": {
+        if (now >= this.wanderUntil) {
+          // Most yawns settle into a proper rest; some are just yawns.
+          if (Math.random() < 0.75) {
+            this.wanderPhase = "rest";
+            this.phaseStart = now;
+            this.wanderUntil = now + (4000 + Math.random() * 5000) * (2 - activity);
+          } else {
+            this.wanderPhase = "dwell";
+            this.wanderUntil = now + dwellFor();
+          }
+        }
+        break;
+      }
+      case "rest": {
+        if (now >= this.wanderUntil) {
+          this.wanderPhase = "dwell";
+          this.wanderUntil = now + dwellFor();
         }
         break;
       }
@@ -977,6 +1123,24 @@ export class Scene {
       return m;
     }
     if (this.flourishing()) return this.flourishMotion(t, key);
+    if (this.wanderPhase === "yawn") {
+      // a huge stretch up onto tiptoes, then a slump back down
+      const q = Math.min(1, (performance.now() - this.phaseStart) / 1100);
+      const env = Math.sin(q * Math.PI);
+      m.sy = 1 + env * 0.22;
+      m.sx = 1 - env * 0.12;
+      m.bob = -env * 2.5;
+      m.rot = -env * 0.06;
+      return m;
+    }
+    if (this.wanderPhase === "rest") {
+      // blobbed down flat, breathing slowly. Bliss.
+      const settle = Math.min(1, (performance.now() - this.phaseStart) / 600);
+      m.sy = 1 - settle * (0.22 - Math.sin(t * 1.1) * 0.015);
+      m.sx = 1 + settle * 0.14;
+      m.bob = settle * 2.5;
+      return m;
+    }
     if (this.wanderPhase === "walk") {
       // a little waddle while on the move
       m.bob = -Math.abs(Math.sin(t * 9)) * 2.2;
@@ -1137,11 +1301,15 @@ export class Scene {
     const pdt = (performance.now() - this.pulseStart) / 1000;
     if (this.pulse !== "none" && pdt < 0.6) {
       const p = pdt / 0.6;
-      if (this.pulse === "happy" || this.pulse === "eat") {
+      if (this.pulse === "happy" || this.pulse === "eat" || this.pulse === "love") {
         bob -= Math.abs(Math.sin(p * Math.PI * 3)) * 6;
         squashY *= 1 + Math.sin(p * Math.PI * 2) * 0.08;
       } else if (this.pulse === "shake") {
         dx += Math.sin(p * Math.PI * 8) * 4;
+      } else if (this.pulse === "nudge") {
+        // the smallest acknowledgment: a single squish, no fanfare
+        squashY *= 1 - Math.sin(p * Math.PI) * 0.08;
+        squashX *= 1 + Math.sin(p * Math.PI) * 0.05;
       } else if (this.pulse === "evolve") {
         rot = Math.sin(p * Math.PI * 6) * 0.15;
         squashX *= 1 + Math.sin(p * Math.PI * 4) * 0.1;

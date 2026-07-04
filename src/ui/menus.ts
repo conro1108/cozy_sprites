@@ -16,6 +16,7 @@ import {
   rpsAiMove,
   resolveFetch,
   pickHideSpot,
+  hideSeekLine,
   randomWouldYou,
   HIDE_SPOTS,
 } from "../pet/games";
@@ -379,7 +380,7 @@ function hideSeek(ctx: MenuCtx): void {
         const won = s === spot;
         close();
         ctx.scene().playReveal(spot, () => {
-          ctx.finishGame("hideseek", won, won ? "You found me. Unsettling." : `I was ${spot}. Amateur.`);
+          ctx.finishGame("hideseek", won, hideSeekLine(won, spot));
           if (canReplay(ctx)) hideSeekAgain(ctx);
         });
       });

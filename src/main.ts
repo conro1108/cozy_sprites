@@ -26,6 +26,10 @@ import {
   dyingLine,
   rareIdleLine,
   RARE_IDLE_CHANCE,
+  attentionCallLine,
+  attentionSatisfiedLine,
+  attentionSpoiledLine,
+  attentionWrongLine,
 } from "./pet/dialogue";
 import type { Category } from "./pet/dialogue";
 import { determineAdultForm } from "./pet/evolution";
@@ -273,7 +277,28 @@ function render(): void {
     lightsOn: pet.lightsOn,
     variant,
     tantrum,
+    activity: activityOf(pet, now),
   });
+}
+
+/** How energetic the creature is: babies bounce, elders blob (drives the
+ *  scene's rest/yawn cadence and walk speed). */
+function activityOf(p: PetState, now: number): number {
+  switch (p.stage) {
+    case "baby":
+      return 1;
+    case "child":
+      return 0.95;
+    case "teen":
+      return 0.75;
+    case "adult": {
+      // Adults mellow with age: sprightly at first, sedate old-timers later.
+      const ageInAdult = now - p.stageStartedAt;
+      return Math.max(0.4, 0.7 - (ageInAdult / (20 * 60_000)) * 0.3);
+    }
+    default:
+      return 1;
+  }
 }
 
 function renderHearts(container: HTMLElement, value: number): void {
@@ -311,13 +336,19 @@ function positionAnchored(): void {
   const anchor = scene.creatureAnchor();
   const stageW = els.stage.clientWidth;
   if (els.bubble.classList.contains("visible")) {
-    // Keep the bubble on screen while still pointing at the creature.
-    const x = Math.max(stageW * 0.22, Math.min(stageW * 0.78, anchor.x));
+    // Clamp by the bubble's *measured* size so no edge ever leaves the stage,
+    // however long the line or wherever the sprite has wandered.
+    const pad = 6;
+    const halfW = els.bubble.offsetWidth / 2;
+    const x = Math.max(halfW + pad, Math.min(stageW - halfW - pad, anchor.x));
+    // The CSS transform lifts the bubble by its own height + ~10px tail, so
+    // the anchor must sit at least that far down for the top edge to stay in.
+    const minY = els.bubble.offsetHeight + 10 + pad;
     els.bubble.style.left = `${x}px`;
-    els.bubble.style.top = `${Math.max(30, anchor.y)}px`;
+    els.bubble.style.top = `${Math.max(minY, anchor.y)}px`;
   }
   if (els.attn.style.display !== "none") {
-    els.attn.style.left = `${Math.min(stageW - 24, anchor.x + 14)}px`;
+    els.attn.style.left = `${Math.min(stageW - 24, Math.max(4, anchor.x + 14))}px`;
     els.attn.style.top = `${Math.max(4, anchor.y - 28)}px`;
   }
 }
@@ -361,27 +392,54 @@ function onTapPet(): void {
   if (scene?.busy()) return;
   const r = tap(pet, Date.now());
   pet = r.state;
-  if (r.annoyed) {
-    sayCat("annoyed");
-    scene?.triggerPulse("shake");
-  } else if (r.answered) {
-    sayCat("tap");
-    scene?.triggerPulse("happy");
-  } else {
-    sayCat("tap");
+  switch (r.reaction) {
+    case "answered":
+      // The cute payoff: it asked for a pat and got one.
+      say(attentionSatisfiedLine("pat"));
+      scene?.triggerPulse("love");
+      break;
+    case "spoiled":
+      // You comforted a tantrum. It's ecstatic. The ledger weeps.
+      say(attentionSpoiledLine());
+      scene?.triggerPulse("happy");
+      break;
+    case "hint":
+      if (r.want && r.want !== "pat") say(attentionWrongLine(r.want));
+      scene?.triggerPulse("nudge");
+      break;
+    case "annoyed":
+      sayCat("annoyed");
+      scene?.triggerPulse("shake");
+      break;
+    case "react":
+      // The first poke in a while always earns a line.
+      say(pickLine(pet, "tap"));
+      scene?.triggerPulse("nudge");
+      break;
+    case "ignore":
+      // Pokes between "hello" and "enough" get body language only.
+      scene?.triggerPulse("nudge");
+      break;
   }
   commit();
 }
 
 function doFeed(food: FoodId): void {
   if (!pet || dying) return;
-  const { state, note } = feed(pet, food, Date.now());
+  const { state, note, call } = feed(pet, food, Date.now());
   pet = state;
   if (note === "cant") {
     say(pet.stage === "egg" ? "*the egg does not eat*" : "Zzz…");
   } else if (note === "full") {
     sayCat("full");
     scene?.triggerPulse("shake");
+  } else if (call === "satisfied") {
+    // It called for a snack and the snack arrived. Peak service.
+    say(attentionSatisfiedLine("snack"));
+    scene?.triggerPulse("love");
+  } else if (call === "spoiled") {
+    say(attentionSpoiledLine());
+    scene?.triggerPulse("happy");
   } else {
     if (pet && shouldSpeak(pet, feedCategory(food, note))) {
       say(pickLine(pet, feedCategory(food, note)));
@@ -458,10 +516,20 @@ function doLight(): void {
 function doFinishGame(game: GameId, won: boolean, line?: string): void {
   if (!pet || dying) return;
   // Would You Rather is never win/lose — only a slight bump (SPEC §11).
-  pet = applyGameResult(pet, game, game === "wouldyou" ? false : won, Date.now());
-  if (line) say(line);
-  else sayCat(won ? "win" : "lose");
-  if (won || game === "wouldyou") scene?.triggerPulse("happy");
+  const r = applyGameResult(pet, game, game === "wouldyou" ? false : won, Date.now());
+  pet = r.state;
+  if (r.call === "satisfied") {
+    // It called for a game and a game was played. Delight, then the verdict.
+    say(line ?? attentionSatisfiedLine("play"));
+    scene?.triggerPulse("love");
+  } else if (r.call === "spoiled") {
+    say(attentionSpoiledLine());
+    scene?.triggerPulse("happy");
+  } else {
+    if (line) say(line);
+    else sayCat(won ? "win" : "lose");
+    if (won || game === "wouldyou") scene?.triggerPulse("happy");
+  }
   commit();
 }
 
@@ -527,11 +595,13 @@ function stepPet(now: number, withEvents: boolean): boolean {
     else sayCat("sick");
     notify("dire", "Cozy Sprites", pet.illness ? illnessAnnouncement(pet.name, pet.illness) : `${pet.name} is sick.`);
   } else if (events.includes("poop")) {
+    // The squat plays where it stands; the mess lands there too (see scene).
+    scene?.playPoop();
     sayCat("poop");
     notify("care", "Cozy Sprites", `${pet.name} made a mess.`);
   } else if (events.includes("call") || events.includes("fakecall")) {
-    // Fake calls must sound exactly like real ones — that's the whole game.
-    sayCat("call");
+    // Every call names its want. Fake calls use the same lines — that's the con.
+    say(attentionCallLine(pet.attentionWant));
     notify("care", "Cozy Sprites", `${pet.name} wants your attention.`);
   }
 
