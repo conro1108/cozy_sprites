@@ -783,6 +783,25 @@ function critterCanvas(key: string, mood: Mood, size: number): HTMLCanvasElement
   return c;
 }
 
+/** Set the pasture's retirees ambling slowly back and forth, each on its own
+ *  loose rhythm. Self-stops once the panel (and thus the pasture) leaves the DOM
+ *  — a stray timer fires at most once more, sees it detached, and doesn't
+ *  reschedule, so reopening the panel never stacks loops. */
+function startMilling(pasture: HTMLElement, wanderers: HTMLElement[]): void {
+  for (const fig of wanderers) {
+    const stroll = () => {
+      if (!pasture.isConnected) return;
+      const cur = parseFloat(fig.style.left);
+      const target = 6 + Math.random() * 86;
+      const dur = 2 + Math.abs(target - cur) * 0.08; // slow amble, seconds
+      fig.style.transition = `left ${dur.toFixed(2)}s ease-in-out`;
+      fig.style.left = `${target.toFixed(1)}%`;
+      window.setTimeout(stroll, (dur + 1 + Math.random() * 3) * 1000);
+    };
+    window.setTimeout(stroll, Math.random() * 1800); // stagger the first steps
+  }
+}
+
 /** One inhabitant of the farm diorama: a sprite (or gravestone) over a name. */
 function farmDweller(sprite: HTMLElement, name: string, title: string, cls: string): HTMLElement {
   const fig = document.createElement("figure");
@@ -867,15 +886,26 @@ function farmYard(farm: FarmEntry[]): HTMLElement {
     quiet.textContent = "The pasture is quiet today.";
     pasture.appendChild(quiet);
   } else {
+    const wanderers: HTMLElement[] = [];
     for (const e of living) {
       const key = e.form ?? (e.finalStage === "egg" ? "egg" : e.finalStage);
       const title = `${e.name} — ${formName(e)} · lived ${ageLabel(e.ageMs)} · retired ${new Date(
         e.retiredAt,
       ).toLocaleDateString()}`;
-      pasture.appendChild(
-        farmDweller(critterCanvas(key, "happy", 40), e.name, title, "critter"),
-      );
+      // Depth: nearer the front (smaller `bottom`) draws a touch bigger and on
+      // top, so a crowd reads with some perspective instead of a flat row.
+      const bottom = 14 + Math.random() * 56;
+      const size = Math.round(44 - bottom * 0.13);
+      const fig = farmDweller(critterCanvas(key, "happy", size), e.name, title, "critter");
+      fig.style.left = `${(8 + Math.random() * 84).toFixed(1)}%`;
+      fig.style.bottom = `${bottom.toFixed(1)}px`;
+      fig.style.zIndex = String(Math.round(200 - bottom));
+      const cv = fig.querySelector("canvas");
+      if (cv) cv.style.animationDelay = `${(Math.random() * 2).toFixed(2)}s`; // desync the bob
+      pasture.appendChild(fig);
+      wanderers.push(fig);
     }
+    startMilling(pasture, wanderers);
   }
   yard.appendChild(pasture);
 
