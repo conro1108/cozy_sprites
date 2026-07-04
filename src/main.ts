@@ -47,7 +47,8 @@ import { creatureKey } from "./render/sprites";
 import type { Mood } from "./render/sprites";
 import { iconHTML, iconUrl } from "./render/icons";
 import { notify } from "./ui/notifications";
-import { initMenus, openCare, openFood, openPlay, openStatus } from "./ui/menus";
+import { initMenus, openCare, openCollection, openFood, openPlay, openStatus } from "./ui/menus";
+import { randomName } from "./pet/names";
 
 const TICK_MS = 3_000;
 const BUBBLE_MS = 4_000;
@@ -122,22 +123,31 @@ function mountHatch(): void {
   scene = null;
   els = null;
   dying = false;
+  const proposed = randomName();
   app.innerHTML = `
     <div class="hatch-screen">
       ${iconHTML("egg", 56)}
       <h1>A new egg</h1>
       <p class="muted">Something is about to hatch. What will you call it?</p>
-      <input id="petname" maxlength="12" placeholder="Name your sprite" value="Milo" />
+      <div class="name-row">
+        <input id="petname" maxlength="12" placeholder="Name your sprite" value="${proposed}" />
+        <button class="btn secondary reroll" id="reroll" type="button" title="Suggest another name" aria-label="Suggest another name">🎲</button>
+      </div>
       <button class="btn" id="hatchbtn">Begin</button>
+      <button class="btn secondary" id="collbtn" type="button">Collection &amp; Farm</button>
     </div>`;
   const input = app.querySelector<HTMLInputElement>("#petname")!;
   const begin = () => {
-    const name = input.value.trim() || "Milo";
+    const name = input.value.trim() || proposed;
     pet = createPet(name, Date.now());
     savePet(pet);
     mountGame();
   };
   app.querySelector("#hatchbtn")!.addEventListener("click", begin);
+  app.querySelector("#reroll")!.addEventListener("click", () => {
+    input.value = randomName();
+  });
+  app.querySelector("#collbtn")!.addEventListener("click", () => openCollection(ctx));
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") begin();
   });
