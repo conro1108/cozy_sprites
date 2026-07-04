@@ -129,6 +129,7 @@ export function needsCare(state: PetState): boolean {
 export function applyElapsedDecay(state: PetState, now: number): PetState {
   if (now <= state.lastUpdated) return state;
   if (state.deadAt !== null) return { ...state, lastUpdated: now };
+  const wasAsleep = state.asleep;
   const s: PetState = { ...state, hidden: { ...state.hidden } };
   let cursor = s.lastUpdated;
 
@@ -147,7 +148,11 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
   }
 
   if (s.deadAt === null) {
-    s.asleep = isNight(now) && !s.lightsOn && s.stage !== "egg";
+    const stillNight = isNight(now);
+    // Dawn: nobody relights the lantern by hand every morning — it comes back
+    // on by itself, and that's what wakes it up.
+    if (wasAsleep && !stillNight) s.lightsOn = true;
+    s.asleep = stillNight && !s.lightsOn && s.stage !== "egg";
   }
   s.lastUpdated = now;
   return s;

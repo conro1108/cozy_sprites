@@ -570,6 +570,7 @@ function stepPet(now: number, withEvents: boolean): boolean {
   if (!pet || dying) return false;
   const prevStage = pet.stage;
   const prevHunger = pet.hunger;
+  const prevAsleep = pet.asleep;
   const wasDead = pet.deadAt !== null;
   const elapsed = now - pet.lastUpdated;
   pet = applyElapsedDecay(pet, now);
@@ -603,6 +604,9 @@ function stepPet(now: number, withEvents: boolean): boolean {
     // Every call names its want. Fake calls use the same lines — that's the con.
     say(attentionCallLine(pet.attentionWant));
     notify("care", "Cozy Sprites", `${pet.name} wants your attention.`);
+  } else if (prevAsleep && !pet.asleep && pet.lightsOn) {
+    // The lantern relit itself with the dawn — nobody touched the switch.
+    sayCat("wake");
   }
 
   if (prevHunger > 1 && pet.hunger <= 1) {

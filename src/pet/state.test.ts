@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DAY_CYCLE_MS,
   DEATH_AFTER_ZERO_HEALTH_MS,
   MAX_HEARTS,
   TAP_ANNOY_THRESHOLD,
@@ -10,6 +11,7 @@ import {
   discipline,
   feed,
   giveMedicine,
+  isNight,
   rollIllness,
   stepEvents,
   tap,
@@ -52,6 +54,36 @@ describe("applyElapsedDecay", () => {
     const starving = asStage({ ...createPet("Milo", T0), hunger: 0 }, "child");
     const later = applyElapsedDecay(starving, T0 + 5 * 60_000);
     expect(later.hidden.careMistakes).toBeGreaterThan(0);
+  });
+});
+
+describe("day/night cycle", () => {
+  // A moment 5s before dawn (still night), and 5s after (day has broken).
+  const nightT = Math.floor(T0 / DAY_CYCLE_MS) * DAY_CYCLE_MS + DAY_CYCLE_MS - 5_000;
+  const dawnT = nightT + 10_000;
+
+  function sleeping(): PetState {
+    return asStage(
+      { ...createPet("Milo", nightT), lightsOn: false, asleep: true },
+      "child",
+    );
+  }
+
+  it("confirms the fixture actually straddles the night/day boundary", () => {
+    expect(isNight(nightT)).toBe(true);
+    expect(isNight(dawnT)).toBe(false);
+  });
+
+  it("relights the lantern and wakes the pet on its own at dawn", () => {
+    const later = applyElapsedDecay(sleeping(), dawnT);
+    expect(later.lightsOn).toBe(true);
+    expect(later.asleep).toBe(false);
+  });
+
+  it("leaves the light off if it's still night", () => {
+    const later = applyElapsedDecay(sleeping(), nightT + 1_000);
+    expect(later.lightsOn).toBe(false);
+    expect(later.asleep).toBe(true);
   });
 });
 
