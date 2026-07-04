@@ -1142,9 +1142,12 @@ export class Scene {
       return m;
     }
     if (this.wanderPhase === "walk") {
-      // a little waddle while on the move
-      m.bob = -Math.abs(Math.sin(t * 9)) * 2.2;
-      m.rot = Math.sin(t * 9) * 0.05;
+      // a clean hop along the ground — no side-to-side rock, just bounce,
+      // with a touch of squash-stretch to sell the airborne moment
+      const phase = Math.abs(Math.sin(t * 9));
+      m.bob = -phase * 3;
+      m.sy = 1 + phase * 0.1;
+      m.sx = 1 - phase * 0.06;
       return m;
     }
     if (this.wanderPhase === "interact") {
