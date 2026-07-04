@@ -120,7 +120,10 @@ export class Scene {
   private lastFrame = 0;
 
   // Where each mess landed on the ground plane (index-matched to view.poops).
-  private poopSpots: { x: number; y: number }[] = [];
+  // yOffset is relative to floorY, not an absolute canvas y — the scene's
+  // aspect (and so floorY) can change after a resize/rotation, and a stored
+  // absolute y would then float free of the horizon (see drawPoop callers).
+  private poopSpots: { x: number; yOffset: number }[] = [];
 
   // Flourish (rare easter-egg animation).
   private flourishStart = -Infinity;
@@ -411,7 +414,8 @@ export class Scene {
     }
     this.syncPoopSpots();
     for (const spot of this.poopSpots.slice(0, 4)) {
-      layers.push({ y: spot.y + 3, draw: () => this.drawPoop(spot.x, spot.y) });
+      const py = FLOOR_Y + spot.yOffset;
+      layers.push({ y: py + 3, draw: () => this.drawPoop(spot.x, py) });
     }
     // The creature (plus any act fx) sorts at last frame's ground point — one
     // frame of lag is invisible at walking speed.
@@ -591,11 +595,11 @@ export class Scene {
         6,
         Math.min(SCENE_W - 12, CREATURE_X + this.curDx + behind + (Math.random() - 0.5) * 10),
       );
-      const y = Math.max(
-        this.floorY + 4,
-        Math.min(this.sh - 6, this.floorY + this.curDy + 8 + (Math.random() - 0.5) * 8),
+      const yOffset = Math.max(
+        4,
+        Math.min(this.sh - this.floorY - 6, this.curDy + 8 + (Math.random() - 0.5) * 8),
       );
-      this.poopSpots.push({ x, y });
+      this.poopSpots.push({ x, yOffset });
     }
   }
 
