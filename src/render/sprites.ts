@@ -451,29 +451,32 @@ const GHOST: BodyDef = {
   faceDy: 5,
 };
 
-// A translucent crystal cube-being — drawn isometric (corner-on) so it reads as
-// a solid 3D gem, not a flat square: a bright glassy top face (T) over a shadowed
-// left face (fill B) and a lit right face (S), a cool glass-edge outline, a white
-// specular glint (g) up top, and a pale front-edge highlight (i) to catch light.
-// Its little face rides the two front faces, one eye per side.
+// A translucent crystal cube-being — a true isometric cube (hexagonal
+// silhouette: vertical left/right edges, points top and bottom). The bright
+// glassy top face (T) dips to a point in the middle — the near-top corner — so
+// the shadowed left face (fill B) and lit right face (S) meet in a "V" notch
+// beneath it, which is what reads as a cube rather than a flat diamond. Cool
+// glass-edge outline, a white specular glint (g), and a pale front-edge
+// highlight (i) down the near vertical edge. Its face rides the front faces,
+// one eye per side.
 const HUMCUBE: BodyDef = {
   rows: [
     "................",
     ".......kk.......",
-    "......kTTk......",
     ".....kTTTTk.....",
-    "....kTgTTTTk....",
-    "...kgTTTTTTTk...",
-    "..kTTTTTTTTTTk..",
-    ".kTTTTTTTTTTTTk.",
+    "...kTgTTTTTTk...",
+    ".kTTgTTTTTTTTTk.",
+    ".kBTTTTTTTTTTSk.",
+    ".kBBBTTTTTTSSSk.",
+    ".kBBBBBTTSSSSSk.",
     ".kBBBBBBiSSSSSk.",
     ".kBBBBBBiSSSSSk.",
     ".kBBBBBBiSSSSSk.",
-    "..kBBBBBSSSSSk..",
-    "...kBBBBSSSSk...",
-    "....kBBBSSSk....",
-    ".....kBBSSk.....",
+    "..kBBBBBiSSSSk..",
+    "....kBBBiSSSk...",
     "......kBSk......",
+    "................",
+    "................",
   ],
   // Crystalline ice palette: fill = shadowed left face, shade = lit right face.
   // The three tones (top brightest, left darkest, right mid) are what read as a
@@ -484,7 +487,7 @@ const HUMCUBE: BodyDef = {
   shade: "#a3d9ea",
   face: "small",
   faceDx: 5,
-  faceDy: 9,
+  faceDy: 8,
 };
 
 const BODIES: Record<string, BodyDef> = {
