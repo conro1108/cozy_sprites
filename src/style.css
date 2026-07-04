@@ -624,7 +624,13 @@ body {
   position: absolute;
   transform: translateX(-50%); /* anchor on the sprite's centre, not its edge */
   gap: 1px;
-  will-change: left;
+  opacity: 0; /* hidden until the sim places them, then faded in */
+  transition: opacity 0.4s ease;
+  will-change: left, bottom;
+}
+
+.pasture.ready .critter {
+  opacity: 1;
 }
 
 .pasture .critter canvas {

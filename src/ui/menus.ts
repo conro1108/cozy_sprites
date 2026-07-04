@@ -783,23 +783,119 @@ function critterCanvas(key: string, mood: Mood, size: number): HTMLCanvasElement
   return c;
 }
 
-/** Set the pasture's retirees ambling slowly back and forth, each on its own
- *  loose rhythm. Self-stops once the panel (and thus the pasture) leaves the DOM
- *  — a stray timer fires at most once more, sees it detached, and doesn't
- *  reschedule, so reopening the panel never stacks loops. */
-function startMilling(pasture: HTMLElement, wanderers: HTMLElement[]): void {
-  for (const fig of wanderers) {
-    const stroll = () => {
-      if (!pasture.isConnected) return;
-      const cur = parseFloat(fig.style.left);
-      const target = 6 + Math.random() * 86;
-      const dur = 2 + Math.abs(target - cur) * 0.08; // slow amble, seconds
-      fig.style.transition = `left ${dur.toFixed(2)}s ease-in-out`;
-      fig.style.left = `${target.toFixed(1)}%`;
-      window.setTimeout(stroll, (dur + 1 + Math.random() * 3) * 1000);
-    };
-    window.setTimeout(stroll, Math.random() * 1800); // stagger the first steps
-  }
+/** One wandering resident of the pasture. `x` is its centre and `b` its distance
+ *  from the pasture floor (its depth); `tx/tb` are where it's ambling to. */
+interface Grazer {
+  fig: HTMLElement;
+  x: number;
+  b: number;
+  tx: number;
+  tb: number;
+  chill: number; // ms left standing still before it picks a new spot
+}
+
+/** A little social sim: retirees roam the paddock in 2D (side to side *and* in
+ *  depth), pause to loiter, and often wander over to hang out near a neighbour —
+ *  while a separation pass keeps them from overlapping or walking through each
+ *  other. Runs on rAF and self-stops once the pasture leaves the DOM, so closing
+ *  or reopening the panel never leaves a loop running or stacks a second one. */
+function startMilling(pasture: HTMLElement, grazers: Grazer[]): void {
+  const rand = (a: number, z: number) => a + Math.random() * (z - a);
+  const clamp = (v: number, a: number, z: number) => (v < a ? a : v > z ? z : v);
+  const SEP = 30; // min centre-to-centre gap at the same depth
+  const SPEED = 0.03; // px per ms — an unhurried amble
+  let last = performance.now();
+  let inited = false;
+
+  const bounds = () => {
+    const W = pasture.clientWidth;
+    const H = pasture.clientHeight;
+    return { W, H, minB: 12, maxB: Math.max(40, H * 0.5), pad: 24 };
+  };
+
+  const retarget = (g: Grazer, bn: ReturnType<typeof bounds>) => {
+    // Often go loiter near someone; otherwise pick a fresh patch of grass.
+    if (grazers.length > 1 && Math.random() < 0.5) {
+      const friend = grazers[Math.floor(Math.random() * grazers.length)];
+      if (friend !== g) {
+        g.tx = clamp(friend.x + rand(-28, 28), bn.pad, bn.W - bn.pad);
+        g.tb = clamp(friend.b + rand(-14, 14), bn.minB, bn.maxB);
+        return;
+      }
+    }
+    g.tx = rand(bn.pad, bn.W - bn.pad);
+    g.tb = rand(bn.minB, bn.maxB);
+  };
+
+  const frame = (now: number) => {
+    if (!pasture.isConnected) return; // panel closed — stop the loop
+    const dt = Math.min(50, now - last);
+    last = now;
+    const bn = bounds();
+    if (bn.W === 0) {
+      requestAnimationFrame(frame); // not laid out yet
+      return;
+    }
+    if (!inited) {
+      for (const g of grazers) {
+        g.x = g.tx = rand(bn.pad, bn.W - bn.pad);
+        g.b = g.tb = rand(bn.minB, bn.maxB);
+        g.chill = rand(0, 1800);
+      }
+      inited = true;
+      pasture.classList.add("ready"); // fade them in now that they're placed
+    }
+
+    // Steer each toward its target (or count down its loiter).
+    for (const g of grazers) {
+      if (g.chill > 0) {
+        g.chill -= dt;
+        continue;
+      }
+      const dx = g.tx - g.x;
+      const db = g.tb - g.b;
+      const d = Math.hypot(dx, db);
+      if (d < 2) {
+        g.chill = rand(1400, 4400); // arrived — hang out a while
+        retarget(g, bn);
+      } else {
+        const step = Math.min(d, SPEED * dt);
+        g.x += (dx / d) * step;
+        g.b += (db / d) * step;
+      }
+    }
+
+    // Separation: push apart any pair whose footprints overlap. Depth counts
+    // extra, so front/back neighbours may visually overlap (occlusion) but two
+    // at the same depth never merge or pass through.
+    for (let i = 0; i < grazers.length; i++) {
+      for (let j = i + 1; j < grazers.length; j++) {
+        const a = grazers[i];
+        const c = grazers[j];
+        const ex = a.x - c.x;
+        const ey = (a.b - c.b) * 1.7;
+        const dist = Math.hypot(ex, ey);
+        if (dist < SEP && dist > 0.01) {
+          const push = (SEP - dist) / 2;
+          a.x += (ex / dist) * push;
+          a.b += (ey / dist / 1.7) * push;
+          c.x -= (ex / dist) * push;
+          c.b -= (ey / dist / 1.7) * push;
+        }
+      }
+    }
+
+    // Clamp to the paddock and paint. Nearer (smaller b) sits lower and in front.
+    for (const g of grazers) {
+      g.x = clamp(g.x, bn.pad, bn.W - bn.pad);
+      g.b = clamp(g.b, bn.minB, bn.maxB);
+      g.fig.style.left = `${g.x.toFixed(1)}px`;
+      g.fig.style.bottom = `${g.b.toFixed(1)}px`;
+      g.fig.style.zIndex = String(Math.round(1000 - g.b));
+    }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
 }
 
 /** One inhabitant of the farm diorama: a sprite (or gravestone) over a name. */
@@ -886,26 +982,19 @@ function farmYard(farm: FarmEntry[]): HTMLElement {
     quiet.textContent = "The pasture is quiet today.";
     pasture.appendChild(quiet);
   } else {
-    const wanderers: HTMLElement[] = [];
+    const grazers: Grazer[] = [];
     for (const e of living) {
       const key = e.form ?? (e.finalStage === "egg" ? "egg" : e.finalStage);
       const title = `${e.name} — ${formName(e)} · lived ${ageLabel(e.ageMs)} · retired ${new Date(
         e.retiredAt,
       ).toLocaleDateString()}`;
-      // Depth: nearer the front (smaller `bottom`) draws a touch bigger and on
-      // top, so a crowd reads with some perspective instead of a flat row.
-      const bottom = 14 + Math.random() * 56;
-      const size = Math.round(44 - bottom * 0.13);
-      const fig = farmDweller(critterCanvas(key, "happy", size), e.name, title, "critter");
-      fig.style.left = `${(8 + Math.random() * 84).toFixed(1)}%`;
-      fig.style.bottom = `${bottom.toFixed(1)}px`;
-      fig.style.zIndex = String(Math.round(200 - bottom));
+      const fig = farmDweller(critterCanvas(key, "happy", 38), e.name, title, "critter");
       const cv = fig.querySelector("canvas");
-      if (cv) cv.style.animationDelay = `${(Math.random() * 2).toFixed(2)}s`; // desync the bob
+      if (cv) (cv as HTMLElement).style.animationDelay = `${(Math.random() * 2).toFixed(2)}s`; // desync the bob
       pasture.appendChild(fig);
-      wanderers.push(fig);
+      grazers.push({ fig, x: 0, b: 0, tx: 0, tb: 0, chill: 0 });
     }
-    startMilling(pasture, wanderers);
+    startMilling(pasture, grazers);
   }
   yard.appendChild(pasture);
 
