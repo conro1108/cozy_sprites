@@ -26,7 +26,7 @@ import {
   CUBE_HUM_TARGET,
 } from "../pet/games";
 import type { RpsMove } from "../pet/games";
-import { buildCreatureCanvas } from "../render/sprites";
+import { buildCreatureCanvas, type Mood } from "../render/sprites";
 import { iconEl, iconHTML } from "../render/icons";
 import type { IconName } from "../render/icons";
 import type { Scene } from "../render/scene";
@@ -768,14 +768,31 @@ export function openHelp(): void {
 
 // --- Collection & Farm ------------------------------------------------------
 function portrait(key: string): HTMLCanvasElement {
-  const src = buildCreatureCanvas(key, "neutral");
+  return critterCanvas(key, "neutral", 48);
+}
+
+/** A creature sprite scaled up (nearest-neighbour) into its own canvas. */
+function critterCanvas(key: string, mood: Mood, size: number): HTMLCanvasElement {
+  const src = buildCreatureCanvas(key, mood);
   const c = document.createElement("canvas");
-  c.width = 48;
-  c.height = 48;
+  c.width = size;
+  c.height = size;
   const cx = c.getContext("2d")!;
   cx.imageSmoothingEnabled = false;
-  cx.drawImage(src, 0, 0, 48, 48);
+  cx.drawImage(src, 0, 0, size, size);
   return c;
+}
+
+/** One inhabitant of the farm diorama: a sprite (or gravestone) over a name. */
+function farmDweller(sprite: HTMLElement, name: string, title: string, cls: string): HTMLElement {
+  const fig = document.createElement("figure");
+  fig.className = cls;
+  fig.title = title; // full fate on hover — keeps the diorama uncluttered
+  fig.appendChild(sprite);
+  const cap = document.createElement("figcaption");
+  cap.textContent = name;
+  fig.appendChild(cap);
+  return fig;
 }
 
 export function openCollection(ctx: MenuCtx): void {
@@ -783,7 +800,9 @@ export function openCollection(ctx: MenuCtx): void {
   const discovered = ctx.discovered();
 
   const grid = document.createElement("div");
-  grid.className = "tile-grid";
+  // `centered` keeps a short final row (e.g. the lone secret) centred rather
+  // than stranded at the left edge.
+  grid.className = "tile-grid centered";
   for (const form of ADULT_ORDER) {
     const found = discovered.has(form);
     const def = ADULTS[form];
@@ -826,34 +845,60 @@ export function openCollection(ctx: MenuCtx): void {
     none.textContent = "No retirees yet. Your sprites are still with you.";
     p.body.appendChild(none);
   } else {
-    const list = document.createElement("div");
-    list.className = "farm-list";
-    for (const e of farm) {
-      const card = document.createElement("div");
-      card.className = "farm-card";
-      if (e.passedAway) {
-        card.appendChild(iconEl("grave", 48));
-      } else {
-        card.appendChild(portrait(e.form ?? (e.finalStage === "egg" ? "egg" : e.finalStage)));
-      }
-      const meta = document.createElement("div");
-      meta.className = "meta";
-      const name = e.form ? ADULTS[e.form].name : STAGE_LABEL[e.finalStage];
-      const fate = e.passedAway
-        ? `Lived ${ageLabel(e.ageMs)} · died of ${e.cause ?? "unknown causes"}`
-        : `Lived ${ageLabel(e.ageMs)} · retired ${new Date(e.retiredAt).toLocaleDateString()}`;
-      const b = document.createElement("b");
-      b.textContent = e.name;
-      meta.appendChild(b);
-      meta.appendChild(document.createTextNode(` — ${name}`));
-      const sub = document.createElement("div");
-      sub.textContent = fate;
-      meta.appendChild(sub);
-      card.appendChild(meta);
-      list.appendChild(card);
-    }
-    p.body.appendChild(list);
+    p.body.appendChild(farmYard(farm));
   }
+}
+
+/** The farm as a little diorama: retirees loafing in the pasture, and a small
+ *  graveyard patch for the ones that didn't make it. */
+function farmYard(farm: FarmEntry[]): HTMLElement {
+  const yard = document.createElement("div");
+  yard.className = "farm-yard";
+
+  const formName = (e: FarmEntry) =>
+    e.form ? ADULTS[e.form].name : STAGE_LABEL[e.finalStage];
+
+  const pasture = document.createElement("div");
+  pasture.className = "pasture";
+  const living = farm.filter((e) => !e.passedAway);
+  if (living.length === 0) {
+    const quiet = document.createElement("p");
+    quiet.className = "pasture-empty";
+    quiet.textContent = "The pasture is quiet today.";
+    pasture.appendChild(quiet);
+  } else {
+    for (const e of living) {
+      const key = e.form ?? (e.finalStage === "egg" ? "egg" : e.finalStage);
+      const title = `${e.name} — ${formName(e)} · lived ${ageLabel(e.ageMs)} · retired ${new Date(
+        e.retiredAt,
+      ).toLocaleDateString()}`;
+      pasture.appendChild(
+        farmDweller(critterCanvas(key, "happy", 40), e.name, title, "critter"),
+      );
+    }
+  }
+  yard.appendChild(pasture);
+
+  const dead = farm.filter((e) => e.passedAway);
+  if (dead.length > 0) {
+    const graveyard = document.createElement("div");
+    graveyard.className = "graveyard";
+    const sign = document.createElement("span");
+    sign.className = "graveyard-sign";
+    sign.textContent = "Rest ye here";
+    graveyard.appendChild(sign);
+    for (const e of dead) {
+      const title = `${e.name} — ${formName(e)} · lived ${ageLabel(e.ageMs)} · died of ${
+        e.cause ?? "unknown causes"
+      }`;
+      graveyard.appendChild(
+        farmDweller(iconEl("grave", 34), e.name, title, "grave-plot"),
+      );
+    }
+    yard.appendChild(graveyard);
+  }
+
+  return yard;
 }
 
 // --- Backup -----------------------------------------------------------------
