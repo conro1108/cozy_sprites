@@ -435,6 +435,9 @@ export function tap(state: PetState, now: number): TapResult {
 
   if (recentTaps.length >= TAP_ANNOY_THRESHOLD) {
     next.happiness = clampHearts(next.happiness - 0.2);
+    // Reset the streak so it goes quiet again instead of complaining on every
+    // subsequent tap — it has to be pestered for a while again first.
+    next.recentTaps = [];
     return { state: next, reaction: "annoyed", want: null };
   }
   return { state: next, reaction: recentTaps.length === 1 ? "react" : "ignore", want: null };

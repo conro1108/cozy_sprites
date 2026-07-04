@@ -319,6 +319,22 @@ describe("tap", () => {
     expect(reaction).toBe("annoyed");
   });
 
+  it("goes quiet again after complaining, instead of staying annoyed", () => {
+    let pet = asStage(createPet("Milo", T0), "child");
+    let reaction = "";
+    for (let i = 0; i < TAP_ANNOY_THRESHOLD; i++) {
+      const r = tap(pet, T0 + i * 100);
+      pet = r.state;
+      reaction = r.reaction;
+    }
+    expect(reaction).toBe("annoyed");
+
+    // The very next poke should not be another complaint — it has to be
+    // pestered for a few more taps first.
+    const next = tap(pet, T0 + TAP_ANNOY_THRESHOLD * 100);
+    expect(next.reaction).toBe("react");
+  });
+
   it("answers a genuine pat call", () => {
     const pet = asStage(
       { ...createPet("Milo", T0), wantsAttention: true, fakeCall: false, attentionWant: "pat" as const },
