@@ -61,12 +61,10 @@ export function scoreForms(
   if (hasTopGame && topGame === "higherlower") s.blob += 1;
   if (mistakes >= 2 && mistakes < 6) s.blob += 2;
 
-  // Gremlin — chaos: cube abuse, real neglect, low discipline. Weighted so it
-  // takes *committed* chaos: the incidental mistakes of a normal demo-paced
-  // run must not drift every pet gremlinward.
+  // Gremlin — chaos: cube abuse, care mistakes, low discipline.
   s.gremlin += hidden.cubeEaten * 1.2;
-  s.gremlin += mistakes * 0.4;
-  if ((hidden.cubeEaten >= 2 || mistakes >= 4) && hidden.discipline < 10) {
+  s.gremlin += mistakes * 0.8;
+  if ((hidden.cubeEaten > 0 || mistakes > 0) && hidden.discipline < 10) {
     s.gremlin += 2;
   }
 
