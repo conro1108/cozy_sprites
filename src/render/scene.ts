@@ -1338,7 +1338,11 @@ export class Scene {
     const flip = v.key === "egg" ? 1 : this.facing;
     ctx.save();
     const cx = CREATURE_X + dx;
-    const cy = baseY + cw / 2 + bob;
+    // ctx.scale() shrinks the image toward this translate origin on both
+    // sides. Nudge the origin down by half of what squashY trims off so the
+    // feet stay planted on the shadow — vertical squash reads as sitting
+    // into the ground instead of floating up off it.
+    const cy = baseY + cw / 2 + bob + (cw / 2) * (1 - squashY);
     ctx.translate(cx, cy);
     ctx.rotate(rot);
     ctx.scale(squashX * flip, squashY);
