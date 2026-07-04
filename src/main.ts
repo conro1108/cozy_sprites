@@ -534,9 +534,12 @@ function doLight(): void {
   if (!pet || dying) return;
   const now = Date.now();
   pet = toggleLight(pet, now);
-  if (pet.asleep) sayCat("sleep");
-  else if (!pet.lightsOn && !isNight(now)) say(pick(DAY_DARK_LINES));
-  else sayCat("wake");
+  // The egg stays quiet — see its dedicated brood/tap dialogue beats.
+  if (pet.stage !== "egg") {
+    if (pet.asleep) sayCat("sleep");
+    else if (!pet.lightsOn && !isNight(now)) say(pick(DAY_DARK_LINES));
+    else sayCat("wake");
+  }
   commit();
 }
 
