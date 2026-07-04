@@ -81,6 +81,7 @@ export function createPet(name: string, now: number): PetState {
     attentionWant: null,
     hidden: emptyHidden(),
     recentTaps: [],
+    tapStreak: 0,
     lastIdleLineAt: 0,
   };
 }
@@ -401,8 +402,10 @@ export const TAP_ANNOY_THRESHOLD = 4;
 /**
  * How a poke lands:
  *  - "react": the first poke in a while — a friendly line.
- *  - "ignore": pokes 2..N are acknowledged with body language only.
- *  - "annoyed": poke N+ — it has had quite enough of your finger.
+ *  - "ignore": acknowledged with body language only, no line.
+ *  - "annoyed": every Nth poke of an unbroken streak — it has had quite
+ *    enough of your finger. The streak then keeps ignoring, not reacting,
+ *    until the next "annoyed" — it never goes back to "react" mid-streak.
  *  - "answered": a genuine pat-call, satisfied. The cute payoff.
  *  - "hint": a call wants something a poke isn't (see `want`).
  *  - "spoiled": you comforted a fake tantrum. It's delighted. That's the trap.
@@ -418,9 +421,10 @@ export interface TapResult {
 
 export function tap(state: PetState, now: number): TapResult {
   const s = applyElapsedDecay(state, now);
-  const recentTaps = [...s.recentTaps, now].filter(
-    (t) => now - t < TAP_WINDOW_MS,
-  );
+  // Quiet means every previous poke has aged out of the window — that's what
+  // earns a fresh "react" instead of continuing the ignore/annoyed streak.
+  const wasQuiet = s.recentTaps.every((t) => now - t >= TAP_WINDOW_MS);
+  const recentTaps = [...s.recentTaps, now].filter((t) => now - t < TAP_WINDOW_MS);
   const next: PetState = { ...s, recentTaps };
 
   // An active call takes priority over poke etiquette — it asked for you.
@@ -433,14 +437,17 @@ export function tap(state: PetState, now: number): TapResult {
     return { state: next, reaction: call === "spoiled" ? "spoiled" : "answered", want: null };
   }
 
-  if (recentTaps.length >= TAP_ANNOY_THRESHOLD) {
+  if (wasQuiet) {
+    next.tapStreak = 1;
+    return { state: next, reaction: "react", want: null };
+  }
+
+  next.tapStreak = s.tapStreak + 1;
+  if (next.tapStreak % TAP_ANNOY_THRESHOLD === 0) {
     next.happiness = clampHearts(next.happiness - 0.2);
-    // Reset the streak so it goes quiet again instead of complaining on every
-    // subsequent tap — it has to be pestered for a while again first.
-    next.recentTaps = [];
     return { state: next, reaction: "annoyed", want: null };
   }
-  return { state: next, reaction: recentTaps.length === 1 ? "react" : "ignore", want: null };
+  return { state: next, reaction: "ignore", want: null };
 }
 
 // --- Stochastic events (game-loop level, rng injectable) --------------------

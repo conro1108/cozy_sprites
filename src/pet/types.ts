@@ -100,6 +100,10 @@ export interface PetState {
   hidden: HiddenStats;
 
   recentTaps: number[];
+  /** Consecutive pokes in the current unbroken tapping streak — drives the
+   *  repeating ignore/annoyed cadence independent of how many age out of
+   *  `recentTaps`'s trailing window. Resets only once the streak goes quiet. */
+  tapStreak: number;
   lastIdleLineAt: number;
 }
 

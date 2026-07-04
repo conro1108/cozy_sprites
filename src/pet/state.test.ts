@@ -4,6 +4,7 @@ import {
   DEATH_AFTER_ZERO_HEALTH_MS,
   MAX_HEARTS,
   TAP_ANNOY_THRESHOLD,
+  TAP_WINDOW_MS,
   applyElapsedDecay,
   applyGameResult,
   clean,
@@ -319,25 +320,41 @@ describe("tap", () => {
     expect(reaction).toBe("annoyed");
   });
 
-  it("goes quiet again after complaining, instead of staying annoyed", () => {
+  it("keeps ignoring-then-complaining for the rest of an unbroken streak, never reacting again", () => {
     let pet = asStage(createPet("Milo", T0), "child");
-    let reaction = "";
-    for (let i = 0; i < TAP_ANNOY_THRESHOLD; i++) {
-      const r = tap(pet, T0 + i * 100);
-      pet = r.state;
-      reaction = r.reaction;
-    }
-    expect(reaction).toBe("annoyed");
-
-    // The full react -> ignore -> ... -> annoyed cycle should repeat, not
-    // just the immediate next tap.
     const reactions: string[] = [];
-    for (let i = 0; i < TAP_ANNOY_THRESHOLD; i++) {
-      const r = tap(pet, T0 + (TAP_ANNOY_THRESHOLD + i) * 100);
+    for (let i = 0; i < TAP_ANNOY_THRESHOLD * 3; i++) {
+      const r = tap(pet, T0 + i * 100);
       pet = r.state;
       reactions.push(r.reaction);
     }
-    expect(reactions).toEqual(["react", "ignore", "ignore", "annoyed"]);
+    // react, then ignore x(N-1), annoyed — repeating every N taps, forever,
+    // as long as the streak never goes quiet.
+    expect(reactions).toEqual([
+      "react",
+      "ignore",
+      "ignore",
+      "annoyed",
+      "ignore",
+      "ignore",
+      "ignore",
+      "annoyed",
+      "ignore",
+      "ignore",
+      "ignore",
+      "annoyed",
+    ]);
+  });
+
+  it("reacts again only after the streak actually goes quiet", () => {
+    let pet = asStage(createPet("Milo", T0), "child");
+    for (let i = 0; i < TAP_ANNOY_THRESHOLD; i++) {
+      const r = tap(pet, T0 + i * 100);
+      pet = r.state;
+    }
+    // Wait out the full tap window — a genuine quiet spell.
+    const afterQuiet = tap(pet, T0 + TAP_ANNOY_THRESHOLD * 100 + TAP_WINDOW_MS);
+    expect(afterQuiet.reaction).toBe("react");
   });
 
   it("answers a genuine pat call", () => {

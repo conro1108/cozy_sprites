@@ -53,6 +53,7 @@ function migratePet(p: PetState): PetState {
     deadAt: p.deadAt ?? null,
     causeOfDeath: p.causeOfDeath ?? null,
     attentionWant: p.attentionWant ?? (p.wantsAttention ? "pat" : null),
+    tapStreak: p.tapStreak ?? 0,
   };
 }
 
