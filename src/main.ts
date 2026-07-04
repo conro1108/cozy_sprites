@@ -57,6 +57,12 @@ const IDLE_MAX_MS = 180_000;
 // production wants something closer to once an hour.
 const FLOURISH_MIN_MS = 5 * 60_000;
 const FLOURISH_MAX_MS = 10 * 60_000;
+// The egg gets exactly one unprompted line during incubation (not a chatty
+// countdown) — timed to land well before it hatches (TIMING.egg = 60s).
+const EGG_BROOD_MIN_MS = 15_000;
+const EGG_BROOD_MAX_MS = 35_000;
+// ...and exactly one more if you keep poking it.
+const EGG_TAP_POPUP_THRESHOLD = 5;
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
 getDeviceId(); // ensure anonymous device identity exists (SPEC §6)
@@ -68,6 +74,10 @@ let bubbleTimer: ReturnType<typeof setTimeout> | undefined;
 let anchorRaf = 0; // rAF loop keeping bubble/attention pinned to the sprite
 let nextIdleAt = 0;
 let nextFlourishAt = 0;
+let eggBroodAt = 0;
+let eggBroodShown = false;
+let eggTapCount = 0;
+let eggTapShown = false;
 let tickHandle: ReturnType<typeof setInterval> | undefined;
 let dying = false; // death act in progress — input paused
 
@@ -126,7 +136,6 @@ function mountHatch(): void {
     pet = createPet(name, Date.now());
     savePet(pet);
     mountGame();
-    say(pickLine(pet!, "hatch"));
   };
   app.querySelector("#hatchbtn")!.addEventListener("click", begin);
   input.addEventListener("keydown", (e) => {
@@ -237,6 +246,12 @@ function mountGame(): void {
 
   nextIdleAt = Date.now() + rand(IDLE_MIN_MS, IDLE_MAX_MS);
   nextFlourishAt = Date.now() + rand(FLOURISH_MIN_MS, FLOURISH_MAX_MS);
+  if (pet?.stage === "egg") {
+    eggBroodAt = Date.now() + rand(EGG_BROOD_MIN_MS, EGG_BROOD_MAX_MS);
+    eggBroodShown = false;
+    eggTapCount = 0;
+    eggTapShown = false;
+  }
   render();
   startTick();
   startAnchorLoop();
@@ -392,6 +407,18 @@ function onTapPet(): void {
   if (scene?.busy()) return;
   const r = tap(pet, Date.now());
   pet = r.state;
+  if (pet.stage === "egg") {
+    // Body language only, mostly — it doesn't chatter back per poke. Just
+    // one suspenseful line the first time you've clearly pestered it.
+    eggTapCount++;
+    scene?.triggerPulse(r.reaction === "annoyed" ? "shake" : "nudge");
+    if (!eggTapShown && eggTapCount >= EGG_TAP_POPUP_THRESHOLD) {
+      eggTapShown = true;
+      say(pickLine(pet, "tap"));
+    }
+    commit();
+    return;
+  }
   switch (r.reaction) {
     case "answered":
       // The cute payoff: it asked for a pat and got one.
@@ -671,9 +698,18 @@ function handleStageChange(from: PetState["stage"], to: PetState["stage"]): void
 
 function maybeIdleLine(now: number): void {
   if (!pet || pet.asleep || dying) return;
+  if (pet.stage === "egg") {
+    // No idle chatter while it's still an egg — just one suspenseful beat,
+    // timed once per incubation (see EGG_BROOD_MIN/MAX_MS).
+    if (!eggBroodShown && now >= eggBroodAt && !scene?.busy()) {
+      eggBroodShown = true;
+      say(pickLine(pet, "hatch"));
+    }
+    return;
+  }
   if (now < nextIdleAt) return;
   if (scene?.busy()) return;
-  if (isDying(pet) && pet.stage !== "egg") {
+  if (isDying(pet)) {
     // The end is close: the chatter turns to the matter at hand, names the
     // circumstance, and comes more often than idle small talk.
     say(dyingLine(pet));
@@ -685,7 +721,7 @@ function maybeIdleLine(now: number): void {
     // occasionally, at normal idle cadence, never labeled.
     const leaning = determineAdultForm(pet.hidden, pet.health);
     say(teenFlickerLine(leaning));
-  } else if (pet.stage !== "egg" && Math.random() < RARE_IDLE_CHANCE) {
+  } else if (Math.random() < RARE_IDLE_CHANCE) {
     // Once in a while, a line from somewhere else entirely.
     say(rareIdleLine());
   } else if (shouldSpeak(pet, "idle")) {
