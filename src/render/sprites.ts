@@ -2,8 +2,9 @@
 // silhouette (no more one-blob-fits-all): baby is a pebble, child a sprout,
 // teen a lanky mess, and each adult reads distinctly even before recolour.
 // Mood faces are shared grids ("standard" for wide faces, "small" for narrow
-// bodies) blitted at a per-body offset; face-covering accessories (glasses,
-// eye bags) come last.
+// bodies) blitted at a per-body offset. Accessories (glasses, eye bags) go on
+// before the face so mood eyes always win — a sleeping scholar shows its
+// closed "- -" eyes across the lenses instead of the rims clipping them.
 
 import type { AdultForm, Stage } from "../pet/types";
 
@@ -214,9 +215,9 @@ const TEEN: BodyDef = {
 const DOG: BodyDef = {
   rows: [
     "................",
-    "..kk......kk....",
-    ".kDDk....kDDk...",
-    ".kDDk....kDDk...",
+    "..k........k....",
+    ".kDk......kDk...",
+    "kDDDk....kDDDk..",
     ".kkBBkkkkBBkk...",
     "..kBBBBBBBBk....",
     ".kBBBBBBBBBBk...",
@@ -230,7 +231,7 @@ const DOG: BodyDef = {
     "....kkkkkk......",
     "................",
   ],
-  extra: { D: "#a9702f" }, // floppy ears + tail
+  extra: { D: "#a9702f" }, // pointy triangular ears + tail
   fill: "#e8ad63",
   shade: "#cf8a3f",
   face: "small",
@@ -509,9 +510,9 @@ const BODIES: Record<string, BodyDef> = {
 
 // --- Teen "audition" accents --------------------------------------------------
 // A teen is still figuring out what it'll become. When it's leaning toward an
-// adult form, a small tell leaks through — a drooping ear, a wee book, a fleck
-// of crown — just a few pixels, never a spoiler. Blitted over the teen
-// body+face (see renderPixels). Full-frame 16-wide grids like standard overlays.
+// adult form, a small tell leaks through — a wagging tail, a blobbier butt, a
+// fleck of crown — just a few pixels, never a spoiler. Blitted over the teen
+// body (before the face — see renderPixels). Full-frame 16-wide grids.
 type Accent = { rows: string[]; palette: Palette };
 
 const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
@@ -520,11 +521,38 @@ const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
       "................",
       "................",
       "................",
-      "....D...........",
-      "...DD...........",
-      "...D............",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "............D...",
+      "...........DD...",
     ],
-    palette: { D: "#a9702f" }, // one ear starting to flop
+    palette: { D: "#a9702f" }, // a little tail, already wagging
+  },
+  blob: {
+    rows: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "...kSBBBBBSk....",
+      "....kSSSSSk.....",
+      ".....kkkkk......",
+    ],
+    // A slightly wider, blobbier butt — in the teen's own colours, the
+    // silhouette does the telling.
+    palette: { k: OUTLINE, B: "#b9a8d8", S: "#927cba" },
   },
   gremlin: {
     rows: [
@@ -541,18 +569,11 @@ const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
       "................",
       "................",
       "................",
-      "................",
-      "................",
-      "................",
-      "................",
-      "................",
-      "................",
-      "................",
-      "................",
-      "...rp...........",
-      "...rp...........",
+      "....www.www.....",
+      "....w.w.w.w.....",
+      "....www.www.....",
     ],
-    palette: { r: "#b0524a", p: "#f3ead9" }, // a wee book, never far away
+    palette: { w: "#dbe7ff" }, // studious little glasses (eyes show through)
   },
   menace: {
     rows: [
@@ -570,33 +591,29 @@ const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
       "................",
       "................",
       "................",
-      "................",
-      "................",
-      ".......T........",
-      ".......T........",
+      ".....b...b......",
     ],
-    palette: { T: "#6f6a80" }, // the tie forms early
-  },
-  blob: {
-    rows: [
-      "................",
-      "................",
-      "................",
-      "................",
-      "................",
-      "................",
-      "................",
-      ".........d......",
-      ".........d......",
-    ],
-    palette: { d: "#79c7d4" }, // a single dramatic tear
+    palette: { b: "#6f6a80" }, // under-eye shadows setting in early
   },
   ghost: {
     rows: [
-      ".......w.w......",
-      "........w.......",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "......w.w.......",
+      ".....w.w.w......",
     ],
-    palette: { w: "#dce8f4" }, // a faint wisp, already half-elsewhere
+    palette: { w: "#dce8f4" }, // the hem going wavy, already half-elsewhere
   },
   humcube: {
     rows: [
@@ -695,9 +712,6 @@ export function renderPixels(
   }
   const body = BODIES[key] ?? BODIES.baby;
   blit(buf, body.rows, { k: OUTLINE, B: body.fill, S: body.shade, ...body.extra });
-  const facePalette =
-    body.face === "small" ? { ...FACE_PALETTE, e: EYE } : FACE_PALETTE;
-  blit(buf, faceFor(body.face, mood), facePalette, body.faceDx, body.faceDy);
   if (body.overlay) {
     // Overlays for small-faced bodies sit relative to the face; standard ones
     // are authored full-frame.
@@ -715,6 +729,10 @@ export function renderPixels(
     const accent = TEEN_ACCENTS[variant];
     if (accent) blit(buf, accent.rows, accent.palette);
   }
+  // Face goes last so mood eyes/mouths always read over accessories.
+  const facePalette =
+    body.face === "small" ? { ...FACE_PALETTE, e: EYE } : FACE_PALETTE;
+  blit(buf, faceFor(body.face, mood), facePalette, body.faceDx, body.faceDy);
   return buf;
 }
 
