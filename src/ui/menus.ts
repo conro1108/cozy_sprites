@@ -806,9 +806,12 @@ interface SocialSpot {
   rMax: number;
 }
 
-/** Solid scenery the walkers get nudged out of (nobody stands in the fire). */
+/** Solid scenery the walkers get nudged out of (nobody stands in the fire,
+ *  walks through the hay, or wades into the pond). `dx` offsets the centre in
+ *  px from the fractional anchor so wide shapes can be built from two lobes. */
 interface Obstacle {
   xf: number;
+  dx?: number;
   b: number;
   r: number;
 }
@@ -823,6 +826,9 @@ const SOCIAL_SPOTS: SocialSpot[] = [
 const CAMPFIRE_SPOT = SOCIAL_SPOTS[1]; // festival nights orbit the fire
 const OBSTACLES: Obstacle[] = [
   { xf: 0.57, b: 28, r: 18 }, // the campfire itself
+  { xf: 0.68, b: 96, r: 26 }, // the hay bale
+  { xf: 0.82, dx: -18, b: 60, r: 26 }, // pond, west shore
+  { xf: 0.82, dx: 18, b: 60, r: 26 }, // pond, east shore
 ];
 
 /** A little social sim: retirees roam the paddock in 2D (side to side *and* in
@@ -854,11 +860,46 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
     return { W, H, minB: 12, maxB: Math.max(40, H * 0.5), pad: 24 };
   };
 
+  const obstacleX = (o: Obstacle, bn: ReturnType<typeof bounds>) => o.xf * bn.W + (o.dx ?? 0);
+
+  // Shift a point out of every obstacle footprint. Applied to *targets* (not
+  // just live positions) so nobody picks an unreachable spot inside the pond
+  // and then jitters forever against its shore.
+  const clearPoint = (p: { x: number; b: number }, bn: ReturnType<typeof bounds>) => {
+    for (let pass = 0; pass < 3; pass++) {
+      let moved = false;
+      for (const o of OBSTACLES) {
+        const ex = p.x - obstacleX(o, bn);
+        const ey = (p.b - o.b) * 1.7;
+        const dist = Math.hypot(ex, ey);
+        if (dist < o.r) {
+          const push = o.r - dist + 1;
+          if (dist > 0.01) {
+            p.x += (ex / dist) * push;
+            p.b += (ey / dist / 1.7) * push;
+          } else {
+            p.x += o.r + 1; // dead centre — pick a side
+          }
+          moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+    p.x = clamp(p.x, bn.pad, bn.W - bn.pad);
+    p.b = clamp(p.b, bn.minB, bn.maxB);
+  };
+
+  const setTarget = (g: Grazer, x: number, b: number, bn: ReturnType<typeof bounds>) => {
+    const t = { x: clamp(x, bn.pad, bn.W - bn.pad), b: clamp(b, bn.minB, bn.maxB) };
+    clearPoint(t, bn);
+    g.tx = t.x;
+    g.tb = t.b;
+  };
+
   const ringTarget = (g: Grazer, spot: SocialSpot, bn: ReturnType<typeof bounds>) => {
     const a = rand(0, Math.PI * 2);
     const r = rand(spot.rMin, spot.rMax);
-    g.tx = clamp(spot.xf * bn.W + Math.cos(a) * r, bn.pad, bn.W - bn.pad);
-    g.tb = clamp(spot.b + Math.sin(a) * r * 0.55, bn.minB, bn.maxB);
+    setTarget(g, spot.xf * bn.W + Math.cos(a) * r, spot.b + Math.sin(a) * r * 0.55, bn);
   };
 
   const retarget = (g: Grazer, bn: ReturnType<typeof bounds>) => {
@@ -871,13 +912,11 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
     if (grazers.length > 1 && Math.random() < 0.5) {
       const friend = grazers[Math.floor(Math.random() * grazers.length)];
       if (friend !== g) {
-        g.tx = clamp(friend.x + rand(-28, 28), bn.pad, bn.W - bn.pad);
-        g.tb = clamp(friend.b + rand(-14, 14), bn.minB, bn.maxB);
+        setTarget(g, friend.x + rand(-28, 28), friend.b + rand(-14, 14), bn);
         return;
       }
     }
-    g.tx = rand(bn.pad, bn.W - bn.pad);
-    g.tb = rand(bn.minB, bn.maxB);
+    setTarget(g, rand(bn.pad, bn.W - bn.pad), rand(bn.minB, bn.maxB), bn);
   };
 
   // A tiny feeling, floated up from a chatting pair: heart, hummed note, sparkle.
@@ -904,8 +943,10 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
     }
     if (!inited) {
       for (const g of grazers) {
-        g.x = g.tx = rand(bn.pad, bn.W - bn.pad);
-        g.b = g.tb = rand(bn.minB, bn.maxB);
+        const p = { x: rand(bn.pad, bn.W - bn.pad), b: rand(bn.minB, bn.maxB) };
+        clearPoint(p, bn); // nobody spawns inside the pond
+        g.x = g.tx = p.x;
+        g.b = g.tb = p.b;
         g.chill = rand(0, 1800);
       }
       inited = true;
@@ -973,7 +1014,7 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
     // Nudge anyone out of solid scenery.
     for (const g of grazers) {
       for (const o of OBSTACLES) {
-        const ex = g.x - o.xf * bn.W;
+        const ex = g.x - obstacleX(o, bn);
         const ey = (g.b - o.b) * 1.7;
         const dist = Math.hypot(ex, ey);
         if (dist < o.r && dist > 0.01) {
@@ -1186,18 +1227,23 @@ function decoratePasture(pasture: HTMLElement, festival: boolean): void {
   strip("fence", "fence-line");
   add("tree", "far", "92%", "53%", 3, 3);
 
-  // The paddock floor: social furniture plus tufts and flowers for colour.
-  band("picnic", "", "28%", 64);
+  // The paddock floor. Upright furniture (campfire, hay) depth-sorts against
+  // the walkers; flat ground cover (blanket, pond, flowers) sits at a low
+  // fixed z so a sprite overlapping it always reads as standing on it, never
+  // hidden behind it.
+  const flat = (name: PropName, left: string, b: number, scale = 3) =>
+    add(name, "", left, `${b}px`, scale, 600);
+  flat("picnic", "28%", 64);
   band("campfire", "fire", "57%", 22);
-  band("pond", "", "82%", 56);
+  flat("pond", "82%", 56);
   band("hay", "", "68%", 94);
-  band("flowers", "", "8%", 24);
-  band("flowers", "", "45%", 98, 2);
-  band("flowers", "", "94%", 102, 2);
-  band("tuft", "", "18%", 46, 2);
-  band("tuft", "", "38%", 14, 2);
-  band("tuft", "", "63%", 74, 2);
-  band("tuft", "", "88%", 20, 2);
+  flat("flowers", "8%", 24);
+  flat("flowers", "45%", 98, 2);
+  flat("flowers", "94%", 102, 2);
+  flat("tuft", "18%", 46, 2);
+  flat("tuft", "38%", 14, 2);
+  flat("tuft", "63%", 74, 2);
+  flat("tuft", "88%", 20, 2);
 }
 
 export function openCollection(ctx: MenuCtx): void {
