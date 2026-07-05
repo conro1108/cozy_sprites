@@ -492,13 +492,15 @@ export class Scene {
     }
   }
 
-  /** A pixel Z at unit size `s` (1 = 3×3, 2 = 6×6): grows as it floats up. */
+  /** A pixel Z at unit size `s` (1 = 4×4, 2 = 8×8): grows as it floats up.
+   *  The diagonal needs two steps to read as a Z and not an H. */
   private drawZ(x: number, y: number, s: number): void {
     const ctx = this.ctx;
     ctx.fillStyle = "#e9e2ff";
-    ctx.fillRect(x, y, 3 * s, s);
-    ctx.fillRect(x + s, y + s, s, s);
-    ctx.fillRect(x, y + 2 * s, 3 * s, s);
+    ctx.fillRect(x, y, 4 * s, s);
+    ctx.fillRect(x + 2 * s, y + s, s, s);
+    ctx.fillRect(x + s, y + 2 * s, s, s);
+    ctx.fillRect(x, y + 3 * s, 4 * s, s);
   }
 
   private drawTinyHeart(x: number, y: number): void {
