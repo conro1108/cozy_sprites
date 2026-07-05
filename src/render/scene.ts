@@ -200,9 +200,17 @@ export class Scene {
     this.act = { type, start: performance.now(), duration, data, onDone, finished: false };
   }
 
-  /** Broom sweeps across the grass, sparkles in its wake. */
+  /** Broom tours the floor, sweeping up each mess in turn (sparkles in its
+   *  wake). Snapshots the mess positions *now* — this runs before state zeroes
+   *  the poop count, so poopSpots still holds where everything landed. */
   playClean(onDone?: () => void): void {
-    this.startAct("clean", 1000, {}, onDone);
+    const spots = this.poopSpots
+      .slice(0, 4)
+      .map((s) => ({ x: s.x, yOffset: s.yOffset }))
+      .sort((a, b) => a.x - b.x); // sweep left → right
+    // Longer floors take longer: a beat of lead-in plus time per mess.
+    const dur = spots.length > 0 ? 500 + spots.length * 450 : 900;
+    this.startAct("clean", dur, { spots, cleanedAt: spots.map(() => -1) }, onDone);
   }
 
   /** Ball arcs out (power 0..1); the variant decides how it (doesn't) come back. */
@@ -613,6 +621,21 @@ export class Scene {
     ctx.fillRect(x + 2, y - 3, 2, 1);
   }
 
+  /** A little broom standing on the ground at (x, y): angled handle up-right,
+   *  bristle fan at the foot. `wiggle` sways the bristles as it sweeps. */
+  private drawBroom(x: number, y: number, wiggle: number): void {
+    const ctx = this.ctx;
+    const bx = Math.round(x);
+    const by = Math.round(y);
+    ctx.fillStyle = "#8a5a3c"; // handle
+    ctx.fillRect(bx + 4, by - 16, 2, 14);
+    ctx.fillRect(bx + 5, by - 17, 2, 3);
+    ctx.fillStyle = "#e8c06a"; // bristles
+    ctx.fillRect(bx + Math.round(wiggle), by - 3, 8, 5);
+    ctx.fillStyle = "#caa050";
+    ctx.fillRect(bx + Math.round(wiggle), by + 2, 8, 1);
+  }
+
   private drawBall(x: number, y: number): void {
     const ctx = this.ctx;
     ctx.fillStyle = "#a8d84a";
@@ -658,21 +681,63 @@ export class Scene {
     switch (act.type) {
       case "clean": {
         if (!this.hidden) this.drawCreature(t, 0, 1, null);
-        const bx = 4 + p * (SCENE_W - 10);
-        const ctx = this.ctx;
-        // broom: angled handle + bristles, sweeping wiggle
-        const wiggle = Math.sin(p * Math.PI * 10) * 2;
-        ctx.fillStyle = "#8a5a3c";
-        ctx.fillRect(Math.round(bx + 3), this.sh - 30, 2, 16);
-        ctx.fillStyle = "#e8c06a";
-        ctx.fillRect(Math.round(bx + wiggle), this.sh - 15, 8, 6);
-        for (let i = 0; i < 4; i++) {
-          this.drawSparkle(
-            Math.round(bx - 6 - i * 9),
-            this.sh - 12 - ((i * 5) % 8),
-            t * 6 + i,
-          );
+        const spots = act.data.spots as { x: number; yOffset: number }[];
+        const cleanedAt = act.data.cleanedAt as number[];
+        const n = spots.length;
+
+        if (n === 0) {
+          // Nothing on the floor — a token flourish across the grass.
+          const bx = 4 + p * (SCENE_W - 10);
+          this.drawBroom(bx, this.sh - 14, Math.sin(p * Math.PI * 10) * 2);
+          for (let i = 0; i < 4; i++) {
+            this.drawSparkle(
+              Math.round(bx - 6 - i * 9),
+              this.sh - 12 - ((i * 5) % 8),
+              t * 6 + i,
+            );
+          }
+          break;
         }
+
+        // The broom walks a path: lead-in → each mess (L→R) → exit. Segments
+        // share the timeline equally, so a mess is swept the moment the broom
+        // reaches its waypoint.
+        const segs = n + 1;
+        const way = (i: number): { x: number; y: number } => {
+          if (i === 0) return { x: spots[0].x - 16, y: FLOOR_Y + spots[0].yOffset + 4 };
+          if (i >= segs)
+            return { x: spots[n - 1].x + 16, y: FLOOR_Y + spots[n - 1].yOffset };
+          const s = spots[i - 1];
+          return { x: s.x, y: FLOOR_Y + s.yOffset };
+        };
+        const seg = Math.min(segs - 1, Math.floor(p * segs));
+        const q = p * segs - seg;
+        const ease = q * q * (3 - 2 * q);
+        const a = way(seg);
+        const b = way(seg + 1);
+        const bx = a.x + (b.x - a.x) * ease;
+        const by = a.y + (b.y - a.y) * ease;
+
+        // Mark each mess swept as the broom arrives at its waypoint.
+        for (let i = 0; i < n; i++) {
+          if (cleanedAt[i] < 0 && p >= (i + 1) / segs) cleanedAt[i] = p;
+        }
+
+        // Messes still ahead of the broom stay on the floor; freshly-swept ones
+        // get a brief sparkle puff where they used to be.
+        for (let i = 0; i < n; i++) {
+          const sx = spots[i].x;
+          const sy = FLOOR_Y + spots[i].yOffset;
+          if (cleanedAt[i] < 0) {
+            this.drawPoop(sx, sy);
+          } else if (p - cleanedAt[i] < 0.3) {
+            for (let k = 0; k < 4; k++) {
+              this.drawSparkle(sx + (k % 2 ? 5 : 1), sy - ((k * 3) % 7), t * 8 + i + k);
+            }
+          }
+        }
+
+        this.drawBroom(bx, by, Math.sin(p * Math.PI * 12) * 1.5);
         break;
       }
 
