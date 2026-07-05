@@ -18,7 +18,10 @@ export type PropName =
   | "barn"
   | "cloud"
   | "headstone"
-  | "note";
+  | "note"
+  | "garden"
+  | "scarecrow"
+  | "log";
 
 interface PropDef {
   rows: string[];
@@ -198,6 +201,56 @@ const PROPS: Record<PropName, PropDef> = {
       ".g.g.g..g.g.g.",
     ],
     palette: { k: K, s: "#b0b4c4", c: "#888ca0", m: "#6a9a58", g: "#5a9440", r: "#e06a7c" },
+  },
+  garden: {
+    // a tidy veggie bed: furrowed soil, sprout rows, one proud carrot shoulder
+    rows: [
+      ".kkkkkkkkkkkkkkkk.",
+      "kSdddSdddSdddSdddk",
+      "kSdgdSdgdSdgdSdgdk",
+      "kSdddSdddSdddSdddk",
+      "kSdgdSdodSdgdSdgdk",
+      "kSdddSdddSdddSdddk",
+      ".kkkkkkkkkkkkkkkk.",
+    ],
+    palette: { k: "#5c3d22", d: "#8a5f3c", S: "#7a5234", g: "#5a9440", o: "#e8863a" },
+  },
+  scarecrow: {
+    // straw hat, button face, patched shirt on a crossbar pole
+    rows: [
+      "....khhhk...",
+      "...khhhhhk..",
+      "..khhhhhhhk.",
+      "....kffk....",
+      "...kffffk...",
+      "kkkkssssskkk",
+      "...ksssssk..",
+      "...ksppssk..",
+      "....ksssk...",
+      "....ktbk....",
+      "....ktbk....",
+      "....ktbk....",
+      "....ktbk....",
+    ],
+    palette: {
+      k: K,
+      h: "#e8c56a",
+      f: "#f7ecd8",
+      s: "#6aa9d8",
+      p: "#e06a7c",
+      t: "#7a5230",
+      b: "#5c3d22",
+    },
+  },
+  log: {
+    // a fallen log to perch on by the fire
+    rows: [
+      ".kkkkkkkkkkkk.",
+      "kbttttttttttbk",
+      "kbtbttbtbttbbk",
+      ".kkkkkkkkkkkk.",
+    ],
+    palette: { k: "#5c3d22", t: "#a97048", b: "#8a5a3c" },
   },
   note: {
     rows: [

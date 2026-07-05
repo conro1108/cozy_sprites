@@ -789,7 +789,9 @@ function critterCanvas(key: string, mood: Mood, size: number): HTMLCanvasElement
 }
 
 /** One wandering resident of the pasture. `x` is its centre and `b` its distance
- *  from the pasture floor (its depth); `tx/tb` are where it's ambling to. */
+ *  from the pasture floor (its depth); `tx/tb` are where it's ambling to.
+ *  Grounded residents walk in discrete bursts — walk, stand, turn — while
+ *  `floats` residents (ghost, cube) drift the old dreamy way. */
 interface Grazer {
   fig: HTMLElement;
   x: number;
@@ -797,6 +799,9 @@ interface Grazer {
   tx: number;
   tb: number;
   chill: number; // ms left standing still before it picks a new spot
+  floats: boolean;
+  facing: 1 | -1; // 1 = facing right; applied as a scaleX flip
+  pace: number; // personal walk-speed multiplier
 }
 
 /** A gathering point in the pasture — retirees drift over and hang out in a
@@ -820,11 +825,14 @@ interface Obstacle {
 }
 
 // The pasture's furniture doubles as its social calendar: the picnic blanket,
-// the campfire and the pond are where gatherings happen.
+// the campfire, the pond, the shade of the oak and the veggie garden are all
+// places a little party might strike up.
 const SOCIAL_SPOTS: SocialSpot[] = [
   { xf: 0.28, b: 72, rMin: 20, rMax: 34 }, // picnic blanket
   { xf: 0.57, b: 30, rMin: 20, rMax: 32 }, // campfire
   { xf: 0.82, b: 62, rMin: 24, rMax: 38 }, // pond
+  { xf: 0.1, b: 112, rMin: 18, rMax: 28 }, // under the oak
+  { xf: 0.42, b: 128, rMin: 26, rMax: 34 }, // around the garden bed
 ];
 const CAMPFIRE_SPOT = SOCIAL_SPOTS[1]; // festival nights orbit the fire
 const OBSTACLES: Obstacle[] = [
@@ -832,6 +840,10 @@ const OBSTACLES: Obstacle[] = [
   { xf: 0.68, b: 96, r: 26 }, // the hay bale
   { xf: 0.82, dx: -18, b: 60, r: 26 }, // pond, west shore
   { xf: 0.82, dx: 18, b: 60, r: 26 }, // pond, east shore
+  { xf: 0.1, b: 112, r: 12 }, // the oak's trunk
+  { xf: 0.42, b: 128, r: 24 }, // the garden bed (nobody tramples the carrots)
+  { xf: 0.9, b: 118, r: 10 }, // the scarecrow
+  { xf: 0.47, b: 40, r: 12 }, // the fireside log
 ];
 
 /** A little social sim: retirees roam the paddock in 2D (side to side *and* in
@@ -848,11 +860,17 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
   const rand = (a: number, z: number) => a + Math.random() * (z - a);
   const clamp = (v: number, a: number, z: number) => (v < a ? a : v > z ? z : v);
   const SEP = 30; // min centre-to-centre gap at the same depth
-  const SPEED = 0.03; // px per ms — an unhurried amble
+  const WALK_SPEED = 0.045; // px per ms — a purposeful little trot
+  const FLOAT_SPEED = 0.022; // ghosts and cubes drift, unhurried
   let last = performance.now();
   let inited = false;
 
+  // A gathering is a small party (3–5), not the whole paddock: each member
+  // gets an evenly spaced slot on a fixed ring around the spot, so groups
+  // read as a neat circle instead of a blob.
   let gathering: SocialSpot | null = null;
+  let party: Grazer[] = [];
+  let partyBase = 0; // where slot 0 sits on the ring
   let gatherUntil = 0;
   let nextGather = last + (festival ? rand(2500, 7000) : rand(5000, 12000));
   let nextEmote = last + rand(2500, 6000);
@@ -860,7 +878,7 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
   const bounds = () => {
     const W = pasture.clientWidth;
     const H = pasture.clientHeight;
-    return { W, H, minB: 12, maxB: Math.max(40, H * 0.5), pad: 24 };
+    return { W, H, minB: 12, maxB: Math.max(40, H * 0.55), pad: 24 };
   };
 
   const obstacleX = (o: Obstacle, bn: ReturnType<typeof bounds>) => o.xf * bn.W + (o.dx ?? 0);
@@ -899,27 +917,58 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
     g.tb = t.b;
   };
 
-  const ringTarget = (g: Grazer, spot: SocialSpot, bn: ReturnType<typeof bounds>) => {
-    const a = rand(0, Math.PI * 2);
-    const r = rand(spot.rMin, spot.rMax);
-    setTarget(g, spot.xf * bn.W + Math.cos(a) * r, spot.b + Math.sin(a) * r * 0.55, bn);
+  // A party member's assigned seat: evenly spaced slots on a fixed ring.
+  const slotTarget = (g: Grazer, bn: ReturnType<typeof bounds>) => {
+    const spot = gathering!;
+    const i = party.indexOf(g);
+    const a = partyBase + (i / party.length) * Math.PI * 2;
+    const r = (spot.rMin + spot.rMax) / 2;
+    setTarget(
+      g,
+      spot.xf * bn.W + Math.cos(a) * r + rand(-3, 3),
+      spot.b + Math.sin(a) * r * 0.55 + rand(-2, 2),
+      bn,
+    );
   };
 
   const retarget = (g: Grazer, bn: ReturnType<typeof bounds>) => {
-    // During a gathering, mostly stay in orbit around it.
-    if (gathering && Math.random() < 0.85) {
-      ringTarget(g, gathering, bn);
+    // Party members hold their seat — mostly they just keep standing there,
+    // occasionally shuffling back onto their slot.
+    if (gathering && party.includes(g)) {
+      slotTarget(g, bn);
       return;
     }
-    // Otherwise often go loiter near someone, or pick a fresh patch of grass.
-    if (grazers.length > 1 && Math.random() < 0.5) {
-      const friend = grazers[Math.floor(Math.random() * grazers.length)];
-      if (friend !== g) {
-        setTarget(g, friend.x + rand(-28, 28), friend.b + rand(-14, 14), bn);
+    // Otherwise often go stand beside someone (a tidy gap apart, not on top
+    // of them), or pick a fresh patch of grass.
+    if (grazers.length > 1 && Math.random() < 0.45) {
+      const friends = grazers.filter((f) => f !== g && !party.includes(f));
+      if (friends.length > 0) {
+        const friend = friends[Math.floor(Math.random() * friends.length)];
+        const side = g.x < friend.x ? -1 : 1; // approach the nearer side
+        setTarget(g, friend.x + side * (SEP + rand(2, 8)), friend.b + rand(-6, 6), bn);
         return;
       }
     }
     setTarget(g, rand(bn.pad, bn.W - bn.pad), rand(bn.minB, bn.maxB), bn);
+  };
+
+  // Face a point of interest (only when it's meaningfully to one side).
+  const faceToward = (g: Grazer, x: number) => {
+    if (Math.abs(x - g.x) > 3) g.facing = x > g.x ? 1 : -1;
+  };
+
+  const nearestNeighbour = (g: Grazer, within: number): Grazer | null => {
+    let best: Grazer | null = null;
+    let bestD = within;
+    for (const o of grazers) {
+      if (o === g) continue;
+      const d = Math.hypot(o.x - g.x, (o.b - g.b) * 1.7);
+      if (d < bestD) {
+        best = o;
+        bestD = d;
+      }
+    }
+    return best;
   };
 
   // A tiny feeling, floated up from a chatting pair: heart, hummed note, sparkle.
@@ -956,9 +1005,10 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
       pasture.classList.add("ready"); // fade them in now that they're placed
     }
 
-    // Social calendar: start a gathering now and then, break it up later.
+    // Social calendar: a small party forms now and then, breaks up later.
     if (gathering && now > gatherUntil) {
       gathering = null;
+      party = [];
       nextGather = now + (festival ? rand(6000, 12000) : rand(9000, 20000));
     } else if (!gathering && now > nextGather && grazers.length >= 2) {
       gathering =
@@ -966,31 +1016,52 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
           ? CAMPFIRE_SPOT
           : SOCIAL_SPOTS[Math.floor(Math.random() * SOCIAL_SPOTS.length)];
       gatherUntil = now + rand(12000, 22000);
-      for (const g of grazers) {
-        if (Math.random() < 0.8) {
-          ringTarget(g, gathering, bn);
-          g.chill = rand(0, 900); // finish the current thought, then head over
-        }
+      partyBase = rand(0, Math.PI * 2);
+      const size = Math.min(grazers.length, 3 + (Math.random() < 0.4 ? 1 : 0) + (Math.random() < 0.15 ? 1 : 0));
+      party = [...grazers].sort(() => Math.random() - 0.5).slice(0, size);
+      for (const g of party) {
+        slotTarget(g, bn);
+        g.chill = rand(0, 900); // finish the current thought, then head over
       }
     }
 
-    // Steer each toward its target (or count down its loiter).
+    // Steer each toward its target (or count down its loiter). Grounded
+    // residents move in discrete bursts: walk (hopping), arrive, turn toward
+    // whatever's interesting, stand properly still, repeat. Floaters drift.
     for (const g of grazers) {
       if (g.chill > 0) {
         g.chill -= dt;
+        g.fig.classList.remove("walking");
         continue;
       }
       const dx = g.tx - g.x;
       const db = g.tb - g.b;
       const d = Math.hypot(dx, db);
       if (d < 2) {
-        // Arrived — hang out a while; longer when there's a gathering on.
-        g.chill = gathering ? rand(2600, 7000) : rand(1400, 4400);
+        // Arrived — hang out; party members settle in for a proper sit.
+        const inParty = gathering !== null && party.includes(g);
+        g.chill = inParty ? rand(3200, 8000) : rand(1800, 5000);
+        if (g.floats) g.chill *= 0.45; // the restless dead (and geometry)
+        g.fig.classList.remove("walking");
+        // Turn toward the fire/friends — or whoever's standing closest.
+        if (inParty && gathering) {
+          faceToward(g, gathering.xf * bn.W);
+        } else {
+          const buddy = nearestNeighbour(g, 64);
+          if (buddy) {
+            faceToward(g, buddy.x);
+            // ...and they often glance back. A small, complete interaction.
+            if (buddy.chill > 0 && Math.random() < 0.6) faceToward(buddy, g.x);
+          }
+        }
         retarget(g, bn);
       } else {
-        const step = Math.min(d, SPEED * dt);
+        const speed = g.floats ? FLOAT_SPEED : WALK_SPEED * g.pace;
+        const step = Math.min(d, speed * dt);
         g.x += (dx / d) * step;
         g.b += (db / d) * step;
+        if (!g.floats) g.fig.classList.add("walking");
+        if (Math.abs(dx) > 2) g.facing = dx > 0 ? 1 : -1; // face where you're going
       }
     }
 
@@ -1045,23 +1116,30 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
       }
     }
 
-    // Clamp to the paddock and paint. Nearer (smaller b) sits lower and in front.
+    // Clamp to the paddock and paint. Nearer (smaller b) sits lower and in
+    // front; facing rides along as a flip on the fig's own transform.
     for (const g of grazers) {
       g.x = clamp(g.x, bn.pad, bn.W - bn.pad);
       g.b = clamp(g.b, bn.minB, bn.maxB);
       g.fig.style.left = `${g.x.toFixed(1)}px`;
       g.fig.style.bottom = `${g.b.toFixed(1)}px`;
       g.fig.style.zIndex = String(Math.round(1000 - g.b));
+      g.fig.style.transform = `translateX(-50%) scaleX(${g.facing})`;
     }
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
 }
 
+/** True for residents that hover rather than walk (they keep the dreamy bob). */
+function floater(key: string): boolean {
+  return key === "ghost" || key === "humcube";
+}
+
 /** A pasture resident: just the roaming sprite — its story pops up on tap. */
 function pastureCritter(key: string, name: string, onTap: () => void): HTMLElement {
   const fig = document.createElement("figure");
-  fig.className = "critter";
+  fig.className = `critter ${floater(key) ? "floats" : "walks"}`;
   fig.setAttribute("role", "button");
   fig.setAttribute("aria-label", name);
   const cv = critterCanvas(key, "happy", 38);
@@ -1238,15 +1316,24 @@ function decoratePasture(pasture: HTMLElement, festival: boolean): void {
     add(name, "", left, `${b}px`, scale, 600);
   flat("picnic", "28%", 64);
   band("campfire", "fire", "57%", 22);
+  band("log", "", "47%", 40);
   flat("pond", "82%", 56);
   band("hay", "", "68%", 94);
+  // The back of the paddock: a proper oak to loaf under, the veggie garden,
+  // and a scarecrow keeping an eye on everyone.
+  band("tree", "", "10%", 112, 4);
+  flat("garden", "42%", 128);
+  band("scarecrow", "", "90%", 118);
   flat("flowers", "8%", 24);
   flat("flowers", "45%", 98, 2);
   flat("flowers", "94%", 102, 2);
+  flat("flowers", "22%", 138, 2);
   flat("tuft", "18%", 46, 2);
   flat("tuft", "38%", 14, 2);
   flat("tuft", "63%", 74, 2);
   flat("tuft", "88%", 20, 2);
+  flat("tuft", "30%", 116, 2);
+  flat("tuft", "58%", 134, 2);
 }
 
 export function openCollection(ctx: MenuCtx): void {
@@ -1334,7 +1421,17 @@ function farmYard(farm: FarmEntry[]): HTMLElement {
       const key = e.form ?? (e.finalStage === "egg" ? "egg" : e.finalStage);
       const fig = pastureCritter(key, e.name, () => info.show(e, fig));
       pasture.appendChild(fig);
-      grazers.push({ fig, x: 0, b: 0, tx: 0, tb: 0, chill: 0 });
+      grazers.push({
+        fig,
+        x: 0,
+        b: 0,
+        tx: 0,
+        tb: 0,
+        chill: 0,
+        floats: floater(key),
+        facing: Math.random() < 0.5 ? -1 : 1,
+        pace: 0.85 + Math.random() * 0.35,
+      });
     }
     startMilling(pasture, grazers, festival);
   }

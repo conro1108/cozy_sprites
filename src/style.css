@@ -640,7 +640,7 @@ body {
 .pasture {
   position: relative;
   overflow: hidden;
-  min-height: 250px;
+  min-height: 330px;
   /* sky, a hazy horizon band, then grass deepening toward the viewer */
   background: linear-gradient(
     #8ecbe8 0%,
@@ -879,8 +879,19 @@ body {
   opacity: 1;
 }
 
+/* Floaters (ghost, cube) hover with the dreamy bob; grounded residents stand
+ * properly still — just a slow breathe — and hop only while actually walking. */
 .pasture .critter canvas {
   animation: farm-bob 2.6s ease-in-out infinite;
+}
+
+.pasture .critter.walks canvas {
+  animation: farm-breathe 3.4s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+.pasture .critter.walks.walking canvas {
+  animation: farm-step 0.36s linear infinite;
 }
 
 @keyframes farm-bob {
@@ -890,6 +901,26 @@ body {
   }
   50% {
     transform: translateY(-3px);
+  }
+}
+
+@keyframes farm-breathe {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.96);
+  }
+}
+
+@keyframes farm-step {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
   }
 }
 
