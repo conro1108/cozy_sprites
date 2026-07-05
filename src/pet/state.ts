@@ -14,6 +14,7 @@ import type {
 } from "./types";
 import { FOODS } from "./roster";
 import { determineAdultForm } from "./evolution";
+import { cubeHumCredit } from "./games";
 
 export { MAX_HEARTS };
 
@@ -336,19 +337,22 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   return { state: s, note, call };
 }
 
-/** Apply the happiness reward from a finished mini-game. */
+/** Apply the happiness reward from a finished mini-game. `reach` is how far an
+ *  endless game got (rounds cleared) — only The Cube's Hum uses it, to scale the
+ *  reward with distance; other games ignore it. */
 export function applyGameResult(
   state: PetState,
   game: GameId,
   won: boolean,
   now: number,
+  reach = 0,
 ): ActionResult {
   let s = applyElapsedDecay(state, now);
   s = { ...s, hidden: { ...s.hidden, gamePlays: { ...s.hidden.gamePlays } } };
   // Judge the call before the game lifts happiness, or every play reads justified.
   const unjustified = callUnjustified(s);
   s.hidden.gamePlays[game]++;
-  const gain = won ? 1.5 : 0.4;
+  const gain = game === "cubehum" ? cubeHumCredit(reach) : won ? 1.5 : 0.4;
   s.happiness = clampHearts(s.happiness + gain);
   s.hunger = clampHearts(s.hunger - 0.2);
   s.weight = Math.max(1, s.weight - 0.3);

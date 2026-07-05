@@ -553,10 +553,10 @@ function doLight(): void {
   commit();
 }
 
-function doFinishGame(game: GameId, won: boolean, line?: string): void {
+function doFinishGame(game: GameId, won: boolean, line?: string, reach = 0): void {
   if (!pet || dying) return;
   // Would You Rather is never win/lose — only a slight bump.
-  const r = applyGameResult(pet, game, game === "wouldyou" ? false : won, Date.now());
+  const r = applyGameResult(pet, game, game === "wouldyou" ? false : won, Date.now(), reach);
   pet = r.state;
   if (r.call === "satisfied") {
     // It called for a game and a game was played. Delight, then the verdict.

@@ -8,6 +8,7 @@ import {
   extendHum,
   humMatches,
   cubeHumLine,
+  cubeHumCredit,
   CUBE_FACES,
 } from "./games";
 
@@ -93,6 +94,18 @@ describe("The Cube's Hum", () => {
   it("has a spoken verdict for both outcomes", () => {
     expect(cubeHumLine(true, () => 0).length).toBeGreaterThan(0);
     expect(cubeHumLine(false, () => 0).length).toBeGreaterThan(0);
+  });
+
+  it("pays more credit the farther the endless hum gets, and caps", () => {
+    // A miss on the first note (0 rounds) still pays a small bump.
+    expect(cubeHumCredit(0)).toBeCloseTo(0.4);
+    // Strictly increasing with distance.
+    expect(cubeHumCredit(2)).toBeGreaterThan(cubeHumCredit(0));
+    expect(cubeHumCredit(5)).toBeGreaterThan(cubeHumCredit(2));
+    // Caps so a marathon run can't overflow the meter.
+    expect(cubeHumCredit(100)).toBe(3);
+    // A long run beats a one-round clear by a lot.
+    expect(cubeHumCredit(8)).toBeGreaterThan(cubeHumCredit(1));
   });
 });
 

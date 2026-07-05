@@ -172,11 +172,22 @@ const HIDE_LOST_LINES: ((spot: HideSpot) => string)[] = [
 // faces; you hum it back. Match all the way to the target length to win.
 // "You cannot out-hum the cube. No one can." — you, occasionally, can.
 export const CUBE_FACES = 4;
-export const CUBE_HUM_TARGET = 4; // repeat a four-note hum to win
+// You can hum forever — it only ends when you miss. Clearing this many rounds is
+// the point where the cube is *impressed* (a "win" verdict); the reward itself
+// keeps climbing past it (see cubeHumCredit).
+export const CUBE_HUM_TARGET = 4;
 
 /** Grow the hum by one more face. The cube never repeats itself the easy way. */
 export function extendHum(seq: number[], rng: () => number = Math.random): number[] {
   return [...seq, Math.floor(rng() * CUBE_FACES)];
+}
+
+/** Play credit (happiness hearts) earned for reaching `rounds` cleared hums.
+ *  Endless game: the farther you get, the more it's worth. Zero rounds still
+ *  pays a small "thanks for trying" bump; a long run nearly fills the meter. */
+export function cubeHumCredit(rounds: number): number {
+  const gain = 0.4 + Math.max(0, rounds) * 0.35;
+  return Math.min(3, gain);
 }
 
 /** Did the player's taps reproduce the hum exactly (so far)? Prefix input is

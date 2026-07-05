@@ -46,7 +46,7 @@ export interface MenuCtx {
   clean(): void;
   medicine(): void;
   discipline(): void;
-  finishGame(game: GameId, won: boolean, line?: string): void;
+  finishGame(game: GameId, won: boolean, line?: string, reach?: number): void;
   sayLine(text: string): void;
   sendToFarm(): void;
   exportSave(): string;
@@ -309,6 +309,7 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
   let input: number[] = [];
   let accepting = false;
   let resolved = false;
+  let cleared = 0; // longest hum fully reproduced — drives the reward
 
   const flash = (i: number) => {
     const el = padEls[i];
@@ -339,14 +340,17 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
     });
   };
 
-  const finishAndClose = (won: boolean) => {
+  const finishAndClose = () => {
     if (resolved) return;
     resolved = true;
     accepting = false;
+    // Clearing the target length means the cube was impressed; the reward keeps
+    // climbing with `cleared` regardless (see cubeHumCredit / applyGameResult).
+    const won = cleared >= CUBE_HUM_TARGET;
     status.textContent = won ? "…" : "✕";
     setTimeout(() => {
       p.close();
-      ctx.finishGame("cubehum", won, cubeHumLine(won));
+      ctx.finishGame("cubehum", won, cubeHumLine(won), cleared);
     }, 520);
   };
 
@@ -355,14 +359,13 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
     flash(face);
     input.push(face);
     if (!humMatches(seq, input)) {
-      finishAndClose(false);
+      finishAndClose();
       return;
     }
     if (input.length === seq.length) {
-      if (seq.length >= CUBE_HUM_TARGET) {
-        finishAndClose(true);
-        return;
-      }
+      // Cleared this round. The hum is endless — it just keeps getting longer
+      // until you miss, and every round cleared is worth a little more.
+      cleared = seq.length;
       accepting = false;
       status.textContent = "Yes. Again, longer.";
       seq = extendHum(seq);

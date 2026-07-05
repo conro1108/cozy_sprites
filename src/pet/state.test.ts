@@ -468,6 +468,13 @@ describe("attention wants", () => {
     expect(state.wantsAttention).toBe(false);
   });
 
+  it("rewards a longer Cube's Hum run with more happiness", () => {
+    const base = asStage({ ...createPet("Milo", T0), happiness: 0 }, "child");
+    const short = applyGameResult(base, "cubehum", false, T0, 1).state.happiness;
+    const long = applyGameResult(base, "cubehum", true, T0, 8).state.happiness;
+    expect(long).toBeGreaterThan(short);
+  });
+
   it("feeding a snack it doesn't need spoils, even on a genuine call", () => {
     const pet = asStage(
       { ...createPet("Milo", T0), hunger: 3, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
