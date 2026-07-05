@@ -27,7 +27,8 @@ import {
 } from "../pet/games";
 import type { RpsMove } from "../pet/games";
 import { buildCreatureCanvas, type Mood } from "../render/sprites";
-import { iconEl, iconHTML } from "../render/icons";
+import { iconEl, iconHTML, iconUrl } from "../render/icons";
+import { propEl, propUrl, propSize, type PropName } from "../render/props";
 import type { IconName } from "../render/icons";
 import type { Scene } from "../render/scene";
 import { getNotifyPref, setNotifyPref } from "./notifications";
@@ -794,11 +795,42 @@ interface Grazer {
   chill: number; // ms left standing still before it picks a new spot
 }
 
+/** A gathering point in the pasture — retirees drift over and hang out in a
+ *  loose ring around it. `xf` is a fraction of the paddock width, `b` px from
+ *  the floor, and rMin/rMax the ring they settle into. */
+interface SocialSpot {
+  xf: number;
+  b: number;
+  rMin: number;
+  rMax: number;
+}
+
+/** Solid scenery the walkers get nudged out of (nobody stands in the fire). */
+interface Obstacle {
+  xf: number;
+  b: number;
+  r: number;
+}
+
+// The pasture's furniture doubles as its social calendar: the picnic blanket,
+// the campfire and the pond are where gatherings happen.
+const SOCIAL_SPOTS: SocialSpot[] = [
+  { xf: 0.28, b: 72, rMin: 20, rMax: 34 }, // picnic blanket
+  { xf: 0.57, b: 30, rMin: 20, rMax: 32 }, // campfire
+  { xf: 0.82, b: 62, rMin: 24, rMax: 38 }, // pond
+];
+const OBSTACLES: Obstacle[] = [
+  { xf: 0.57, b: 28, r: 18 }, // the campfire itself
+];
+
 /** A little social sim: retirees roam the paddock in 2D (side to side *and* in
  *  depth), pause to loiter, and often wander over to hang out near a neighbour —
  *  while a separation pass keeps them from overlapping or walking through each
- *  other. Runs on rAF and self-stops once the pasture leaves the DOM, so closing
- *  or reopening the panel never leaves a loop running or stacks a second one. */
+ *  other. Every so often a Stardew-style gathering starts: most of the paddock
+ *  ambles over to the picnic, the campfire or the pond and loiters there
+ *  together, trading little hearts and hums. Runs on rAF and self-stops once
+ *  the pasture leaves the DOM, so closing or reopening the panel never leaves
+ *  a loop running or stacks a second one. */
 function startMilling(pasture: HTMLElement, grazers: Grazer[]): void {
   const rand = (a: number, z: number) => a + Math.random() * (z - a);
   const clamp = (v: number, a: number, z: number) => (v < a ? a : v > z ? z : v);
@@ -807,14 +839,31 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[]): void {
   let last = performance.now();
   let inited = false;
 
+  let gathering: SocialSpot | null = null;
+  let gatherUntil = 0;
+  let nextGather = last + rand(5000, 12000);
+  let nextEmote = last + rand(2500, 6000);
+
   const bounds = () => {
     const W = pasture.clientWidth;
     const H = pasture.clientHeight;
     return { W, H, minB: 12, maxB: Math.max(40, H * 0.5), pad: 24 };
   };
 
+  const ringTarget = (g: Grazer, spot: SocialSpot, bn: ReturnType<typeof bounds>) => {
+    const a = rand(0, Math.PI * 2);
+    const r = rand(spot.rMin, spot.rMax);
+    g.tx = clamp(spot.xf * bn.W + Math.cos(a) * r, bn.pad, bn.W - bn.pad);
+    g.tb = clamp(spot.b + Math.sin(a) * r * 0.55, bn.minB, bn.maxB);
+  };
+
   const retarget = (g: Grazer, bn: ReturnType<typeof bounds>) => {
-    // Often go loiter near someone; otherwise pick a fresh patch of grass.
+    // During a gathering, mostly stay in orbit around it.
+    if (gathering && Math.random() < 0.85) {
+      ringTarget(g, gathering, bn);
+      return;
+    }
+    // Otherwise often go loiter near someone, or pick a fresh patch of grass.
     if (grazers.length > 1 && Math.random() < 0.5) {
       const friend = grazers[Math.floor(Math.random() * grazers.length)];
       if (friend !== g) {
@@ -825,6 +874,19 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[]): void {
     }
     g.tx = rand(bn.pad, bn.W - bn.pad);
     g.tb = rand(bn.minB, bn.maxB);
+  };
+
+  // A tiny feeling, floated up from a chatting pair: heart, hummed note, sparkle.
+  const emote = (g: Grazer) => {
+    const roll = Math.random();
+    const img = document.createElement("img");
+    img.className = "emote";
+    img.src = roll < 0.45 ? iconUrl("heart") : roll < 0.8 ? propUrl("note") : iconUrl("sparkle");
+    img.style.left = `${g.x.toFixed(1)}px`;
+    img.style.bottom = `${(g.b + 40).toFixed(1)}px`;
+    img.style.zIndex = String(Math.round(1001 - g.b));
+    img.addEventListener("animationend", () => img.remove());
+    pasture.appendChild(img);
   };
 
   const frame = (now: number) => {
@@ -846,6 +908,21 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[]): void {
       pasture.classList.add("ready"); // fade them in now that they're placed
     }
 
+    // Social calendar: start a gathering now and then, break it up later.
+    if (gathering && now > gatherUntil) {
+      gathering = null;
+      nextGather = now + rand(9000, 20000);
+    } else if (!gathering && now > nextGather && grazers.length >= 2) {
+      gathering = SOCIAL_SPOTS[Math.floor(Math.random() * SOCIAL_SPOTS.length)];
+      gatherUntil = now + rand(12000, 22000);
+      for (const g of grazers) {
+        if (Math.random() < 0.8) {
+          ringTarget(g, gathering, bn);
+          g.chill = rand(0, 900); // finish the current thought, then head over
+        }
+      }
+    }
+
     // Steer each toward its target (or count down its loiter).
     for (const g of grazers) {
       if (g.chill > 0) {
@@ -856,7 +933,8 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[]): void {
       const db = g.tb - g.b;
       const d = Math.hypot(dx, db);
       if (d < 2) {
-        g.chill = rand(1400, 4400); // arrived — hang out a while
+        // Arrived — hang out a while; longer when there's a gathering on.
+        g.chill = gathering ? rand(2600, 7000) : rand(1400, 4400);
         retarget(g, bn);
       } else {
         const step = Math.min(d, SPEED * dt);
@@ -885,6 +963,36 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[]): void {
       }
     }
 
+    // Nudge anyone out of solid scenery.
+    for (const g of grazers) {
+      for (const o of OBSTACLES) {
+        const ex = g.x - o.xf * bn.W;
+        const ey = (g.b - o.b) * 1.7;
+        const dist = Math.hypot(ex, ey);
+        if (dist < o.r && dist > 0.01) {
+          const push = o.r - dist;
+          g.x += (ex / dist) * push;
+          g.b += (ey / dist / 1.7) * push;
+        }
+      }
+    }
+
+    // Neighbours loitering together occasionally trade a little emote.
+    if (now > nextEmote) {
+      nextEmote = now + (gathering ? rand(1400, 3200) : rand(3000, 7000));
+      outer: for (let i = 0; i < grazers.length; i++) {
+        for (let j = i + 1; j < grazers.length; j++) {
+          const a = grazers[i];
+          const c = grazers[j];
+          if (a.chill <= 0 || c.chill <= 0) continue;
+          if (Math.hypot(a.x - c.x, (a.b - c.b) * 1.7) < 56) {
+            emote(Math.random() < 0.5 ? a : c);
+            break outer;
+          }
+        }
+      }
+    }
+
     // Clamp to the paddock and paint. Nearer (smaller b) sits lower and in front.
     for (const g of grazers) {
       g.x = clamp(g.x, bn.pad, bn.W - bn.pad);
@@ -898,16 +1006,161 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[]): void {
   requestAnimationFrame(frame);
 }
 
-/** One inhabitant of the farm diorama: a sprite (or gravestone) over a name. */
-function farmDweller(sprite: HTMLElement, name: string, title: string, cls: string): HTMLElement {
+/** A pasture resident: just the roaming sprite — its story pops up on tap. */
+function pastureCritter(key: string, name: string, onTap: () => void): HTMLElement {
   const fig = document.createElement("figure");
-  fig.className = cls;
-  fig.title = title; // full fate on hover — keeps the diorama uncluttered
-  fig.appendChild(sprite);
+  fig.className = "critter";
+  fig.setAttribute("role", "button");
+  fig.setAttribute("aria-label", name);
+  const cv = critterCanvas(key, "happy", 38);
+  cv.style.animationDelay = `${(Math.random() * 2).toFixed(2)}s`; // desync the bob
+  fig.appendChild(cv);
+  fig.addEventListener("click", (e) => {
+    e.stopPropagation(); // don't let the pasture click-to-dismiss swallow it
+    onTap();
+  });
+  return fig;
+}
+
+/** A headstone engraved with the pet's full name — never truncated. */
+function gravePlot(name: string, onTap: () => void): HTMLElement {
+  const fig = document.createElement("figure");
+  fig.className = "grave-plot";
+  fig.setAttribute("role", "button");
+  fig.setAttribute("aria-label", name);
+  fig.appendChild(propEl("headstone", 3));
   const cap = document.createElement("figcaption");
   cap.textContent = name;
   fig.appendChild(cap);
+  fig.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onTap();
+  });
   return fig;
+}
+
+/** The tap-for-info card: one strip under the pasture that fills with whoever
+ *  was tapped. Tapping the same resident (or the grass, or ✕) dismisses it. */
+interface FarmInfo {
+  el: HTMLElement;
+  show: (e: FarmEntry, fig: HTMLElement) => void;
+  hide: () => void;
+}
+
+function farmInfoStrip(formName: (e: FarmEntry) => string): FarmInfo {
+  const el = document.createElement("div");
+  el.className = "farm-info";
+  let selected: HTMLElement | null = null;
+  let current: FarmEntry | null = null;
+
+  const hide = () => {
+    el.classList.remove("open");
+    el.replaceChildren();
+    selected?.classList.remove("selected");
+    selected = null;
+    current = null;
+  };
+
+  const show = (e: FarmEntry, fig: HTMLElement) => {
+    if (current === e) {
+      hide(); // second tap toggles off
+      return;
+    }
+    selected?.classList.remove("selected");
+    selected = fig;
+    current = e;
+    fig.classList.add("selected");
+    el.replaceChildren();
+    // Portrait shows the creature as it lived — even for the departed.
+    const key = e.form ?? (e.finalStage === "egg" ? "egg" : e.finalStage);
+    el.appendChild(critterCanvas(key, e.passedAway ? "neutral" : "happy", 44));
+    const txt = document.createElement("div");
+    txt.className = "farm-info-text";
+    const nm = document.createElement("strong");
+    nm.textContent = e.name;
+    const detail = document.createElement("span");
+    detail.textContent = e.passedAway
+      ? `${formName(e)} · lived ${ageLabel(e.ageMs)} · died of ${e.cause ?? "unknown causes"}`
+      : `${formName(e)} · lived ${ageLabel(e.ageMs)} · retired ${new Date(
+          e.retiredAt,
+        ).toLocaleDateString()}`;
+    txt.append(nm, detail);
+    const x = document.createElement("button");
+    x.className = "farm-info-close";
+    x.setAttribute("aria-label", "Close");
+    x.textContent = "✕";
+    x.addEventListener("click", hide);
+    el.append(txt, x);
+    el.classList.add("open");
+  };
+
+  return { el, show, hide };
+}
+
+/** Dress the paddock: sky and festival trimmings up top, a barn and fence on
+ *  the horizon, and picnic/campfire/pond furniture down in the walkable band —
+ *  depth-sorted with the same 1000 − bottom rule the walkers use. */
+function decoratePasture(pasture: HTMLElement): void {
+  const add = (
+    name: PropName,
+    cls: string,
+    left: string,
+    bottom: string,
+    scale: number,
+    z?: number,
+  ) => {
+    const el = propEl(name, scale);
+    el.classList.add("prop");
+    if (cls) el.classList.add(...cls.split(" "));
+    el.style.left = left;
+    el.style.bottom = bottom;
+    if (z !== undefined) el.style.zIndex = String(z);
+    pasture.appendChild(el);
+    return el;
+  };
+  const band = (name: PropName, cls: string, left: string, b: number, scale = 3) =>
+    add(name, cls, left, `${b}px`, scale, 1000 - b);
+
+  // Sky: sun, drifting clouds, and bunting strung along the top for the vibe.
+  const sun = document.createElement("div");
+  sun.className = "sun";
+  pasture.appendChild(sun);
+  const cloudA = propEl("cloud", 2);
+  cloudA.classList.add("prop", "cloud", "cloud-a");
+  const cloudB = propEl("cloud", 3);
+  cloudB.classList.add("prop", "cloud", "cloud-b");
+  pasture.append(cloudA, cloudB);
+  const bunting = document.createElement("div");
+  bunting.className = "bunting";
+  const bs = propSize("bunting");
+  bunting.style.backgroundImage = `url(${propUrl("bunting")})`;
+  bunting.style.backgroundSize = `${bs.w * 3}px ${bs.h * 3}px`;
+  bunting.style.height = `${bs.h * 3}px`;
+  pasture.appendChild(bunting);
+
+  // The horizon: a barn, a fence line, a far tree.
+  add("barn", "far", "14%", "57%", 3, 2);
+  const fence = document.createElement("div");
+  fence.className = "fence-line";
+  const fs = propSize("fence");
+  fence.style.backgroundImage = `url(${propUrl("fence")})`;
+  fence.style.backgroundSize = `${fs.w * 3}px ${fs.h * 3}px`;
+  fence.style.height = `${fs.h * 3}px`;
+  pasture.appendChild(fence);
+  add("tree", "far", "92%", "53%", 3, 3);
+
+  // The paddock floor: social furniture plus tufts and flowers for colour.
+  band("picnic", "", "28%", 64);
+  band("campfire", "fire", "57%", 22);
+  band("pond", "", "82%", 56);
+  band("hay", "", "68%", 94);
+  band("flowers", "", "8%", 24);
+  band("flowers", "", "45%", 98, 2);
+  band("flowers", "", "94%", 102, 2);
+  band("tuft", "", "18%", 46, 2);
+  band("tuft", "", "38%", 14, 2);
+  band("tuft", "", "63%", 74, 2);
+  band("tuft", "", "88%", 20, 2);
 }
 
 export function openCollection(ctx: MenuCtx): void {
@@ -964,17 +1217,22 @@ export function openCollection(ctx: MenuCtx): void {
   }
 }
 
-/** The farm as a little diorama: retirees loafing in the pasture, and a small
- *  graveyard patch for the ones that didn't make it. */
+/** The farm as a little diorama: retirees loafing among the scenery, an info
+ *  strip that fills in whoever you tap, and a fenced graveyard plot below with
+ *  every headstone bearing its keeper's full name. */
 function farmYard(farm: FarmEntry[]): HTMLElement {
   const yard = document.createElement("div");
   yard.className = "farm-yard";
 
   const formName = (e: FarmEntry) =>
     e.form ? ADULTS[e.form].name : STAGE_LABEL[e.finalStage];
+  const info = farmInfoStrip(formName);
 
   const pasture = document.createElement("div");
   pasture.className = "pasture";
+  decoratePasture(pasture);
+  pasture.addEventListener("click", () => info.hide()); // tap the grass to dismiss
+
   const living = farm.filter((e) => !e.passedAway);
   if (living.length === 0) {
     const quiet = document.createElement("p");
@@ -985,34 +1243,27 @@ function farmYard(farm: FarmEntry[]): HTMLElement {
     const grazers: Grazer[] = [];
     for (const e of living) {
       const key = e.form ?? (e.finalStage === "egg" ? "egg" : e.finalStage);
-      const title = `${e.name} — ${formName(e)} · lived ${ageLabel(e.ageMs)} · retired ${new Date(
-        e.retiredAt,
-      ).toLocaleDateString()}`;
-      const fig = farmDweller(critterCanvas(key, "happy", 38), e.name, title, "critter");
-      const cv = fig.querySelector("canvas");
-      if (cv) (cv as HTMLElement).style.animationDelay = `${(Math.random() * 2).toFixed(2)}s`; // desync the bob
+      const fig = pastureCritter(key, e.name, () => info.show(e, fig));
       pasture.appendChild(fig);
       grazers.push({ fig, x: 0, b: 0, tx: 0, tb: 0, chill: 0 });
     }
     startMilling(pasture, grazers);
   }
   yard.appendChild(pasture);
+  yard.appendChild(info.el);
 
   const dead = farm.filter((e) => e.passedAway);
   if (dead.length > 0) {
     const graveyard = document.createElement("div");
     graveyard.className = "graveyard";
+    graveyard.addEventListener("click", () => info.hide());
     const sign = document.createElement("span");
     sign.className = "graveyard-sign";
     sign.textContent = "Rest ye here";
     graveyard.appendChild(sign);
     for (const e of dead) {
-      const title = `${e.name} — ${formName(e)} · lived ${ageLabel(e.ageMs)} · died of ${
-        e.cause ?? "unknown causes"
-      }`;
-      graveyard.appendChild(
-        farmDweller(iconEl("grave", 34), e.name, title, "grave-plot"),
-      );
+      const fig = gravePlot(e.name, () => info.show(e, fig));
+      graveyard.appendChild(fig);
     }
     yard.appendChild(graveyard);
   }

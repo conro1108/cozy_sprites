@@ -637,9 +637,124 @@ body {
 .pasture {
   position: relative;
   overflow: hidden;
-  min-height: 230px;
-  /* sky fading to grass */
-  background: linear-gradient(#a8dcec 0%, #cfeef8 40%, #9cc85a 40%, #84b348 100%);
+  min-height: 250px;
+  /* sky, a hazy horizon band, then grass deepening toward the viewer */
+  background: linear-gradient(
+    #8ecbe8 0%,
+    #b8e3f2 30%,
+    #ddf1f8 41%,
+    #a6d165 42%,
+    #93c257 68%,
+    #7fb04a 100%
+  );
+}
+
+/* Scenery sprites scattered about the paddock. */
+.pasture .prop {
+  position: absolute;
+  transform: translateX(-50%);
+  image-rendering: pixelated;
+  pointer-events: none; /* taps fall through to the grass (dismiss) */
+}
+
+.sun {
+  position: absolute;
+  top: 22px;
+  right: 7%;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #ffe9a8;
+  box-shadow: 0 0 18px 8px rgba(255, 233, 168, 0.65);
+}
+
+.pasture .cloud {
+  animation: cloud-drift linear infinite;
+  opacity: 0.9;
+}
+
+.pasture .cloud-a {
+  top: 30px;
+  animation-duration: 75s;
+}
+
+.pasture .cloud-b {
+  top: 54px;
+  animation-duration: 115s;
+  animation-delay: -58s;
+  opacity: 0.75;
+}
+
+@keyframes cloud-drift {
+  from {
+    left: -15%;
+  }
+  to {
+    left: 115%;
+  }
+}
+
+/* Festival bunting strung across the top of the paddock. */
+.bunting {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-repeat: repeat-x;
+  image-rendering: pixelated;
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* Distant paddock fence along the horizon. */
+.fence-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 57%;
+  background-repeat: repeat-x;
+  image-rendering: pixelated;
+  opacity: 0.85;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.pasture .prop.fire {
+  animation: fire-flicker 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes fire-flicker {
+  from {
+    filter: drop-shadow(0 0 3px rgba(255, 178, 74, 0.55));
+  }
+  to {
+    filter: drop-shadow(0 0 9px rgba(255, 178, 74, 0.95));
+  }
+}
+
+/* Little feelings floated up from residents hanging out together. */
+.pasture .emote {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  transform: translateX(-50%);
+  image-rendering: pixelated;
+  pointer-events: none;
+  animation: emote-float 1.4s ease-out forwards;
+}
+
+@keyframes emote-float {
+  0% {
+    opacity: 0;
+    margin-bottom: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    margin-bottom: 26px;
+  }
 }
 
 .pasture .critter {
@@ -686,53 +801,109 @@ body {
   align-items: center;
   gap: 2px;
   margin: 0;
+  cursor: pointer;
 }
 
 .critter canvas,
-.grave-plot canvas {
+.grave-plot canvas,
+.grave-plot img {
   image-rendering: pixelated;
   filter: drop-shadow(0 2px 1px rgba(30, 50, 20, 0.35));
 }
 
-.critter figcaption,
-.grave-plot figcaption {
-  font-size: 0.62rem;
-  font-weight: 700;
-  max-width: 68px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 0 4px;
-  border-radius: 6px;
-  color: #29401f;
-  background: rgba(255, 255, 255, 0.6);
+/* The tapped resident glows softly so you know who the card is about. */
+.critter.selected canvas {
+  filter: drop-shadow(0 2px 1px rgba(30, 50, 20, 0.35))
+    drop-shadow(0 0 5px rgba(255, 250, 220, 0.95));
 }
 
-/* A little fenced-off dirt plot for the ones who didn't make it. */
+.grave-plot.selected img {
+  filter: drop-shadow(0 2px 1px rgba(30, 50, 20, 0.35))
+    drop-shadow(0 0 5px rgba(255, 250, 220, 0.95));
+}
+
+/* Tap-for-info strip: slides open under the pasture with the full story. */
+.farm-info {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: linear-gradient(#fdf3e0, #f3e4c8);
+  border-top: 3px solid var(--wood);
+}
+
+.farm-info.open {
+  display: flex;
+}
+
+.farm-info canvas {
+  image-rendering: pixelated;
+  flex: 0 0 auto;
+}
+
+.farm-info-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.farm-info-text strong {
+  font-size: 0.9rem;
+}
+
+.farm-info-text span {
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.farm-info-close {
+  margin-left: auto;
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+/* A hedged-off resting plot for the ones who didn't make it. */
 .graveyard {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: center;
-  gap: 4px 12px;
+  gap: 8px 14px;
   padding: 10px 12px 14px;
-  background: linear-gradient(#7a5a38 0%, #5f4329 100%);
-  border-top: 3px solid #48311e;
+  background: linear-gradient(#55693f 0%, #4c5a38 12%, #6d5136 13%, #55402a 100%);
+  border-top: 3px solid #3f5a33;
 }
 
 .graveyard-sign {
   flex-basis: 100%;
   text-align: center;
+  margin-bottom: 2px;
   font-size: 0.62rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #d8c6a6;
-  margin-bottom: 2px;
 }
 
-.graveyard figcaption {
+/* Headstone names: engraved in full — wrap, never truncate. */
+.grave-plot figcaption {
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.2;
+  max-width: 86px;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: break-word;
+  padding: 1px 5px;
+  border-radius: 6px;
   color: #e9ddc7;
-  background: rgba(0, 0, 0, 0.28);
+  background: rgba(0, 0, 0, 0.32);
 }
 
 .muted {
