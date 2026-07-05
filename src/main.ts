@@ -131,7 +131,7 @@ function mountHatch(): void {
       <p class="muted">Something is about to hatch. What will you call it?</p>
       <div class="name-row">
         <input id="petname" maxlength="12" placeholder="Name your sprite" value="${proposed}" />
-        <button class="btn secondary reroll" id="reroll" type="button" title="Suggest another name" aria-label="Suggest another name">🎲</button>
+        <button class="btn secondary reroll" id="reroll" type="button" title="Suggest another name" aria-label="Suggest another name">${iconHTML("dice", 22)}</button>
       </div>
       <button class="btn" id="hatchbtn">Begin</button>
       <button class="btn secondary" id="collbtn" type="button">Collection &amp; Farm</button>
@@ -144,8 +144,19 @@ function mountHatch(): void {
     mountGame();
   };
   app.querySelector("#hatchbtn")!.addEventListener("click", begin);
-  app.querySelector("#reroll")!.addEventListener("click", () => {
+  const reroll = app.querySelector<HTMLButtonElement>("#reroll")!;
+  const die = reroll.querySelector("img")!;
+  reroll.addEventListener("click", () => {
     input.value = randomName();
+    // Tumble the die: restart the CSS roll and flash through faces mid-air.
+    reroll.classList.remove("rolling");
+    void reroll.offsetWidth; // reflow so the animation retriggers
+    reroll.classList.add("rolling");
+    (["dice2", "dice6", "dice"] as const).forEach((face, i) => {
+      setTimeout(() => {
+        die.src = iconUrl(face);
+      }, 130 * (i + 1));
+    });
   });
   app.querySelector("#collbtn")!.addEventListener("click", () => openCollection(ctx));
   input.addEventListener("keydown", (e) => {

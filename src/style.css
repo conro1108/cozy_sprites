@@ -624,8 +624,40 @@ body {
   width: auto;
   max-width: none;
   padding: 0 14px;
-  font-size: 1.2rem;
-  line-height: 1;
+  display: grid;
+  place-items: center;
+}
+
+.hatch-screen .reroll img {
+  display: block;
+  image-rendering: pixelated;
+}
+
+/* The die tumbles: hops up, rolls over itself, lands with a settle. The
+ * button JS flashes the pip faces mid-air to sell the roll. */
+.hatch-screen .reroll.rolling img {
+  animation: die-roll 0.55s ease-in-out;
+}
+
+@keyframes die-roll {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  30% {
+    transform: translate(-3px, -10px) rotate(140deg);
+  }
+  55% {
+    transform: translate(1px, -3px) rotate(240deg);
+  }
+  75% {
+    transform: translate(3px, -7px) rotate(320deg);
+  }
+  90% {
+    transform: translate(0, 1px) rotate(365deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(360deg);
+  }
 }
 
 /* --- The Farm diorama ----------------------------------------------------- */

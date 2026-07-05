@@ -17,6 +17,8 @@ export type IconName =
   | "noodles"
   | "cube"
   | "dice"
+  | "dice2"
+  | "dice6"
   | "ball"
   | "eyes"
   | "question"
@@ -282,6 +284,41 @@ const ICONS: Record<IconName, IconDef> = {
       ".kwwwppwwwk.",
       ".kwwwwwwwwk.",
       ".kwpwwwwpwk.",
+      ".kwwwwwwwwk.",
+      "..kkkkkkkk..",
+      "............",
+    ],
+    palette: { k: K, w: "#fdf3e0", p: "#402e3a" },
+  },
+  // Extra die faces the name-reroll button flashes through mid-tumble.
+  dice2: {
+    rows: [
+      "............",
+      "..kkkkkkkk..",
+      ".kwwwwwwwwk.",
+      ".kwppwwwwwk.",
+      ".kwppwwwwwk.",
+      ".kwwwwwwwwk.",
+      ".kwwwwwwwwk.",
+      ".kwwwwwppwk.",
+      ".kwwwwwppwk.",
+      ".kwwwwwwwwk.",
+      "..kkkkkkkk..",
+      "............",
+    ],
+    palette: { k: K, w: "#fdf3e0", p: "#402e3a" },
+  },
+  dice6: {
+    rows: [
+      "............",
+      "..kkkkkkkk..",
+      ".kwwwwwwwwk.",
+      ".kwpwwwwpwk.",
+      ".kwwwwwwwwk.",
+      ".kwpwwwwpwk.",
+      ".kwwwwwwwwk.",
+      ".kwpwwwwpwk.",
+      ".kwwwwwwwwk.",
       ".kwwwwwwwwk.",
       "..kkkkkkkk..",
       "............",
