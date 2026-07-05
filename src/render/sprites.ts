@@ -233,9 +233,9 @@ const DOG: BodyDef = {
   extra: { D: "#a9702f" }, // floppy ears + tail
   fill: "#e8ad63",
   shade: "#cf8a3f",
-  face: "standard",
-  faceDx: 0,
-  faceDy: 1,
+  face: "small",
+  faceDx: 5,
+  faceDy: 7,
   overlay: {
     rows: [
       "................",
@@ -251,7 +251,7 @@ const DOG: BodyDef = {
       "................",
       "................",
     ],
-    palette: { n: "#6b4a2a" }, // little snout
+    palette: { n: "#6b4a2a" }, // puppy nose, right above the mouth
   },
 };
 
@@ -276,9 +276,9 @@ const BLOB: BodyDef = {
   ],
   fill: "#79c7d4",
   shade: "#4fa2b0",
-  face: "standard",
-  faceDx: 0,
-  faceDy: 3,
+  face: "small",
+  faceDx: 5,
+  faceDy: 8,
 };
 
 const GREMLIN: BodyDef = {
