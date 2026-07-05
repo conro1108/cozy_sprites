@@ -1300,6 +1300,10 @@ export class Scene {
       case "ghost":
         m.bob = Math.sin(t * 1.6) * 3 - 5; // hovers off the grass
         break;
+      case "carrot":
+        m.bob = Math.sin(t * 2.4) * 1.2;
+        m.rot = Math.sin(t * 1.7) * 0.05; // teetering on its tip, serenely
+        break;
       case "baby":
         m.bob = Math.sin(t * 2.6) * 1.6;
         m.dx = Math.sin(t * 6) * 0.5; // a delighted wiggle

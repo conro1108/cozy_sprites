@@ -322,6 +322,7 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   s.happiness = clampHearts(s.happiness + def.happiness + happyBonus);
   s.weight = s.weight + def.weight;
 
+  s.hidden.mealsEaten++;
   if (food === "cake") {
     s.hidden.cakeEaten++;
     // Junk food nudges health down and raises sickness pressure.
@@ -331,7 +332,10 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
     s.hidden.cubeEaten++;
     if (!note) note = "cube";
   }
-  if (food === "carrot") s.health = clamp100(s.health + 4);
+  if (food === "carrot") {
+    s.hidden.carrotEaten++;
+    s.health = clamp100(s.health + 4);
+  }
 
   const call = resolveCall(s, "snack", unjustified);
   return { state: s, note, call };
@@ -588,4 +592,5 @@ const ADULT_FOOD: Record<AdultForm, { favorite: FoodId; disliked: FoodId | null 
   menace: { favorite: "cake", disliked: "burger" },
   ghost: { favorite: "cube", disliked: "burger" },
   humcube: { favorite: "cube", disliked: null },
+  carrot: { favorite: "carrot", disliked: "burger" },
 };

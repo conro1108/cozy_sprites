@@ -99,6 +99,15 @@ export const ADULTS: Record<AdultForm, AdultDef> = {
     preferredGame: "cubehum",
     secret: true,
   },
+  carrot: {
+    id: "carrot",
+    name: "The Blessed Carrot",
+    blurb: "You are what you eat, if you never once waver.",
+    favorite: "carrot", // it prefers not to discuss it
+    disliked: "burger",
+    preferredGame: "hideseek", // root vegetables are naturals underground
+    secret: true,
+  },
 };
 
 export const ADULT_ORDER: AdultForm[] = [
@@ -110,4 +119,5 @@ export const ADULT_ORDER: AdultForm[] = [
   "menace",
   "ghost",
   "humcube",
+  "carrot",
 ];

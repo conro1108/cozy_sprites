@@ -494,6 +494,35 @@ const HUMCUBE: BodyDef = {
   faceDy: 8,
 };
 
+// The Blessed Carrot — dietary purity made flesh. A plump taper balancing
+// improbably on its tip, with a proud spray of greens on top.
+const CARROT: BodyDef = {
+  rows: [
+    "......L...L.....",
+    "......LL.LL.....",
+    ".......GGG......",
+    "....kkkkkkkk....",
+    "...kSBBBBBBBk...",
+    "...kSBBBBBBBk...",
+    "...kSBBBBBBBk...",
+    "....kSBBBBBk....",
+    "....kSBBBBBk....",
+    ".....kSBBBk.....",
+    ".....kSBBBk.....",
+    "......kSBk......",
+    "......kSBk......",
+    ".......kk.......",
+    "................",
+    "................",
+  ],
+  extra: { L: "#8fd06a", G: "#5fa347" }, // the greens it was so loyal to
+  fill: "#f08c3a",
+  shade: "#d06a24",
+  face: "small",
+  faceDx: 5,
+  faceDy: 6,
+};
+
 const BODIES: Record<string, BodyDef> = {
   baby: BABY,
   child: CHILD,
@@ -506,6 +535,7 @@ const BODIES: Record<string, BodyDef> = {
   menace: MENACE,
   ghost: GHOST,
   humcube: HUMCUBE,
+  carrot: CARROT,
 };
 
 // --- Teen "audition" accents --------------------------------------------------
@@ -622,6 +652,13 @@ const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
       "..cc............",
     ],
     palette: { c: "#9a8fd0", g: "#cfc8ec" }, // a tiny cube, quietly orbiting
+  },
+  carrot: {
+    rows: [
+      "......L.........",
+      "......LL........",
+    ],
+    palette: { L: "#8fd06a" }, // something green taking root in the hair
   },
 };
 

@@ -71,6 +71,31 @@ describe("determineAdultForm", () => {
     expect(determineAdultForm(h, 80, () => 0)).not.toBe("ghost");
   });
 
+  it("produces the secret carrot from a perfectly pure carrot diet", () => {
+    const h = hidden({ carrotEaten: 6, mealsEaten: 6 });
+    expect(determineAdultForm(h, 90)).toBe("carrot");
+  });
+
+  it("outranks a disciplined vegetable-fed scholar when the diet is pure", () => {
+    const h = hidden({
+      carrotEaten: 8,
+      mealsEaten: 8,
+      discipline: 60,
+      gamePlays: { ...emptyHidden().gamePlays, higherlower: 8 },
+    });
+    expect(determineAdultForm(h, 90, () => 0)).toBe("carrot");
+  });
+
+  it("one lapse breaks the carrot vow — no partial credit", () => {
+    const h = hidden({ carrotEaten: 11, mealsEaten: 12 }); // one burger. ONE.
+    expect(determineAdultForm(h, 90, () => 0)).not.toBe("carrot");
+  });
+
+  it("a technically-pure but barely-fed pet is not blessed", () => {
+    const h = hidden({ carrotEaten: 2, mealsEaten: 2 });
+    expect(determineAdultForm(h, 90, () => 0)).not.toBe("carrot");
+  });
+
   it("ignores a 'favourite game' that is only tied for most-played", () => {
     // One play of everything is not a fetch enthusiasm — this used to count
     // whichever game iterated first and bias every run the same way.

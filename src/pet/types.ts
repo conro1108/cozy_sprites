@@ -4,7 +4,7 @@ export const MAX_HEARTS = 4;
 
 export type Stage = "egg" | "baby" | "child" | "teen" | "adult";
 
-/** The six standard adult forms plus two secrets (ghost, humcube). */
+/** The six standard adult forms plus three secrets (ghost, humcube, carrot). */
 export type AdultForm =
   | "dog"
   | "blob"
@@ -13,7 +13,8 @@ export type AdultForm =
   | "office"
   | "menace"
   | "ghost"
-  | "humcube";
+  | "humcube"
+  | "carrot";
 
 export type FoodId = "burger" | "cake" | "carrot" | "noodles" | "cube";
 
@@ -60,6 +61,9 @@ export interface HiddenStats {
   careMistakes: number; // missed needs, wrong scolding, ignored illness
   cakeEaten: number;
   cubeEaten: number;
+  carrotEaten: number;
+  mealsEaten: number; // every feed of any kind — the denominator for purity
+
   discipline: number; // hidden discipline score (0..100-ish)
   nightCare: number; // care actions taken while lights are off (Ghost path)
   gamePlays: Record<GameId, number>;
@@ -132,6 +136,8 @@ export function emptyHidden(): HiddenStats {
     careMistakes: 0,
     cakeEaten: 0,
     cubeEaten: 0,
+    carrotEaten: 0,
+    mealsEaten: 0,
     discipline: 0,
     nightCare: 0,
     gamePlays: {

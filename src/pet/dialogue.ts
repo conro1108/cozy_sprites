@@ -420,6 +420,31 @@ const ADULT: Record<AdultForm, Bank> = {
     sleep: ["I fold inward.", "The humming quiets. A little.", "Goodnight. Mind the corners."],
     farm: ["The fields are also, technically, a grid.", "I will hum to the crops.", "A flat field. My favorite shape. Nearly."],
   },
+  carrot: {
+    idle: [
+      "Crunch.",
+      "I am what I ate.",
+      "The soil remembers me fondly.",
+      "Stay rooted.",
+      "Purity is a practice. Also a vegetable.",
+      "*radiates vitamin A*",
+      "I have never even seen a burger. Keep it that way.",
+    ],
+    tap: ["*crisp*", "Careful — I bruise like a peach. A better, orange peach.", "Snack responsibly."],
+    win: ["Clean living pays off.", "The carrot way provides.", "Naturally. I'm all fiber."],
+    feed_favorite: [
+      "Yes. The only food.",
+      "As it was, so it shall be.",
+      "*crunches, reverently*",
+    ],
+    feed_disliked: ["We don't eat that here.", "I took a vow.", "Get it away from me."],
+    sleep: ["Back to the soil.", "*plants itself gently*", "Wake me at harvest."],
+    farm: [
+      "A garden! I'm home.",
+      "I shall supervise the vegetables personally.",
+      "Full circle.",
+    ],
+  },
 };
 
 function bankForStage(stage: Stage): Bank {
@@ -509,6 +534,7 @@ const FORM_CHATTINESS: Record<AdultForm, number> = {
   menace: 0.4,
   ghost: 0.18,
   humcube: 0.2, // quiet and cryptic, like the ghost — speaks when it matters
+  carrot: 0.45, // evangelical about the lifestyle
 };
 
 export function speakChance(state: PetState, category: Category): number {

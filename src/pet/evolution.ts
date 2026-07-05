@@ -47,6 +47,7 @@ export function scoreForms(
     menace: 0,
     ghost: 0,
     humcube: 0,
+    carrot: 0,
   };
 
   // Loyal Dog Thing — fetch enthusiast, well cared for. Ordinary wear and tear
@@ -100,6 +101,15 @@ export function scoreForms(
   if (hasTopGame && topGame === "cubehum") {
     s.humcube += 4;
     if (hidden.cubeEaten >= 3) s.humcube += 3; // the diet and the game together
+  }
+
+  // The Blessed Carrot (secret) — absolute dietary purity: carrots, only
+  // carrots, the whole time. A single burger breaks the vow, so there's no
+  // partial credit — either the diet was pure (and enough meals to mean it)
+  // or this isn't the path. Big enough to outrank an otherwise disciplined,
+  // vegetable-fed scholar upbringing.
+  if (hidden.mealsEaten >= 5 && hidden.carrotEaten === hidden.mealsEaten) {
+    s.carrot += 12 + hidden.carrotEaten * 0.5;
   }
 
   return s;
