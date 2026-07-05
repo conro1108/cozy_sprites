@@ -15,14 +15,16 @@ const OUTLINE = "#402e3a";
 const EYE = "#3a2b3f";
 
 // --- Mood faces ---------------------------------------------------------------
-// Standard faces: eyes at cols 4-5 / 10-11, rows 5-6 (e = eye, w = highlight).
+// Standard faces: eyes at cols 4-5 / 10-11, rows 5-6. Solid button eyes — the
+// old white "highlight" pixel made everyone look dead-eyed; the cute newer
+// sprites (ghost, cube) are all solid dots, so the wide faces match now.
 const FACE_NEUTRAL = [
   "................",
   "................",
   "................",
   "................",
   "................",
-  "....we....we....",
+  "....ee....ee....",
   "....ee....ee....",
   "................",
   "................",
@@ -52,7 +54,7 @@ const FACE_SAD = [
   "................",
   "................",
   "...e........e...",
-  "....we....we....",
+  "....ee....ee....",
   "....ee....ee....",
   "................",
   "......eeee......",
@@ -82,7 +84,7 @@ const SMALL_HAPPY = ["e...e", ".....", ".eee."];
 const SMALL_SAD = ["e...e", ".....", ".e.e.", "..e.."];
 const SMALL_SLEEP = ["ee.ee", ".....", "..e.."];
 
-const FACE_PALETTE: Palette = { e: EYE, w: "#ffffff", z: "#9a9ab0" };
+const FACE_PALETTE: Palette = { e: EYE, z: "#9a9ab0" };
 
 export type Mood = "neutral" | "happy" | "sad" | "sleep";
 
@@ -335,22 +337,24 @@ const SCHOLAR: BodyDef = {
   faceDx: 0,
   faceDy: 0,
   overlay: {
-    // Big round glasses aligned to the standard face's eyes.
+    // Wire-rim glasses around the standard face's eyes. Hollow lenses: the
+    // filled pale blocks used to read as huge bulging eyeballs, and they
+    // stamped open eyes over every mood.
     rows: [
       "................",
       "................",
       "................",
       "................",
-      "..wwwww.wwwww...",
-      "..wweew.wweew...",
-      "..wweew.wweew...",
-      "..wwwww.wwwww...",
+      "...wwww..wwww...",
+      "...w..wwww..w...",
+      "...w..w..w..w...",
+      "...wwww..wwww...",
       "................",
       "................",
       "................",
       "................",
     ],
-    palette: { e: EYE, w: "#dbe7ff" },
+    palette: { w: "#dbe7ff" },
   },
 };
 
@@ -540,10 +544,10 @@ const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
       "................",
       "................",
       "....www.www.....",
-      "....wew.wew.....",
+      "....w.w.w.w.....",
       "....www.www.....",
     ],
-    palette: { w: "#dbe7ff", e: EYE }, // studious little glasses
+    palette: { w: "#dbe7ff" }, // studious little glasses (eyes show through)
   },
   menace: {
     rows: [
