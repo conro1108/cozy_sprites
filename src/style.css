@@ -34,10 +34,12 @@ body {
   overscroll-behavior: none;
 }
 
-/* Match the page gradient's floor so any strip the body doesn't cover in a
- * standalone PWA (home-indicator inset, rubber-banding) is brown, not white. */
+/* iOS standalone leaves a strip below the layout viewport that only the root
+ * background can paint (boxes can't reach it). Match the app shell's tan so
+ * the strip reads as the app continuing, not a band. Invisible on desktop —
+ * the body's gradient covers everything there. */
 html {
-  background: #4a2f20;
+  background: #caa980;
 }
 
 body {
