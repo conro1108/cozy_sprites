@@ -243,10 +243,10 @@ export interface ActionResult {
   call?: "satisfied" | "spoiled";
 }
 
-/** At or below this many hearts, a snack/play demand reflects a real need;
- *  above it the pet plainly isn't hungry/bored and is just testing you, so
- *  giving in spoils and disciplining is fair. Tunable. */
-const NEED_HEARTS = 1.5;
+/** A snack/play demand is a genuine need only when the pet has less than one
+ *  full heart of that stat left. At a full heart or more it plainly doesn't
+ *  need it — it's testing you — so giving in spoils and disciplining is fair. */
+const FULL_HEART = 1;
 
 /** Whether an active attention call is unjustified: the pet is faking, or
  *  demanding a resource it plainly doesn't need — a snack while still fed, or
@@ -257,9 +257,9 @@ function callUnjustified(s: PetState): boolean {
   if (s.fakeCall) return true;
   switch (s.attentionWant ?? "pat") {
     case "snack":
-      return s.hunger > NEED_HEARTS;
+      return s.hunger >= FULL_HEART;
     case "play":
-      return s.happiness > NEED_HEARTS;
+      return s.happiness >= FULL_HEART;
     default:
       return false;
   }

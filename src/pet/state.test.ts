@@ -299,9 +299,9 @@ describe("discipline", () => {
   });
 
   it("penalises disciplining a genuine need", () => {
-    // Actually hungry and asking for a snack — scolding that is wrong.
+    // Down to less than a full heart and asking for a snack — scolding is wrong.
     const pet = asStage(
-      { ...createPet("Milo", T0), hunger: 1, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
+      { ...createPet("Milo", T0), hunger: 0.5, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
       "teen",
     );
     const { state, note } = discipline(pet, T0);
@@ -440,7 +440,7 @@ describe("tap", () => {
 describe("attention wants", () => {
   it("feeding satisfies a genuine snack call", () => {
     const pet = asStage(
-      { ...createPet("Milo", T0), hunger: 1, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
+      { ...createPet("Milo", T0), hunger: 0.5, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
       "child",
     );
     const { state, call } = feed(pet, "burger", T0);
@@ -460,7 +460,7 @@ describe("attention wants", () => {
 
   it("a finished game satisfies a genuinely bored play call", () => {
     const pet = asStage(
-      { ...createPet("Milo", T0), happiness: 1, wantsAttention: true, fakeCall: false, attentionWant: "play" as const },
+      { ...createPet("Milo", T0), happiness: 0.5, wantsAttention: true, fakeCall: false, attentionWant: "play" as const },
       "child",
     );
     const { state, call } = applyGameResult(pet, "fetch", true, T0);
