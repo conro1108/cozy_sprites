@@ -531,7 +531,7 @@ function wouldYou(ctx: MenuCtx): void {
   choices.className = "game-choices";
   const answer = (judge: string) => {
     close();
-    // Not win/lose — always a small happiness bump (SPEC §11).
+    // Not win/lose — always a small happiness bump.
     ctx.finishGame("wouldyou", true, judge);
     if (canReplay(ctx)) wouldYou(ctx);
   };

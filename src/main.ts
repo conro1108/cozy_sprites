@@ -52,7 +52,7 @@ import { randomName } from "./pet/names";
 
 const TICK_MS = 3_000;
 const BUBBLE_MS = 4_000;
-const IDLE_MIN_MS = 90_000; // demo cadence (SPEC §8 wants 10–20 min in prod)
+const IDLE_MIN_MS = 90_000; // demo cadence (prod wants 10–20 min)
 const IDLE_MAX_MS = 180_000;
 // The rare "easter egg" flourish. Demo-paced so it's actually discoverable;
 // production wants something closer to once an hour.
@@ -66,7 +66,7 @@ const EGG_BROOD_MAX_MS = 35_000;
 const EGG_TAP_POPUP_THRESHOLD = 5;
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
-getDeviceId(); // ensure anonymous device identity exists (SPEC §6)
+getDeviceId(); // ensure anonymous device identity exists
 
 let pet: PetState | null = null;
 let farm = loadFarm();
@@ -555,7 +555,7 @@ function doLight(): void {
 
 function doFinishGame(game: GameId, won: boolean, line?: string): void {
   if (!pet || dying) return;
-  // Would You Rather is never win/lose — only a slight bump (SPEC §11).
+  // Would You Rather is never win/lose — only a slight bump.
   const r = applyGameResult(pet, game, game === "wouldyou" ? false : won, Date.now());
   pet = r.state;
   if (r.call === "satisfied") {
@@ -700,7 +700,7 @@ function handleStageChange(from: PetState["stage"], to: PetState["stage"]): void
     scene?.triggerPulse("happy");
   } else if (to === "adult") {
     scene?.triggerPulse("evolve");
-    // The adult's first-ever line (SPEC §4 evolution payoff).
+    // The adult's first-ever line (the evolution payoff).
     setTimeout(() => {
       if (pet) say(pickLine(pet, "idle"));
     }, 700);
@@ -730,7 +730,7 @@ function maybeIdleLine(now: number): void {
     return;
   }
   if (pet.stage === "teen" && Math.random() < 0.35) {
-    // "The Audition" (SPEC §4): the leaning adult personality leaks through
+    // "The Audition": the leaning adult personality leaks through
     // occasionally, at normal idle cadence, never labeled.
     const leaning = determineAdultForm(pet.hidden, pet.health);
     say(teenFlickerLine(leaning));

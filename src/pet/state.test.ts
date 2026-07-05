@@ -286,6 +286,29 @@ describe("discipline", () => {
     expect(state.wantsAttention).toBe(false);
   });
 
+  it("rewards disciplining a demand the pet doesn't need", () => {
+    // Full and content, but demanding a snack anyway — fair to say no.
+    const pet = asStage(
+      { ...createPet("Milo", T0), hunger: 3, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
+      "teen",
+    );
+    const { state, note } = discipline(pet, T0);
+    expect(note).toBe("correct");
+    expect(state.hidden.discipline).toBeGreaterThan(0);
+    expect(state.wantsAttention).toBe(false);
+  });
+
+  it("penalises disciplining a genuine need", () => {
+    // Actually hungry and asking for a snack — scolding that is wrong.
+    const pet = asStage(
+      { ...createPet("Milo", T0), hunger: 1, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
+      "teen",
+    );
+    const { state, note } = discipline(pet, T0);
+    expect(note).toBe("incorrect");
+    expect(state.hidden.careMistakes).toBe(1);
+  });
+
   it("penalises incorrect discipline", () => {
     const pet = asStage(createPet("Milo", T0), "teen");
     const { state, note } = discipline(pet, T0);
@@ -435,14 +458,34 @@ describe("attention wants", () => {
     expect(state.hidden.careMistakes).toBe(1);
   });
 
-  it("a finished game satisfies a genuine play call", () => {
+  it("a finished game satisfies a genuinely bored play call", () => {
     const pet = asStage(
-      { ...createPet("Milo", T0), wantsAttention: true, fakeCall: false, attentionWant: "play" as const },
+      { ...createPet("Milo", T0), happiness: 1, wantsAttention: true, fakeCall: false, attentionWant: "play" as const },
       "child",
     );
     const { state, call } = applyGameResult(pet, "fetch", true, T0);
     expect(call).toBe("satisfied");
     expect(state.wantsAttention).toBe(false);
+  });
+
+  it("feeding a snack it doesn't need spoils, even on a genuine call", () => {
+    const pet = asStage(
+      { ...createPet("Milo", T0), hunger: 3, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
+      "child",
+    );
+    const { state, call } = feed(pet, "burger", T0);
+    expect(call).toBe("spoiled");
+    expect(state.hidden.careMistakes).toBe(1);
+  });
+
+  it("playing when it isn't bored spoils, even on a genuine call", () => {
+    const pet = asStage(
+      { ...createPet("Milo", T0), happiness: 3, wantsAttention: true, fakeCall: false, attentionWant: "play" as const },
+      "child",
+    );
+    const { state, call } = applyGameResult(pet, "fetch", true, T0);
+    expect(call).toBe("spoiled");
+    expect(state.hidden.careMistakes).toBe(1);
   });
 
   it("every new call comes with a want attached", () => {

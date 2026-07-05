@@ -19,12 +19,12 @@ export { MAX_HEARTS };
 
 // --- Timing -----------------------------------------------------------------
 // Demo-tuned so the whole Egg→Adult arc is reachable in a single sitting.
-// Spec values (SPEC §4) in comments; swap SPEC_TIMING in for the real cadence.
+// Real-length cadence is in the trailing comments; swap these in for prod.
 export const TIMING: Record<Exclude<Stage, "adult">, number> = {
-  egg: 60_000, //  spec: 5 min
-  baby: 3 * 60_000, //  spec: 30 min
-  child: 5 * 60_000, //  spec: 24–48 h
-  teen: 5 * 60_000, //  spec: 24–48 h
+  egg: 60_000, //  prod: 5 min
+  baby: 3 * 60_000, //  prod: 30 min
+  child: 5 * 60_000, //  prod: 24–48 h
+  teen: 5 * 60_000, //  prod: 24–48 h
 };
 
 const STAGE_ORDER: Stage[] = ["egg", "baby", "child", "teen", "adult"];
@@ -36,7 +36,7 @@ const STAGE_ORDER: Stage[] = ["egg", "baby", "child", "teen", "adult"];
 const HUNGER_DECAY = 1 / (4 * 60_000); // ~1 heart / 4 min baseline
 const HAPPINESS_DECAY = 1 / (6 * 60_000); // ~1 heart / 6 min baseline
 
-// Baby is deliberately hectic (SPEC §4): needs drop faster.
+// Baby is deliberately hectic: needs drop faster.
 const STAGE_DECAY_MULT: Record<Stage, number> = {
   egg: 0,
   baby: 2.2,
@@ -116,7 +116,7 @@ export function needsCare(state: PetState): boolean {
     state.happiness <= 0.5 ||
     state.sick ||
     state.poops > 0 ||
-    (state.wantsAttention && !state.fakeCall)
+    (state.wantsAttention && !callUnjustified(state))
   );
 }
 
@@ -225,7 +225,7 @@ function advanceOne(s: PetState): void {
   if (next === "baby") {
     s.wantsAttention = false;
     s.attentionWant = null;
-    // Baby is deliberately hectic (SPEC §4): it hatches already hungry so care
+    // Baby is deliberately hectic: it hatches already hungry so care
     // matters immediately and the player learns the controls right away.
     s.hunger = Math.min(s.hunger, 2);
     s.happiness = Math.min(s.happiness, 2);
@@ -243,16 +243,43 @@ export interface ActionResult {
   call?: "satisfied" | "spoiled";
 }
 
+/** At or below this many hearts, a snack/play demand reflects a real need;
+ *  above it the pet plainly isn't hungry/bored and is just testing you, so
+ *  giving in spoils and disciplining is fair. Tunable. */
+const NEED_HEARTS = 1.5;
+
+/** Whether an active attention call is unjustified: the pet is faking, or
+ *  demanding a resource it plainly doesn't need — a snack while still fed, or
+ *  play while still content. A pat is always a fair ask. Evaluate against
+ *  pre-action stats, before feeding/playing moves the meter we're judging. */
+function callUnjustified(s: PetState): boolean {
+  if (!s.wantsAttention) return false;
+  if (s.fakeCall) return true;
+  switch (s.attentionWant ?? "pat") {
+    case "snack":
+      return s.hunger > NEED_HEARTS;
+    case "play":
+      return s.happiness > NEED_HEARTS;
+    default:
+      return false;
+  }
+}
+
 /** Resolve an active attention call whose want this action just met. Mutates
- *  `s` (callers pass a fresh copy) and returns how it landed. */
-function resolveCall(s: PetState, want: AttentionWant): "satisfied" | "spoiled" | undefined {
+ *  `s` (callers pass a fresh copy) and returns how it landed. `unjustified` is
+ *  computed by the caller from pre-action stats (see callUnjustified). */
+function resolveCall(
+  s: PetState,
+  want: AttentionWant,
+  unjustified: boolean,
+): "satisfied" | "spoiled" | undefined {
   if (!s.wantsAttention || (s.attentionWant ?? "pat") !== want) return undefined;
-  const spoiled = s.fakeCall;
   s.wantsAttention = false;
   s.fakeCall = false;
   s.attentionWant = null;
-  if (spoiled) {
-    // The con worked. It is thrilled; the ledger is not.
+  if (unjustified) {
+    // You placated a demand it didn't need — the lazy calm. It's thrilled;
+    // the ledger is not. Disciplining would have been the other option.
     s.hidden = { ...s.hidden, careMistakes: s.hidden.careMistakes + 1 };
     s.happiness = clampHearts(s.happiness + 0.3);
     return "spoiled";
@@ -267,6 +294,8 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
     return { state: s, note: "cant" };
   }
   s = { ...s, hidden: { ...s.hidden } };
+  // Judge the call before the food lands, or we'd be judging post-feed hunger.
+  const unjustified = callUnjustified(s);
   const def = FOODS[food];
 
   // Refuse proper meals when already full (classic Tamagotchi behaviour);
@@ -303,7 +332,7 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   }
   if (food === "carrot") s.health = clamp100(s.health + 4);
 
-  const call = resolveCall(s, "snack");
+  const call = resolveCall(s, "snack", unjustified);
   return { state: s, note, call };
 }
 
@@ -316,12 +345,14 @@ export function applyGameResult(
 ): ActionResult {
   let s = applyElapsedDecay(state, now);
   s = { ...s, hidden: { ...s.hidden, gamePlays: { ...s.hidden.gamePlays } } };
+  // Judge the call before the game lifts happiness, or every play reads justified.
+  const unjustified = callUnjustified(s);
   s.hidden.gamePlays[game]++;
   const gain = won ? 1.5 : 0.4;
   s.happiness = clampHearts(s.happiness + gain);
   s.hunger = clampHearts(s.hunger - 0.2);
   s.weight = Math.max(1, s.weight - 0.3);
-  const call = resolveCall(s, "play");
+  const call = resolveCall(s, "play", unjustified);
   return { state: s, call };
 }
 
@@ -357,8 +388,9 @@ export function giveMedicine(state: PetState, now: number): ActionResult {
 }
 
 /**
- * Discipline is correct when the pet is making a fake attention call or acting
- * out; incorrect otherwise (which dings happiness/health — SPEC §11).
+ * Discipline is correct when the pet is making an unjustified attention call —
+ * faking, or demanding food/play it doesn't actually need (see callUnjustified).
+ * Incorrect otherwise (which dings happiness/health).
  */
 export function discipline(state: PetState, now: number): ActionResult {
   let s = applyElapsedDecay(state, now);
@@ -366,9 +398,9 @@ export function discipline(state: PetState, now: number): ActionResult {
     return { state: s, note: "cant" }; // babies can't be disciplined
   }
   s = { ...s, hidden: { ...s.hidden } };
-  const correct = s.wantsAttention && s.fakeCall;
+  const correct = callUnjustified(s);
   if (correct) {
-    // Teen discipline carries more weight (SPEC §4).
+    // Teen discipline carries more weight.
     s.hidden.discipline += s.stage === "teen" ? 12 : 8;
     s.discipline = clamp100(s.discipline + (s.stage === "teen" ? 12 : 8));
     s.wantsAttention = false;
@@ -437,7 +469,7 @@ export function tap(state: PetState, now: number): TapResult {
     if (want !== "pat") {
       return { state: next, reaction: "hint", want };
     }
-    const call = resolveCall(next, "pat");
+    const call = resolveCall(next, "pat", callUnjustified(next));
     return { state: next, reaction: call === "spoiled" ? "spoiled" : "answered", want: null };
   }
 
@@ -476,7 +508,7 @@ export function stepEvents(
   let s: PetState = { ...state, hidden: { ...state.hidden } };
   const perMin = elapsed / 60_000;
 
-  // Pooping — babies poop a lot (SPEC §4).
+  // Pooping — babies poop a lot.
   const poopRate = s.stage === "baby" ? 0.9 : 0.35;
   if (s.poops < 4 && rng() < poopRate * perMin) {
     s.poops++;
@@ -497,7 +529,7 @@ export function stepEvents(
     }
   }
 
-  // Attention calls. From teen on, some are fake (boundary-testing, SPEC §4).
+  // Attention calls. From teen on, some are fake (boundary-testing).
   // Teens call noticeably more — at demo pace the teen window is short, and
   // it's the main place discipline opportunities come from.
   const callRate = s.stage === "teen" ? 0.5 : 0.25;

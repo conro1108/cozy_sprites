@@ -1,5 +1,5 @@
 // Minimal offline cache: network-first for same-origin GETs, cache fallback.
-// Enough to make the app open offline after the first visit (SPEC §2).
+// Enough to make the app open offline after the first visit.
 //
 // Network-first (not cache-first) matters here: index.html references
 // content-hashed asset filenames that change every deploy. A cache-first

@@ -1,6 +1,6 @@
 // Local persistence: active pet + farm archive + import/export backup string.
-// localStorage is sufficient for v1; the export string is the backup answer to
-// SPEC §6 ("a backup/export option should exist even in v1").
+// localStorage is sufficient for v1; the export string provides a backup/export
+// option even in v1.
 
 import type { FarmEntry, PetState } from "./types";
 import { emptyHidden } from "./types";

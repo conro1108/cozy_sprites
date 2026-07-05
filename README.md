@@ -1,8 +1,7 @@
 # Cozy Sprites 🥚
 
 A mobile-first, cozy pixel-art virtual pet. Classic Tamagotchi-style care
-mechanics underneath, a dry / slightly cursed personality layer on top. Built
-from `SPEC.md`.
+mechanics underneath, a dry / slightly cursed personality layer on top.
 
 Raise an egg through **baby → child → teen → adult**. How you care for it —
 what you feed it, which games you play, how you discipline it, whether you let
@@ -43,4 +42,4 @@ after the first visit.
 - `src/main.ts` — orchestration (tick loop, action wiring).
 
 > Life-stage timers are **compressed for demo play** (whole arc in minutes).
-> See `TIMING` in `src/pet/state.ts` for the spec-accurate values.
+> See `TIMING` in `src/pet/state.ts` for the real-length values.

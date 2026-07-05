@@ -55,7 +55,7 @@ export const ILLNESSES: Record<IllnessId, IllnessDef> = {
   plague: { id: "plague", label: "the plague", doses: 2 },
 };
 
-/** Hidden stats the player never sees directly (SPEC §7, §15). */
+/** Hidden stats the player never sees directly. */
 export interface HiddenStats {
   careMistakes: number; // missed needs, wrong scolding, ignored illness
   cakeEaten: number;

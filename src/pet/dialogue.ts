@@ -1,5 +1,5 @@
 // Dialogue banks + selection. Voice shifts by life stage and adult form.
-// Tone per SPEC §8: cute, dry, occasionally macabre, sometimes sincere.
+// Tone: cute, dry, occasionally macabre, sometimes sincere.
 // House rule: profanity caps out at "hell", used sparingly.
 
 import { ILLNESSES } from "./types";
@@ -287,7 +287,7 @@ const GENERAL: Bank = {
   ],
 };
 
-// --- Per-adult voices (SPEC §12/§13). Only distinctive categories overridden.
+// --- Per-adult voices. Only distinctive categories overridden.
 const ADULT: Record<AdultForm, Bank> = {
   dog: {
     idle: [
@@ -456,7 +456,7 @@ export function pickLine(
 }
 
 /** Occasionally the pet leaks a candidate-adult flavour line during Teen
- *  (SPEC §4 "The Audition"). Returns a moodier line if leaning that way. */
+ *  ("The Audition"). Returns a moodier line if leaning that way. */
 export function teenFlickerLine(
   leaning: AdultForm,
   rng: () => number = Math.random,
@@ -574,7 +574,8 @@ const CALL_SATISFIED_LINES: Record<AttentionWant, string[]> = {
   ],
 };
 
-// You fell for a fake call and rewarded the tantrum. It gloats.
+// You placated a demand it didn't need (a fake call, or food/play while it was
+// already fed/content) instead of holding the line. It gloats.
 const CALL_SPOILED_LINES = [
   "Hehehe. Worked.",
   "You fell for the oldest trick in the meadow.",

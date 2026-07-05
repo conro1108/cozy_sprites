@@ -24,7 +24,7 @@ export const FOOD_ORDER: FoodId[] = ["burger", "cake", "carrot", "noodles", "cub
 export interface AdultDef {
   id: AdultForm;
   name: string;
-  blurb: string; // vague collection-clue hint (SPEC §7)
+  blurb: string; // vague collection-clue hint
   favorite: FoodId;
   disliked: FoodId | null;
   preferredGame: GameId;

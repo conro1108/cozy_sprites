@@ -1,4 +1,4 @@
-// Hidden evolution scoring (SPEC §4, §7). The player never sees these numbers —
+// Hidden evolution scoring. The player never sees these numbers —
 // they learn the influences empirically ("too much cake made a blob"). We score
 // every candidate adult from the hidden stats and take the highest.
 
