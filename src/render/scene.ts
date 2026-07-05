@@ -1409,12 +1409,16 @@ export class Scene {
     // The egg never travels, so it never flips.
     const flip = v.key === "egg" ? 1 : this.facing;
     ctx.save();
-    const cx = CREATURE_X + dx;
+    // Snap the draw origin to the buffer's integer pixel grid. Drawing the
+    // 3×-scaled sprite at a fractional origin makes its pixels crawl frame to
+    // frame (a shimmer) — invisible while it's travelling across the scene, but
+    // the *only* motion when it's idling in place, where it reads as jitter.
+    const cx = Math.round(CREATURE_X + dx);
     // ctx.scale() shrinks the image toward this translate origin on both
     // sides. Nudge the origin down by half of what squashY trims off so the
     // feet stay planted on the shadow — vertical squash reads as sitting
     // into the ground instead of floating up off it.
-    const cy = baseY + cw / 2 + bob + (cw / 2) * (1 - squashY);
+    const cy = Math.round(baseY + cw / 2 + bob + (cw / 2) * (1 - squashY));
     ctx.translate(cx, cy);
     ctx.rotate(rot);
     ctx.scale(squashX * flip, squashY);
