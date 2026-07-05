@@ -68,7 +68,7 @@ const ICONS: Record<IconName, IconDef> = {
       "..kbbbbbbk..",
       ".kbbsbbsbbk.",
       ".kLLLLLLLLk.",
-      ".ktttttttk..",
+      ".kttttttttk.",
       ".kmmmmmmmmk.",
       ".kbbbbbbbbk.",
       "..kbbbbbbk..",
@@ -219,10 +219,10 @@ const ICONS: Record<IconName, IconDef> = {
   },
   carrot: {
     rows: [
-      "......g.g...",
-      ".....gg.gg..",
-      "......ggg...",
-      "....kkkk....",
+      "...g.g.g....",
+      "...ggggg....",
+      "....ggg.....",
+      "...kkkkk....",
       "...koook....",
       "...kowok....",
       "...koook....",
