@@ -534,16 +534,17 @@ export class Scene {
     const barkDark = dark ? "#33281f" : night ? "#4e3a2c" : "#75482e";
     const wood = dark ? "#4f3e32" : night ? "#77593e" : "#c99a64";
     const ring = dark ? "#3f3126" : night ? "#5e4630" : "#a5764a";
-    // Trunk: bark sides with grooves, flaring into roots at the grass.
+    // Trunk: bark sides with grooves, flaring into roots at the grass. Full
+    // ellipse width all the way down — a narrower trunk pinches into a waist.
     ctx.fillStyle = bark;
-    ctx.fillRect(7, top, 16, 9);
-    ctx.fillRect(5, top + 7, 20, 3); // root flare
+    ctx.fillRect(6, top, 18, 9);
+    ctx.fillRect(4, top + 7, 22, 3); // root flare
     ctx.fillStyle = barkDark;
     ctx.fillRect(9, top + 2, 1, 7);
     ctx.fillRect(14, top + 3, 1, 7);
     ctx.fillRect(19, top + 2, 1, 6);
-    ctx.fillRect(7, top + 6, 1, 4); // shaded edges
-    ctx.fillRect(22, top + 6, 1, 4);
+    ctx.fillRect(6, top + 5, 1, 5); // shaded edges
+    ctx.fillRect(23, top + 5, 1, 5);
     // The sawn top: an ellipse of pale wood with concentric growth rings.
     ctx.fillStyle = bark; // rim of bark around the cut
     ctx.beginPath();
