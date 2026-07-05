@@ -31,6 +31,7 @@ import { iconEl, iconHTML, iconUrl } from "../render/icons";
 import { propEl, propUrl, propSize, type PropName } from "../render/props";
 import type { IconName } from "../render/icons";
 import type { Scene } from "../render/scene";
+import { festivalTonight } from "./festival";
 import { getNotifyPref, setNotifyPref } from "./notifications";
 import type { NotifyPref } from "./notifications";
 
@@ -819,6 +820,7 @@ const SOCIAL_SPOTS: SocialSpot[] = [
   { xf: 0.57, b: 30, rMin: 20, rMax: 32 }, // campfire
   { xf: 0.82, b: 62, rMin: 24, rMax: 38 }, // pond
 ];
+const CAMPFIRE_SPOT = SOCIAL_SPOTS[1]; // festival nights orbit the fire
 const OBSTACLES: Obstacle[] = [
   { xf: 0.57, b: 28, r: 18 }, // the campfire itself
 ];
@@ -830,8 +832,10 @@ const OBSTACLES: Obstacle[] = [
  *  ambles over to the picnic, the campfire or the pond and loiters there
  *  together, trading little hearts and hums. Runs on rAF and self-stops once
  *  the pasture leaves the DOM, so closing or reopening the panel never leaves
- *  a loop running or stacks a second one. */
-function startMilling(pasture: HTMLElement, grazers: Grazer[]): void {
+ *  a loop running or stacks a second one. On festival nights the socialising
+ *  runs hotter: gatherings come sooner, linger closer together in time, and
+ *  lean heavily toward the campfire. */
+function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean): void {
   const rand = (a: number, z: number) => a + Math.random() * (z - a);
   const clamp = (v: number, a: number, z: number) => (v < a ? a : v > z ? z : v);
   const SEP = 30; // min centre-to-centre gap at the same depth
@@ -841,7 +845,7 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[]): void {
 
   let gathering: SocialSpot | null = null;
   let gatherUntil = 0;
-  let nextGather = last + rand(5000, 12000);
+  let nextGather = last + (festival ? rand(2500, 7000) : rand(5000, 12000));
   let nextEmote = last + rand(2500, 6000);
 
   const bounds = () => {
@@ -911,9 +915,12 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[]): void {
     // Social calendar: start a gathering now and then, break it up later.
     if (gathering && now > gatherUntil) {
       gathering = null;
-      nextGather = now + rand(9000, 20000);
+      nextGather = now + (festival ? rand(6000, 12000) : rand(9000, 20000));
     } else if (!gathering && now > nextGather && grazers.length >= 2) {
-      gathering = SOCIAL_SPOTS[Math.floor(Math.random() * SOCIAL_SPOTS.length)];
+      gathering =
+        festival && Math.random() < 0.5
+          ? CAMPFIRE_SPOT
+          : SOCIAL_SPOTS[Math.floor(Math.random() * SOCIAL_SPOTS.length)];
       gatherUntil = now + rand(12000, 22000);
       for (const g of grazers) {
         if (Math.random() < 0.8) {
@@ -979,7 +986,8 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[]): void {
 
     // Neighbours loitering together occasionally trade a little emote.
     if (now > nextEmote) {
-      nextEmote = now + (gathering ? rand(1400, 3200) : rand(3000, 7000));
+      const gap = gathering ? rand(1400, 3200) : rand(3000, 7000);
+      nextEmote = now + (festival ? gap * 0.7 : gap);
       outer: for (let i = 0; i < grazers.length; i++) {
         for (let j = i + 1; j < grazers.length; j++) {
           const a = grazers[i];
@@ -1099,8 +1107,10 @@ function farmInfoStrip(formName: (e: FarmEntry) => string): FarmInfo {
 
 /** Dress the paddock: sky and festival trimmings up top, a barn and fence on
  *  the horizon, and picnic/campfire/pond furniture down in the walkable band —
- *  depth-sorted with the same 1000 − bottom rule the walkers use. */
-function decoratePasture(pasture: HTMLElement): void {
+ *  depth-sorted with the same 1000 − bottom rule the walkers use. On festival
+ *  nights the sky turns to dusk: moon and stars instead of sun and clouds,
+ *  paper lanterns instead of bunting, and fireflies over the grass. */
+function decoratePasture(pasture: HTMLElement, festival: boolean): void {
   const add = (
     name: PropName,
     cls: string,
@@ -1121,32 +1131,59 @@ function decoratePasture(pasture: HTMLElement): void {
   const band = (name: PropName, cls: string, left: string, b: number, scale = 3) =>
     add(name, cls, left, `${b}px`, scale, 1000 - b);
 
-  // Sky: sun, drifting clouds, and bunting strung along the top for the vibe.
-  const sun = document.createElement("div");
-  sun.className = "sun";
-  pasture.appendChild(sun);
-  const cloudA = propEl("cloud", 2);
-  cloudA.classList.add("prop", "cloud", "cloud-a");
-  const cloudB = propEl("cloud", 3);
-  cloudB.classList.add("prop", "cloud", "cloud-b");
-  pasture.append(cloudA, cloudB);
-  const bunting = document.createElement("div");
-  bunting.className = "bunting";
-  const bs = propSize("bunting");
-  bunting.style.backgroundImage = `url(${propUrl("bunting")})`;
-  bunting.style.backgroundSize = `${bs.w * 3}px ${bs.h * 3}px`;
-  bunting.style.height = `${bs.h * 3}px`;
-  pasture.appendChild(bunting);
+  // A tiled strip along the top edge — bunting by day, lanterns by night.
+  const strip = (name: PropName, cls: string) => {
+    const el = document.createElement("div");
+    el.className = cls;
+    const sz = propSize(name);
+    el.style.backgroundImage = `url(${propUrl(name)})`;
+    el.style.backgroundSize = `${sz.w * 3}px ${sz.h * 3}px`;
+    el.style.height = `${sz.h * 3}px`;
+    pasture.appendChild(el);
+  };
+
+  if (festival) {
+    // Dusk sky: moon, a scatter of stars, lantern light, fireflies low over
+    // the grass.
+    pasture.classList.add("night");
+    const moon = document.createElement("div");
+    moon.className = "moon";
+    pasture.appendChild(moon);
+    for (let i = 0; i < 8; i++) {
+      const star = document.createElement("div");
+      star.className = "star";
+      star.style.left = `${(4 + Math.random() * 92).toFixed(1)}%`;
+      star.style.top = `${(5 + Math.random() * 30).toFixed(1)}%`;
+      star.style.animationDelay = `${(Math.random() * 2.4).toFixed(2)}s`;
+      pasture.appendChild(star);
+    }
+    strip("lanterns", "lantern-line");
+    for (let i = 0; i < 3; i++) {
+      const fly = document.createElement("div");
+      fly.className = "firefly";
+      fly.style.left = `${(10 + Math.random() * 80).toFixed(1)}%`;
+      fly.style.bottom = `${(20 + Math.random() * 90).toFixed(0)}px`;
+      fly.style.animationDuration = `${(4 + Math.random() * 4).toFixed(1)}s, ${(
+        1.8 + Math.random()
+      ).toFixed(1)}s`;
+      pasture.appendChild(fly);
+    }
+  } else {
+    // Sky: sun, drifting clouds, and bunting strung along the top for the vibe.
+    const sun = document.createElement("div");
+    sun.className = "sun";
+    pasture.appendChild(sun);
+    const cloudA = propEl("cloud", 2);
+    cloudA.classList.add("prop", "cloud", "cloud-a");
+    const cloudB = propEl("cloud", 3);
+    cloudB.classList.add("prop", "cloud", "cloud-b");
+    pasture.append(cloudA, cloudB);
+    strip("bunting", "bunting");
+  }
 
   // The horizon: a barn, a fence line, a far tree.
   add("barn", "far", "14%", "57%", 3, 2);
-  const fence = document.createElement("div");
-  fence.className = "fence-line";
-  const fs = propSize("fence");
-  fence.style.backgroundImage = `url(${propUrl("fence")})`;
-  fence.style.backgroundSize = `${fs.w * 3}px ${fs.h * 3}px`;
-  fence.style.height = `${fs.h * 3}px`;
-  pasture.appendChild(fence);
+  strip("fence", "fence-line");
   add("tree", "far", "92%", "53%", 3, 3);
 
   // The paddock floor: social furniture plus tufts and flowers for colour.
@@ -1228,16 +1265,19 @@ function farmYard(farm: FarmEntry[]): HTMLElement {
     e.form ? ADULTS[e.form].name : STAGE_LABEL[e.finalStage];
   const info = farmInfoStrip(formName);
 
+  const festival = festivalTonight();
   const pasture = document.createElement("div");
   pasture.className = "pasture";
-  decoratePasture(pasture);
+  decoratePasture(pasture, festival);
   pasture.addEventListener("click", () => info.hide()); // tap the grass to dismiss
 
   const living = farm.filter((e) => !e.passedAway);
   if (living.length === 0) {
     const quiet = document.createElement("p");
     quiet.className = "pasture-empty";
-    quiet.textContent = "The pasture is quiet today.";
+    quiet.textContent = festival
+      ? "Lanterns are lit, but nobody's home tonight."
+      : "The pasture is quiet today.";
     pasture.appendChild(quiet);
   } else {
     const grazers: Grazer[] = [];
@@ -1247,7 +1287,7 @@ function farmYard(farm: FarmEntry[]): HTMLElement {
       pasture.appendChild(fig);
       grazers.push({ fig, x: 0, b: 0, tx: 0, tb: 0, chill: 0 });
     }
-    startMilling(pasture, grazers);
+    startMilling(pasture, grazers, festival);
   }
   yard.appendChild(pasture);
   yard.appendChild(info.el);

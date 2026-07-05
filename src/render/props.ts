@@ -13,6 +13,7 @@ export type PropName =
   | "picnic"
   | "campfire"
   | "bunting"
+  | "lanterns"
   | "fence"
   | "barn"
   | "cloud"
@@ -129,6 +130,19 @@ const PROPS: Record<PropName, PropDef> = {
       "............",
     ],
     palette: { s: "#8a6a4e", r: "#e06a7c", b: "#6aa9d8" },
+  },
+  lanterns: {
+    // one repeating unit of paper lanterns on a string, for festival nights
+    rows: [
+      "ssssssssssss",
+      "..k.....k...",
+      ".kok...kok..",
+      ".oyo...oyo..",
+      ".oyo...oyo..",
+      ".kok...kok..",
+      "............",
+    ],
+    palette: { k: K, s: "#7a6a8a", o: "#f59a3e", y: "#ffe9a8" },
   },
   fence: {
     // distant paddock fence, tiles along the horizon
