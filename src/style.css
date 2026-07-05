@@ -34,7 +34,14 @@ body {
   overscroll-behavior: none;
 }
 
+/* Match the page gradient's floor so any strip the body doesn't cover in a
+ * standalone PWA (home-indicator inset, rubber-banding) is brown, not white. */
+html {
+  background: #4a2f20;
+}
+
 body {
+  min-height: 100dvh;
   background:
     radial-gradient(circle at 50% 0%, #8a5f3f 0%, #6b4630 60%, #4a2f20 100%);
   font-family: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono",
@@ -301,6 +308,9 @@ body {
   justify-content: center;
   z-index: 10;
   animation: fade-in 0.15s ease;
+  /* Overlays cover #app's safe-area padding box, so tall panels would slide
+   * up under the phone's status bar without this reserved strip. */
+  padding-top: calc(env(safe-area-inset-top) + 10px);
 }
 
 @keyframes fade-in {
