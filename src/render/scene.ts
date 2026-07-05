@@ -528,16 +528,41 @@ export class Scene {
 
   private drawStump(dark: boolean, night: boolean): void {
     const ctx = this.ctx;
-    const sx = 6;
-    const sy = this.floorY + 2;
-    ctx.fillStyle = dark ? "#3f3128" : night ? "#5e4634" : "#8a5a3c";
-    ctx.fillRect(sx, sy, 18, 12);
-    ctx.fillStyle = dark ? "#4a3a30" : night ? "#6e543e" : "#a97048";
-    ctx.fillRect(sx, sy - 3, 18, 5);
-    // rings on top
-    ctx.fillStyle = dark ? "#3a2d24" : night ? "#553f2e" : "#8a5a3c";
-    ctx.fillRect(sx + 4, sy - 2, 10, 1);
-    ctx.fillRect(sx + 7, sy, 4, 1);
+    const cx = 15; // centre of the old stump's footprint
+    const top = this.floorY + 3;
+    const bark = dark ? "#3f3128" : night ? "#5e4634" : "#8a5a3c";
+    const barkDark = dark ? "#33281f" : night ? "#4e3a2c" : "#75482e";
+    const wood = dark ? "#4f3e32" : night ? "#77593e" : "#c99a64";
+    const ring = dark ? "#3f3126" : night ? "#5e4630" : "#a5764a";
+    // Trunk: bark sides with grooves, flaring into roots at the grass.
+    ctx.fillStyle = bark;
+    ctx.fillRect(7, top, 16, 9);
+    ctx.fillRect(5, top + 7, 20, 3); // root flare
+    ctx.fillStyle = barkDark;
+    ctx.fillRect(9, top + 2, 1, 7);
+    ctx.fillRect(14, top + 3, 1, 7);
+    ctx.fillRect(19, top + 2, 1, 6);
+    ctx.fillRect(7, top + 6, 1, 4); // shaded edges
+    ctx.fillRect(22, top + 6, 1, 4);
+    // The sawn top: an ellipse of pale wood with concentric growth rings.
+    ctx.fillStyle = bark; // rim of bark around the cut
+    ctx.beginPath();
+    ctx.ellipse(cx, top, 9, 4.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = wood;
+    ctx.beginPath();
+    ctx.ellipse(cx, top, 8, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = ring;
+    ctx.beginPath();
+    ctx.ellipse(cx, top, 5, 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = wood;
+    ctx.beginPath();
+    ctx.ellipse(cx, top, 3, 1, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = ring;
+    ctx.fillRect(cx - 1, top, 2, 1); // heartwood dot
   }
 
   private drawLantern(t: number, dark: boolean, v: SceneView): void {
