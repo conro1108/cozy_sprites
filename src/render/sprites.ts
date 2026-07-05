@@ -333,22 +333,21 @@ const SCHOLAR: BodyDef = {
   ],
   fill: "#b6a1e2",
   shade: "#8f77c6",
-  face: "standard",
-  faceDx: 0,
-  faceDy: 0,
+  face: "small",
+  faceDx: 5,
+  faceDy: 4,
   overlay: {
-    // Wire-rim glasses around the standard face's eyes. Hollow lenses: the
-    // filled pale blocks used to read as huge bulging eyeballs, and they
-    // stamped open eyes over every mood.
+    // Little wire-rim glasses around the dot eyes, hollow so every mood's
+    // eyes show through — same style the scholar-leaning teen wears.
     rows: [
       "................",
       "................",
       "................",
+      "....www.www.....",
+      "....w.w.w.w.....",
+      "....www.www.....",
       "................",
-      "...wwww..wwww...",
-      "...w..wwww..w...",
-      "...w..w..w..w...",
-      "...wwww..wwww...",
+      "................",
       "................",
       "................",
       "................",
