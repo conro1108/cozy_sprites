@@ -509,8 +509,8 @@ const BODIES: Record<string, BodyDef> = {
 
 // --- Teen "audition" accents --------------------------------------------------
 // A teen is still figuring out what it'll become. When it's leaning toward an
-// adult form, a small tell leaks through — a crown nub, glasses, floppy ears —
-// a slight clue to the eventual look, never a spoiler. Blitted over the teen
+// adult form, a small tell leaks through — a drooping ear, a wee book, a fleck
+// of crown — just a few pixels, never a spoiler. Blitted over the teen
 // body+face (see renderPixels). Full-frame 16-wide grids like standard overlays.
 type Accent = { rows: string[]; palette: Palette };
 
@@ -520,20 +520,19 @@ const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
       "................",
       "................",
       "................",
-      "................",
-      "..DD.....DD.....",
-      "..DD.....DD.....",
-      "...D.....D......",
+      "....D...........",
+      "...DD...........",
+      "...D............",
     ],
-    palette: { D: "#a9702f" }, // floppy ears starting to droop
+    palette: { D: "#a9702f" }, // one ear starting to flop
   },
   gremlin: {
     rows: [
-      "....G...G.......",
-      "....G...G.......",
-      "...GG...GG......",
+      "................",
+      "................",
+      ".....G...G......",
     ],
-    palette: { G: "#4c8f3c" }, // ears going pointy
+    palette: { G: "#4c8f3c" }, // the first hint of pointy ears
   },
   scholar: {
     rows: [
@@ -542,18 +541,25 @@ const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
       "................",
       "................",
       "................",
-      "....www.www.....",
-      "....w.w.w.w.....",
-      "....www.www.....",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "...rp...........",
+      "...rp...........",
     ],
-    palette: { w: "#dbe7ff" }, // studious little glasses (eyes show through)
+    palette: { r: "#b0524a", p: "#f3ead9" }, // a wee book, never far away
   },
   menace: {
     rows: [
-      "....y.y.y.......",
-      "....yyyyy.......",
+      "......y.y.......",
+      "......yyy.......",
     ],
-    palette: { y: "#f5d572" }, // a crown, obviously
+    palette: { y: "#f5d572" }, // a fleck of crown, obviously
   },
   office: {
     rows: [
@@ -566,9 +572,8 @@ const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
       "................",
       "................",
       "................",
-      "......T.........",
-      ".....TTT........",
-      "......T.........",
+      ".......T........",
+      ".......T........",
     ],
     palette: { T: "#6f6a80" }, // the tie forms early
   },
@@ -595,11 +600,11 @@ const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
   },
   humcube: {
     rows: [
-      "..ccc...........",
-      "..c.c...........",
-      "..ccc...........",
+      "................",
+      "..gc............",
+      "..cc............",
     ],
-    palette: { c: "#9a8fd0" }, // a tiny hollow cube, quietly orbiting its head
+    palette: { c: "#9a8fd0", g: "#cfc8ec" }, // a tiny cube, quietly orbiting
   },
 };
 
