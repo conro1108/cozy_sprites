@@ -128,6 +128,9 @@ export class Scene {
   // Flourish (rare easter-egg animation).
   private flourishStart = -Infinity;
 
+  // When the pet last fell asleep — eases the settle-down and times the Zzz.
+  private sleepStart = -Infinity;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
@@ -153,6 +156,7 @@ export class Scene {
   }
 
   update(view: SceneView): void {
+    if (view.asleep && !this.view.asleep) this.sleepStart = performance.now();
     this.view = view;
     const cacheKey = `${view.key}:${view.mood}:${view.variant ?? ""}`;
     if (cacheKey !== this.creatureCacheKey) {
@@ -452,6 +456,25 @@ export class Scene {
       ctx.fillRect(0, 0, SCENE_W, SCENE_H);
     }
 
+    // Sleeping: a lazy trail of Zs drifts up off the sleeper. Drawn after the
+    // night dim so they stay soft and readable in the dark.
+    if (v.asleep && !this.hidden && v.key !== "egg") {
+      const settled = (now - this.sleepStart) / 1000 > 0.8;
+      if (settled) {
+        const cx = CREATURE_X + this.curDx;
+        const headY = FLOOR_Y + this.curDy - 14;
+        for (let i = 0; i < 3; i++) {
+          const q = (t * 0.3 + i / 3) % 1; // each Z on its own staggered loop
+          const zx = cx + 8 + q * 8 + Math.sin(q * Math.PI * 2 + i * 2.1) * 1.5;
+          const zy = headY - q * 16;
+          const fadeIn = Math.min(1, q / 0.12);
+          ctx.globalAlpha = fadeIn * Math.max(0, 1 - Math.max(0, q - 0.5) * 2);
+          this.drawZ(Math.round(zx), Math.round(zy), q > 0.55 ? 2 : 1);
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+
     // The "love" pulse floats a few little hearts up off the creature.
     const lp = (now - this.pulseStart) / 1000;
     if (this.pulse === "love" && lp < 1.2) {
@@ -467,6 +490,15 @@ export class Scene {
       }
       ctx.globalAlpha = 1;
     }
+  }
+
+  /** A pixel Z at unit size `s` (1 = 3×3, 2 = 6×6): grows as it floats up. */
+  private drawZ(x: number, y: number, s: number): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = "#e9e2ff";
+    ctx.fillRect(x, y, 3 * s, s);
+    ctx.fillRect(x + s, y + s, s, s);
+    ctx.fillRect(x, y + 2 * s, 3 * s, s);
   }
 
   private drawTinyHeart(x: number, y: number): void {
@@ -1179,8 +1211,12 @@ export class Scene {
     const m = { bob: 0, dx: 0, sx: 1, sy: 1, rot: 0 };
 
     if (v.asleep) {
-      m.bob = Math.sin(t * 1.2) * 0.8;
-      m.sy = 0.94;
+      // Settle down into the grass like a little loaf, breathing slowly —
+      // unmistakably asleep, not just standing there with its eyes shut.
+      const settle = Math.min(1, (performance.now() - this.sleepStart) / 700);
+      m.sy = 1 - settle * (0.16 - Math.sin(t * 1.1) * 0.015);
+      m.sx = 1 + settle * 0.1;
+      m.bob = settle * 2;
       return m;
     }
     if (v.tantrum) {
@@ -1362,8 +1398,9 @@ export class Scene {
     } else {
       // Act context: keep the old gentle defaults.
       if (v.asleep) {
-        bob = Math.sin(t * 1.2) * 0.8;
-        squashY = 0.94;
+        bob = 2;
+        squashY = 0.86 + Math.sin(t * 1.1) * 0.015;
+        squashX = 1.1;
       }
       if (isGhost && hopY === null) {
         bob = Math.sin(t * 1.6) * 3 - 5;
