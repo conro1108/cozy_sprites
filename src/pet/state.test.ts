@@ -157,6 +157,33 @@ describe("feed", () => {
   });
 });
 
+describe("applyGameResult", () => {
+  it("cannot play — and banks no reward — while asleep", () => {
+    const asleep = asStage(
+      { ...createPet("Milo", T0), happiness: 1, lightsOn: false, asleep: true },
+      "child",
+    );
+    const { state, note } = applyGameResult(asleep, "fetch", true, T0);
+    expect(note).toBe("cant");
+    expect(state.happiness).toBe(asleep.happiness);
+    expect(state.hidden.gamePlays.fetch).toBe(0);
+  });
+
+  it("cannot play during the egg stage", () => {
+    const { note } = applyGameResult(createPet("Milo", T0), "fetch", true, T0);
+    expect(note).toBe("cant");
+  });
+
+  it("cannot play once dead", () => {
+    const dead = asStage(
+      { ...createPet("Milo", T0), deadAt: T0, causeOfDeath: "neglect" },
+      "child",
+    );
+    const { note } = applyGameResult(dead, "fetch", true, T0);
+    expect(note).toBe("cant");
+  });
+});
+
 describe("clean", () => {
   it("clears poops", () => {
     const pet = asStage({ ...createPet("Milo", T0), poops: 2 }, "child");

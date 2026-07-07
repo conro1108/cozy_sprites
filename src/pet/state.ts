@@ -352,6 +352,13 @@ export function applyGameResult(
   reach = 0,
 ): ActionResult {
   let s = applyElapsedDecay(state, now);
+  // A sleeping (or unhatched, or dead) pet cannot play — same gate as feed().
+  // Without this a game finished after the pet dozed off would still bank its
+  // happiness reward. The UI blocks starting a game while asleep; this is the
+  // authoritative backstop for a game that outlasts nightfall.
+  if (s.stage === "egg" || s.asleep || s.deadAt !== null) {
+    return { state: s, note: "cant" };
+  }
   s = { ...s, hidden: { ...s.hidden, gamePlays: { ...s.hidden.gamePlays } } };
   // Judge the call before the game lifts happiness, or every play reads justified.
   const unjustified = callUnjustified(s);

@@ -258,6 +258,11 @@ function mountGame(): void {
       say("*the egg does not play. the egg prepares.*");
       return;
     }
+    if (pet?.asleep) {
+      // Fast asleep — no fetch, no cube, no anything until it wakes.
+      say("Zzz…");
+      return;
+    }
     // Don't open the picker over a running act or a live in-scene game.
     if (!scene?.busy() && !app.querySelector(".stage-controls")) openPlay(ctx);
   });
@@ -569,6 +574,11 @@ function doFinishGame(game: GameId, won: boolean, line?: string, reach = 0): voi
   // Would You Rather is never win/lose — only a slight bump.
   const r = applyGameResult(pet, game, game === "wouldyou" ? false : won, Date.now(), reach);
   pet = r.state;
+  if (r.note === "cant") {
+    // Night fell mid-game and it nodded off — no reward, no verdict.
+    commit();
+    return;
+  }
   if (r.call === "satisfied") {
     // It called for a game and a game was played. Delight, then the verdict.
     say(line ?? attentionSatisfiedLine("play"));
