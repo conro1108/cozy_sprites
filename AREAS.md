@@ -51,13 +51,20 @@ Activities differ per area — that's what keeps them from being interchangeable
 - **Beyond the fence (day, teen+):** low-stakes discovery — foraging, finding the
   lost balls/socks (callback to the fetch gags), rare props. Not a grind.
 
-## Character flavor (adult form)
+## Character flavor (adult form) — the marquee
 
 Form already comes from hidden care stats (night-care → Ghost, etc.). Let that
-carry through spatially: Ghost → dim attic, Scholar → reading nook, Blob →
-sunbeam. Same room *shape*, dressed by form + form-specific idle lines. Slots
-into the Collection as a **Places** tab; discovering your form's home mirrors the
-form-reveal moment.
+carry through spatially, and go **fully bespoke: each of the nine forms gets its
+own room.** Ghost → dim attic, Scholar → reading nook, Blob → sunbeam, Gremlin →
+shadowy under-stair, etc. — its own backdrop, props, lighting, idle lines,
+maybe a resident critter. (It's all tokens and the whole thing is a tiny static
+site, so nine bespoke rooms is fine — the constraint is taste, not bytes.)
+
+You only ever see *your* form's room per pet, which turns it into the real
+replay hook: earning a different form (via different care) reveals a different
+home. Slots into the Collection as a **Places** tab — the nine rooms sit there
+like the forms do, most of them locked, and discovering your form's home mirrors
+the form-reveal moment. Completing the set means living nine different lives.
 
 ## Rules we like
 
@@ -72,15 +79,27 @@ form-reveal moment.
   burrow mouth), the *pet* walks through it. Not an abstract nav button or swipe.
   A crossfade-with-walk-off is a fine first cut as long as the pet is what moves.
 
-## Open forks (my current lean)
+## Decided
 
-1. **How bespoke is the adult form-room?** Nine custom areas is a lot for
-   something you see one of per pet. Lean: **defer it** (ship Nest → Clearing →
-   Beyond first), then **one shared room dressed per form**. All-in on 9 is the
-   marquee-replay version if we ever want it.
-2. **Time granularity.** Binary day/night is enough to drive the routine. A
-   third "dusk" wind-down beat is charming but a whole new time-state. Lean:
-   **binary first**, dusk as a stretch.
+- **Adult form-room: fully bespoke, all nine.** It's the marquee feature and the
+  replay hook, not a deferred nicety. (It's all tokens on a tiny static site — no
+  reason to skimp.)
+- **Binary day/night only.** No dusk — a third time-state is effectively a
+  whole-game new concept, out of scope.
+
+## Still open (current lean)
+
+1. **Where does the adult sleep — Nest or form-room?** Earlier we made the Nest
+   the permanent night-home for simplicity. But now that each adult has a bespoke
+   room of its own, it's more characterful if the adult *outgrows the nest* and
+   the form-room becomes home (Ghost sleeps in its attic, Scholar in its study).
+   Lean: **form-room becomes the night-home at adulthood**; the Nest is the
+   baby/child/teen home you age out of. Nice growing-up arc, small cost to the
+   "always returns to the nest" rule.
+2. **Do we tease the locked rooms?** In the Places tab, show undiscovered
+   form-rooms as silhouettes/hints (drives "what would the Ghost's place look
+   like?") or keep them fully hidden until earned? Lean: **tease**, matching
+   however the form Collection already handles locked forms.
 
 ## Rough first slice, when we build
 
