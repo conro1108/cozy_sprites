@@ -62,9 +62,15 @@ site, so nine bespoke rooms is fine — the constraint is taste, not bytes.)
 
 You only ever see *your* form's room per pet, which turns it into the real
 replay hook: earning a different form (via different care) reveals a different
-home. Slots into the Collection as a **Places** tab — the nine rooms sit there
-like the forms do, most of them locked, and discovering your form's home mirrors
-the form-reveal moment. Completing the set means living nine different lives.
+home. Completing the set means living nine different lives.
+
+**No separate "places" screen** — a room is 1:1 with a form, so it just becomes
+part of that form's existing entry in the **Collection** (the nine-form grid we
+already have). Discovering the form reveals its room as one more facet of who
+they are, next to the portrait and blurb — maybe a room thumbnail on the tile,
+or a fuller view when you tap it. This also means rooms inherit the form's own
+discovery treatment for free: normal undiscovered forms already show a `?`
+teaser, secret ones already leave no trace until earned.
 
 ## Rules we like
 
@@ -86,20 +92,18 @@ the form-reveal moment. Completing the set means living nine different lives.
   reason to skimp.)
 - **Binary day/night only.** No dusk — a third time-state is effectively a
   whole-game new concept, out of scope.
+- **Adult sleeps in its own form-room.** The pet *outgrows the Nest*: form-room
+  becomes the night-home at adulthood (Ghost sleeps in its attic, Scholar in its
+  study). The Nest is the baby/child/teen home you age out of — a growing-up arc.
+- **No separate places screen.** Rooms fold into the existing form Collection
+  entries (rooms are 1:1 with forms), and inherit the form's discovery treatment
+  (normal → `?` teaser, secret → hidden).
 
-## Still open (current lean)
+## Still open
 
-1. **Where does the adult sleep — Nest or form-room?** Earlier we made the Nest
-   the permanent night-home for simplicity. But now that each adult has a bespoke
-   room of its own, it's more characterful if the adult *outgrows the nest* and
-   the form-room becomes home (Ghost sleeps in its attic, Scholar in its study).
-   Lean: **form-room becomes the night-home at adulthood**; the Nest is the
-   baby/child/teen home you age out of. Nice growing-up arc, small cost to the
-   "always returns to the nest" rule.
-2. **Do we tease the locked rooms?** In the Places tab, show undiscovered
-   form-rooms as silhouettes/hints (drives "what would the Ghost's place look
-   like?") or keep them fully hidden until earned? Lean: **tease**, matching
-   however the form Collection already handles locked forms.
+Nothing pressing. Next real questions are per-area *content* — what "beyond the
+fence" actually holds, what the Nest's night interactions are (tuck-in, lullaby,
+nursing), and what nine rooms we want — but those are for when we start building.
 
 ## Rough first slice, when we build
 
