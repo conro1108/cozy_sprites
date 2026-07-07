@@ -78,18 +78,28 @@ export interface FetchSpot {
 // don't pass a spot get exactly the previous scoring: a zone centred at 0.6.
 export const DEFAULT_FETCH_SPOT: FetchSpot = { center: 0.6, span: 0.5 };
 
+// The visible green band reaches this fraction of `span` on each side of
+// center — and that's exactly the adult success radius, so what you see is
+// what's judged.
+const SUCCESS_HALF_PER_SPAN = 0.55;
+
+// The original fixed green band spanned 30% of the track (half-width 0.15).
+// Rolled widths scale off this so the zone is never much wider than it used to
+// be, only equal-to or narrower.
+const BASE_HALF_WIDTH = 0.15;
+
 /** Half-width of the *visible* green band for a given span: the adult success
  *  band is center ± this, so "stop in the green" is an honest promise. */
 export function fetchSuccessHalfWidth(span: number): number {
-  return 0.55 * span;
+  return SUCCESS_HALF_PER_SPAN * span;
 }
 
 /** Roll a fresh sweet spot. Difficulty (how wide the green is) and position
- *  (where it sits) both vary, so some throws are gimmes and some are tight. */
+ *  (where it sits) both vary, so some throws are gimmes and some are tight.
+ *  Width ranges 0.5x–1.15x of the original fixed band. */
 export function rollFetchSpot(rng: () => number = Math.random): FetchSpot {
-  // span 0.32 (narrow, hard) .. 0.62 (wide, easy).
-  const span = 0.32 + rng() * 0.3;
-  const hw = fetchSuccessHalfWidth(span);
+  const hw = BASE_HALF_WIDTH * (0.5 + rng() * 0.65); // 0.5x .. 1.15x
+  const span = hw / SUCCESS_HALF_PER_SPAN; // invert so the band == what we judge
   // Keep the whole green band on the track (center stays hw away from each end).
   const center = hw + rng() * (1 - 2 * hw);
   return { center, span };
