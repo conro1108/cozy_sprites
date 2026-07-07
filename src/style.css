@@ -570,8 +570,7 @@ body {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 45%;
-  width: 30%;
+  /* left/width are set inline per throw — the sweet spot moves each round. */
   background: rgba(107, 191, 89, 0.4);
 }
 

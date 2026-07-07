@@ -65,6 +65,36 @@ export interface FetchResult {
   line: string;
 }
 
+/** Where the throw meter's forgiving zone sits, and how forgiving it is.
+ *  `center` is its midpoint (0..1 along the track); `span` is the distance
+ *  from center at which throw quality decays to zero — bigger span = wider,
+ *  easier zone. Rolled fresh each throw so no two feel the same. */
+export interface FetchSpot {
+  center: number;
+  span: number;
+}
+
+// The old fixed behaviour, kept as the default so callers (and tests) that
+// don't pass a spot get exactly the previous scoring: a zone centred at 0.6.
+export const DEFAULT_FETCH_SPOT: FetchSpot = { center: 0.6, span: 0.5 };
+
+/** Half-width of the *visible* green band for a given span: the adult success
+ *  band is center ± this, so "stop in the green" is an honest promise. */
+export function fetchSuccessHalfWidth(span: number): number {
+  return 0.55 * span;
+}
+
+/** Roll a fresh sweet spot. Difficulty (how wide the green is) and position
+ *  (where it sits) both vary, so some throws are gimmes and some are tight. */
+export function rollFetchSpot(rng: () => number = Math.random): FetchSpot {
+  // span 0.32 (narrow, hard) .. 0.62 (wide, easy).
+  const span = 0.32 + rng() * 0.3;
+  const hw = fetchSuccessHalfWidth(span);
+  // Keep the whole green band on the track (center stays hw away from each end).
+  const center = hw + rng() * (1 - 2 * hw);
+  return { center, span };
+}
+
 // Young pets are simply worse at fetch — a baby mostly gets distracted, a
 // child fumbles a lot, and a teen can't be bothered to fully commit.
 const STAGE_FUMBLE: Record<Stage, number> = {
@@ -80,14 +110,17 @@ export function resolveFetch(
   power: number,
   rng: () => number = Math.random,
   stage: Stage = "adult",
+  spot: FetchSpot = DEFAULT_FETCH_SPOT,
 ): FetchResult {
   // Very rarely the ball simply… isn't what comes back. (rng>0.93 rather than
   // <0.07 so the tests' rng:()=>0 stays on the ordinary path.)
   if (rng() > 0.93) {
     return { success: true, variant: "cube", line: pick(FETCH_LINES.cube, rng) };
   }
-  // Sweet spot is the middle of the meter; edges fumble. Youth fumbles more.
-  const quality = 1 - Math.abs(power - 0.6) * 2 - STAGE_FUMBLE[stage];
+  // Distance from the (possibly-moved) sweet spot; edges fumble. Youth fumbles
+  // more. A wider span forgives more, so the same throw can pass an easy zone
+  // and miss a tight one. (Default spot reproduces the old center-0.6 scoring.)
+  const quality = 1 - Math.abs(power - spot.center) / spot.span - STAGE_FUMBLE[stage];
   if (quality > 0.45) {
     const variant: FetchVariant = rng() < 0.22 ? "epic" : "return";
     return { success: true, variant, line: pick(FETCH_LINES[variant], rng) };

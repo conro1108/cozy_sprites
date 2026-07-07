@@ -4,6 +4,8 @@ import {
   judgeRps,
   randomWouldYou,
   resolveFetch,
+  rollFetchSpot,
+  fetchSuccessHalfWidth,
   rpsAiMove,
   extendHum,
   humMatches,
@@ -69,6 +71,38 @@ describe("resolveFetch", () => {
     expect(r.variant).toBe("cube");
     expect(r.success).toBe(true);
     expect(r.line.length).toBeGreaterThan(0);
+  });
+
+  it("judges against a moved sweet spot, not the fixed center", () => {
+    const spot = { center: 0.2, span: 0.5 };
+    // Dead center of the moved zone succeeds; the old 0.6 center now misses.
+    expect(resolveFetch(0.2, () => 0, "adult", spot).success).toBe(true);
+    expect(resolveFetch(0.6, () => 0, "adult", spot).success).toBe(false);
+  });
+
+  it("a wider span forgives a throw a narrow one rejects", () => {
+    const throwAt = 0.9; // well off a center of 0.6
+    const wide = resolveFetch(throwAt, () => 0, "adult", { center: 0.6, span: 0.62 });
+    const narrow = resolveFetch(throwAt, () => 0, "adult", { center: 0.6, span: 0.32 });
+    expect(wide.success).toBe(true);
+    expect(narrow.success).toBe(false);
+  });
+});
+
+describe("rollFetchSpot", () => {
+  it("keeps the whole green band on the track for any roll", () => {
+    for (let i = 0; i <= 20; i++) {
+      const spot = rollFetchSpot(() => i / 20);
+      const hw = fetchSuccessHalfWidth(spot.span);
+      expect(spot.center - hw).toBeGreaterThanOrEqual(0);
+      expect(spot.center + hw).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("varies difficulty — a low roll is tighter than a high roll", () => {
+    const easy = rollFetchSpot(() => 0.99);
+    const hard = rollFetchSpot(() => 0.01);
+    expect(easy.span).toBeGreaterThan(hard.span);
   });
 });
 

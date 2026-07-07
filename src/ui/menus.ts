@@ -15,6 +15,8 @@ import {
   rollCard,
   rpsAiMove,
   resolveFetch,
+  rollFetchSpot,
+  fetchSuccessHalfWidth,
   pickHideSpot,
   hideSeekLine,
   randomWouldYou,
@@ -387,6 +389,12 @@ function fetchGame(ctx: MenuCtx): void {
   track.className = "throw-track";
   const sweet = document.createElement("div");
   sweet.className = "sweet";
+  // Fresh sweet spot every throw — it moves and changes width, so some are
+  // easy and some are tight. Draw the green to match exactly where we'll judge.
+  const spot = rollFetchSpot();
+  const hw = fetchSuccessHalfWidth(spot.span);
+  sweet.style.left = `${(spot.center - hw) * 100}%`;
+  sweet.style.width = `${hw * 2 * 100}%`;
   const marker = document.createElement("div");
   marker.className = "marker";
   track.append(sweet, marker);
@@ -419,7 +427,7 @@ function fetchGame(ctx: MenuCtx): void {
   };
 
   btn.addEventListener("click", () => {
-    const res = resolveFetch(pos, undefined, ctx.pet().stage);
+    const res = resolveFetch(pos, undefined, ctx.pet().stage, spot);
     dismiss();
     // The whole point: you see the throw, the chase, and the (non-)return —
     // and the animation matches the variant (sock, over the fence, wrong way…).
