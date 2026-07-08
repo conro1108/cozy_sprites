@@ -129,6 +129,9 @@ interface BodyDef {
   faceDy: number;
   /** Drawn after the face (glasses, eye bags…). */
   overlay?: { rows: string[]; palette: Palette };
+  /** Full-frame patch for the "alt" pose frame (a raised tail). Blitted over
+   *  the body; "ERASE" palette entries remove pixels the pose vacates. */
+  alt?: { rows: string[]; palette: Palette };
 }
 
 const BABY: BodyDef = {
@@ -238,6 +241,8 @@ const DOG: BodyDef = {
   faceDx: 5,
   faceDy: 7,
   overlay: {
+    // A proper puppy muzzle: nose up between the eyes, a 1px philtrum running
+    // down to the mood mouth — reads like 工, not two stacked dashes.
     rows: [
       "................",
       "................",
@@ -246,13 +251,30 @@ const DOG: BodyDef = {
       "................",
       "................",
       "................",
-      "................",
       ".......nn.......",
-      "................",
-      "................",
-      "................",
+      ".......n........",
     ],
-    palette: { n: "#6b4a2a" }, // puppy nose, right above the mouth
+    palette: { n: "#6b4a2a" },
+  },
+  // Tail raised — swapped in while trotting or mid-wag. Erases the resting
+  // tail (x) and draws it flicked up over the rump.
+  alt: {
+    rows: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "..............k.",
+      ".............kD.",
+      "............kD..",
+      "............kxx.",
+      "............xxx.",
+      "............xx..",
+    ],
+    palette: { k: OUTLINE, D: "#a9702f", x: "ERASE" },
   },
 };
 
@@ -704,7 +726,9 @@ function hexToRgb(hex: string): [number, number, number] {
   ];
 }
 
-/** Blit one char-grid over an RGBA buffer at an offset (later layers win). */
+/** Blit one char-grid over an RGBA buffer at an offset (later layers win).
+ *  A palette entry of "ERASE" clears the pixel instead — lets an alt-frame
+ *  patch remove pixels (a resting tail) as well as add them. */
 function blit(
   buf: PixelBuffer,
   rows: string[],
@@ -723,14 +747,34 @@ function blit(
       if (ch === "." || ch === " ") continue;
       const color = palette[ch];
       if (!color) continue;
-      const [r, g, b] = hexToRgb(color);
       const i = (by * buf.w + bx) * 4;
+      if (color === "ERASE") {
+        buf.data[i] = 0;
+        buf.data[i + 1] = 0;
+        buf.data[i + 2] = 0;
+        buf.data[i + 3] = 0;
+        continue;
+      }
+      const [r, g, b] = hexToRgb(color);
       buf.data[i] = r;
       buf.data[i + 1] = g;
       buf.data[i + 2] = b;
       buf.data[i + 3] = 255;
     }
   }
+}
+
+/** The animation micro-frames every creature has. `base` is the resting pose;
+ *  `blink` closes the eyes; `glanceL`/`glanceR` slide the gaze one pixel;
+ *  `alt` is a per-body pose patch (the dog's tail flicked up) and falls back
+ *  to `base` for bodies without one. */
+export type SpriteFrame = "base" | "blink" | "glanceL" | "glanceR" | "alt";
+export const SPRITE_FRAMES: SpriteFrame[] = ["base", "blink", "glanceL", "glanceR", "alt"];
+
+/** First row of the face grid that belongs to the mouth (not the gaze) —
+ *  everything above it shifts on a glance / closes on a blink. */
+function eyeSplit(kind: FaceKind): number {
+  return kind === "small" ? 1 : 8;
 }
 
 /**
@@ -741,6 +785,7 @@ export function renderPixels(
   key: string,
   mood: Mood,
   variant?: AdultForm | null,
+  frame: SpriteFrame = "base",
 ): PixelBuffer {
   const buf: PixelBuffer = { w: CELL, h: CELL, data: new Uint8ClampedArray(CELL * CELL * 4) };
   if (key === "egg") {
@@ -749,6 +794,7 @@ export function renderPixels(
   }
   const body = BODIES[key] ?? BODIES.baby;
   blit(buf, body.rows, { k: OUTLINE, B: body.fill, S: body.shade, ...body.extra });
+  if (frame === "alt" && body.alt) blit(buf, body.alt.rows, body.alt.palette);
   if (body.overlay) {
     // Overlays for small-faced bodies sit relative to the face; standard ones
     // are authored full-frame.
@@ -769,8 +815,43 @@ export function renderPixels(
   // Face goes last so mood eyes/mouths always read over accessories.
   const facePalette =
     body.face === "small" ? { ...FACE_PALETTE, e: EYE } : FACE_PALETTE;
-  blit(buf, faceFor(body.face, mood), facePalette, body.faceDx, body.faceDy);
+  let rows = faceFor(body.face, mood);
+  const split = eyeSplit(body.face);
+  if (frame === "blink") {
+    // Borrow the sleep face's closed eyes, keep the current mood's mouth.
+    const sleep = faceFor(body.face, "sleep");
+    rows = rows.map((r, i) => (i < split ? (sleep[i] ?? r) : r));
+  }
+  const shift = frame === "glanceL" ? -1 : frame === "glanceR" ? 1 : 0;
+  if (shift === 0) {
+    blit(buf, rows, facePalette, body.faceDx, body.faceDy);
+  } else {
+    // Gaze rows slide sideways; the mouth stays anchored to the body.
+    blit(buf, rows.slice(0, split), facePalette, body.faceDx + shift, body.faceDy);
+    blit(buf, rows.slice(split), facePalette, body.faceDx, body.faceDy + split);
+  }
   return buf;
+}
+
+/** All animation frames for a creature, keyed by SpriteFrame. Bodies without
+ *  an alt pose reuse their base canvas there. The egg never blinks. */
+export function buildCreatureFrames(
+  key: string,
+  mood: Mood,
+  variant?: AdultForm | null,
+): Record<SpriteFrame, HTMLCanvasElement> {
+  const base = buildCreatureCanvas(key, mood, variant, "base");
+  if (key === "egg") {
+    return { base, blink: base, glanceL: base, glanceR: base, alt: base };
+  }
+  const body = BODIES[key] ?? BODIES.baby;
+  return {
+    base,
+    blink: buildCreatureCanvas(key, mood, variant, "blink"),
+    glanceL: buildCreatureCanvas(key, mood, variant, "glanceL"),
+    glanceR: buildCreatureCanvas(key, mood, variant, "glanceR"),
+    alt: body.alt ? buildCreatureCanvas(key, mood, variant, "alt") : base,
+  };
 }
 
 /** The visual key for a pet at a given stage/form. */
@@ -788,12 +869,13 @@ export function buildCreatureCanvas(
   key: string,
   mood: Mood,
   variant?: AdultForm | null,
+  frame: SpriteFrame = "base",
 ): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = CELL;
   canvas.height = CELL;
   const ctx = canvas.getContext("2d")!;
-  const buf = renderPixels(key, mood, variant);
+  const buf = renderPixels(key, mood, variant, frame);
   const imgData = ctx.createImageData(buf.w, buf.h);
   imgData.data.set(buf.data);
   ctx.putImageData(imgData, 0, 0);

@@ -8,7 +8,7 @@
 // The buffer height adapts to the container's aspect ratio so the scene fills
 // the stage right up to the HUD and nav — no letterbox bars.
 
-import { CELL, buildCreatureCanvas } from "./sprites";
+import { CELL, buildCreatureFrames, type SpriteFrame } from "./sprites";
 import type { Mood } from "./sprites";
 import type { AdultForm } from "../pet/types";
 import { iconCanvas } from "./icons";
@@ -51,7 +51,15 @@ interface Act {
 // (dy) as well as a sideways offset, and everything that stands on the grass —
 // props, poops, the creature — is depth-sorted and drawn back-to-front. That's
 // what lets the sprite duck behind the stump or wade *into* the flowers.
-type WanderPhase = "dwell" | "walk" | "interact" | "yawn" | "rest";
+type WanderPhase =
+  | "dwell"
+  | "walk"
+  | "interact"
+  | "yawn"
+  | "rest"
+  | "sitdown" // hopping up onto the stump, mushy settle
+  | "sit" // perched on the stump, breathing
+  | "situp"; // hopping back down
 interface WanderTarget {
   dx: number; // offset from CREATURE_X
   dy: number; // depth offset from the resting line (- = toward the hills)
@@ -73,6 +81,33 @@ const WANDER_TARGETS: WanderTarget[] = [
 const WALK_SPEED = 16; // px / second
 const FLOURISH_DUR = 1.7; // seconds
 
+// The stump doubles as a seat. Perching lifts the sprite so its bottom rests
+// on the sawn top (which sits just above the floor line at the stump's x).
+const STUMP_SEAT_DX = 15 - CREATURE_X; // stump centre, relative to rest
+const STUMP_SEAT_LIFT = 11; // px up from standing to sitting on the cut
+
+/** The plop: a deep squash on contact, a small rebound past true, settle.
+ *  q runs 0..1 over the plop; ≥1 means it's over. */
+function plopSquash(q: number): { sx: number; sy: number } {
+  if (q >= 1 || q < 0) return { sx: 1, sy: 1 };
+  const dip = Math.sin(Math.min(q / 0.5, 1) * Math.PI) * 0.24;
+  const over = q > 0.5 ? Math.sin(((q - 0.5) / 0.5) * Math.PI) * 0.07 : 0;
+  return { sx: 1 + dip * 0.8 - over * 0.5, sy: 1 - dip + over };
+}
+
+/** Periodic quirk window: returns progress 0..1 while inside the window that
+ *  opens for `dur` seconds every `period` seconds (phase-shifted), else -1. */
+function quirk(t: number, period: number, dur: number, offset = 0): number {
+  const c = (t + offset) % period;
+  return c < dur ? c / dur : -1;
+}
+
+/** The trot: the bounce every creature uses when it's actually going
+ *  somewhere — shared so carried objects can ride the same rhythm. */
+export function trotBob(t: number): number {
+  return -Math.abs(Math.sin(t * 9)) * 2.6;
+}
+
 /** A depth-sortable drawable: `y` is where it meets the ground. */
 interface Layer {
   y: number;
@@ -91,7 +126,20 @@ export class Scene {
     lightsOn: true,
   };
   private creatureCanvas: HTMLCanvasElement;
+  private frames: Record<SpriteFrame, HTMLCanvasElement>;
   private creatureCacheKey = "";
+
+  // Micro-animation state: blinks and glances run on their own clocks so the
+  // creature's face is alive no matter what the body is doing.
+  private nextBlinkAt = 0;
+  private blinkUntil = 0;
+  private glanceDir: -1 | 1 = 1;
+  private glanceUntil = 0;
+  private nextGlanceAt = 0;
+  private altFrame = false; // per-frame: use the alt pose (dog's tail up)
+  private forceGlance: -1 | 0 | 1 = 0; // per-frame: a quirk overrides the gaze
+  private extraAlpha = 1; // per-frame: ghost flicker translucency
+  private settleStart = -Infinity; // last time it stopped moving → plop squish
   private raf = 0;
   private t0 = performance.now();
   private pulse: Pulse = "none";
@@ -138,7 +186,8 @@ export class Scene {
     this.ctx = canvas.getContext("2d")!;
     this.ctx.imageSmoothingEnabled = false;
     this.resize();
-    this.creatureCanvas = buildCreatureCanvas("egg", "neutral");
+    this.frames = buildCreatureFrames("egg", "neutral");
+    this.creatureCanvas = this.frames.base;
     // Keep the buffer aspect matched to the element so nothing letterboxes.
     if (typeof ResizeObserver !== "undefined") {
       this.ro = new ResizeObserver(() => this.resize());
@@ -162,7 +211,8 @@ export class Scene {
     this.view = view;
     const cacheKey = `${view.key}:${view.mood}:${view.variant ?? ""}`;
     if (cacheKey !== this.creatureCacheKey) {
-      this.creatureCanvas = buildCreatureCanvas(view.key, view.mood, view.variant);
+      this.frames = buildCreatureFrames(view.key, view.mood, view.variant);
+      this.creatureCanvas = this.frames.base;
       this.creatureCacheKey = cacheKey;
     }
   }
@@ -440,7 +490,11 @@ export class Scene {
     }
     // The creature (plus any act fx) sorts at last frame's ground point — one
     // frame of lag is invisible at walking speed.
-    layers.push({ y: FLOOR_Y + 9 + this.curDy, draw: () => this.runAct(now, t) });
+    // While perched on the stump the creature must sort *in front of* it
+    // (its ground anchor alone would tuck it behind the seat it's sitting on).
+    const seated =
+      this.wanderPhase === "sitdown" || this.wanderPhase === "sit" || this.wanderPhase === "situp";
+    layers.push({ y: FLOOR_Y + 9 + this.curDy + (seated ? 6 : 0), draw: () => this.runAct(now, t) });
     layers.sort((a, b) => a.y - b.y);
     for (const layer of layers) layer.draw();
 
@@ -788,6 +842,14 @@ export class Scene {
       if (!this.hidden) {
         this.updateWander(now);
         this.drawCreature(t, this.wanderX, 1, null, undefined, undefined, this.wanderY);
+        // The humming cube's pulse throws a little light around.
+        if (this.view.key === "humcube" && quirk(t, 8.2, 1.8) >= 0) {
+          const hx = Math.round(CREATURE_X + this.curDx);
+          const hy = Math.round(FLOOR_Y + this.curDy - 20);
+          this.drawSparkle(hx - 10, hy + 4, t * 6);
+          this.drawSparkle(hx + 10, hy, t * 6 + 1.6);
+          this.drawSparkle(hx + 4, hy - 6, t * 6 + 3.1);
+        }
       } else if (this.peekSpot) {
         this.drawPeek(t);
       }
@@ -968,9 +1030,11 @@ export class Scene {
         this.wanderTargetX = this.wanderX;
         this.wanderTargetY = this.wanderY;
       } else {
-        // Settle back to center and take a beat before wandering again.
+        // Settle back to center and take a beat before wandering again —
+        // arriving home from an act lands with a plop.
         this.wanderX = 0;
         this.wanderY = 0;
+        this.settleStart = now;
       }
       this.wanderPhase = "dwell";
       this.wanderUntil = now + 1200;
@@ -997,10 +1061,10 @@ export class Scene {
       y: FLOOR_Y - 6 - Math.sin(q * Math.PI) * (arc + 8),
     });
     // Where a carried object sits on the trot home: in the mouth — front of
-    // the face (it runs back facing -dir), riding the same bob as the body.
+    // the face (it runs back facing -dir), riding the same trot as the body.
     const mouth = (extraY = 0) => ({
       x: CREATURE_X + dx - 6 * dir,
-      y: FLOOR_Y - 8 + Math.sin(t * 2) * 1.5 + extraY,
+      y: FLOOR_Y - 8 + trotBob(t) + extraY,
     });
 
     switch (variant) {
@@ -1011,7 +1075,7 @@ export class Scene {
         if (by > -6) ball = { x: bx, y: by };
         // trots out a little, then stops and watches it leave
         dx = Math.min(p / 0.35, 1) * (dist * 0.45);
-        this.drawCreature(t, dx, 1, by > -6 ? -1 : 0);
+        this.drawCreature(t, dx, 1, null);
         break;
       }
 
@@ -1257,6 +1321,14 @@ export class Scene {
             this.wanderUntil = now + 1100;
             break;
           }
+          if (Math.random() < 0.18) {
+            // Off to perch on the stump for a spell.
+            this.wanderTargetX = STUMP_SEAT_DX;
+            this.wanderTargetY = 0;
+            this.wanderProp = "seat";
+            this.wanderPhase = "walk";
+            break;
+          }
           const target = WANDER_TARGETS[Math.floor(Math.random() * WANDER_TARGETS.length)];
           this.wanderTargetX = target.dx;
           this.wanderTargetY = target.dy;
@@ -1274,12 +1346,17 @@ export class Scene {
         if (remaining <= step + 0.4) {
           this.wanderX = this.wanderTargetX;
           this.wanderY = this.wanderTargetY;
-          if (this.wanderProp) {
+          if (this.wanderProp === "seat") {
+            this.wanderPhase = "sitdown";
+            this.phaseStart = now;
+            this.wanderUntil = now + 560;
+          } else if (this.wanderProp) {
             this.wanderPhase = "interact";
             this.wanderUntil = now + 1200;
           } else {
             this.wanderPhase = "dwell";
             this.wanderUntil = now + dwellFor();
+            this.settleStart = now; // arrived: plop down into the grass
           }
         } else {
           this.wanderX += (dxDiff / remaining) * step;
@@ -1291,6 +1368,29 @@ export class Scene {
         if (now >= this.wanderUntil) {
           this.wanderPhase = "dwell";
           this.wanderUntil = now + dwellFor();
+        }
+        break;
+      }
+      case "sitdown": {
+        if (now >= this.wanderUntil) {
+          this.wanderPhase = "sit";
+          this.wanderUntil = now + (3600 + Math.random() * 4600) * (2 - activity);
+        }
+        break;
+      }
+      case "sit": {
+        if (now >= this.wanderUntil) {
+          this.wanderPhase = "situp";
+          this.phaseStart = now;
+          this.wanderUntil = now + 480;
+        }
+        break;
+      }
+      case "situp": {
+        if (now >= this.wanderUntil) {
+          this.wanderPhase = "dwell";
+          this.wanderUntil = now + dwellFor();
+          this.settleStart = now; // landed: plop
         }
         break;
       }
@@ -1372,65 +1472,184 @@ export class Scene {
       m.bob = -phase * 3;
       m.sy = 1 + phase * 0.1;
       m.sx = 1 - phase * 0.06;
+      m.rot = this.facing * 0.05; // leans into where it's going
+      if (key === "dog") this.altFrame = true; // tail streams up on the run
       return m;
     }
     if (this.wanderPhase === "interact") {
-      // pause and lean into whatever it wandered over to
-      m.bob = Math.sin(t * 3) * 0.8 + 1;
-      m.rot = 0.05;
+      // lean in and give it a proper investigative sniff
+      m.rot = 0.06;
+      m.bob = 1 + Math.sin(t * 8) * 0.7;
+      m.sy = 1 + Math.sin(t * 8) * 0.02;
       return m;
     }
-    return this.idleMotion(t, key);
+    if (this.wanderPhase === "sitdown") {
+      // Hop up onto the stump, then the mushy settle onto the cut.
+      const q = Math.min(1, (performance.now() - this.phaseStart) / 560);
+      if (q < 0.45) {
+        const a = q / 0.45; // airborne: an eager little arc up
+        m.bob = -a * STUMP_SEAT_LIFT - Math.sin(a * Math.PI) * 7;
+        m.sy = 1.06;
+        m.sx = 0.96;
+      } else {
+        const p = plopSquash((q - 0.45) / 0.55); // contact: the mush
+        m.bob = -STUMP_SEAT_LIFT;
+        m.sy = p.sy;
+        m.sx = p.sx;
+      }
+      return m;
+    }
+    if (this.wanderPhase === "sit") {
+      // Perched: settled into a soft loaf, breathing, tail going if it has one.
+      m.bob = -STUMP_SEAT_LIFT + 1;
+      m.sy = 0.86 + Math.sin(t * 1.4) * 0.018;
+      m.sx = 1.1;
+      if (key === "dog" && quirk(t, 6.2, 1.6, 1.3) >= 0) {
+        this.altFrame = Math.sin(t * 16) > 0; // a lazy seated wag
+      }
+      return m;
+    }
+    if (this.wanderPhase === "situp") {
+      // Hop down off the stump; the landing plop happens back in dwell.
+      const q = Math.min(1, (performance.now() - this.phaseStart) / 480);
+      m.bob = -(1 - q) * STUMP_SEAT_LIFT - Math.sin(q * Math.PI) * 6;
+      m.sy = 1.05;
+      m.sx = 0.97;
+      return m;
+    }
+    const idle = this.idleMotion(t, key);
+    // A fresh arrival plops: deep squash, small rebound, settle.
+    const sq = (performance.now() - this.settleStart) / 380;
+    if (sq < 1) {
+      const p = plopSquash(sq);
+      idle.sy *= p.sy;
+      idle.sx *= p.sx;
+    }
+    return idle;
   }
 
-  /** Per-creature idle: same clearing, very different body language. */
+  /** Per-creature idle: same clearing, very different body language. On top
+   *  of each form's continuous idle, a signature move plays every several
+   *  seconds (periods are staggered so no two moves sync up). */
   private idleMotion(
     t: number,
     key: string,
   ): { bob: number; dx: number; sx: number; sy: number; rot: number } {
     const m = { bob: 0, dx: 0, sx: 1, sy: 1, rot: 0 };
+    let q: number;
     switch (key) {
       case "dog":
         m.bob = -Math.abs(Math.sin(t * 3)) * 2.6; // eager little bounces
+        if ((q = quirk(t, 7.3, 1.5)) >= 0) {
+          // The wag: tail thumps up and down, hindquarters can't stay still.
+          const env = Math.sin(q * Math.PI);
+          this.altFrame = Math.sin(t * 20) > 0;
+          m.dx = Math.sin(t * 17) * 1.1 * env;
+          m.bob = -Math.abs(Math.sin(t * 6)) * 2 * env;
+        }
         break;
       case "blob":
         m.bob = Math.sin(t * 1.6) * 0.8;
         m.sy = 1 + Math.sin(t * 3) * 0.05; // gelatinous wobble
         m.sx = 1 - Math.sin(t * 3) * 0.04;
+        if ((q = quirk(t, 11.4, 2.4)) >= 0) {
+          // The melt: slumps into a puddle of itself, quivers, reforms.
+          const env = Math.sin(q * Math.PI);
+          m.sy *= 1 - env * 0.34;
+          m.sx *= 1 + env * 0.4;
+          m.bob += env * 3;
+          if (q > 0.7) m.sy *= 1 + Math.sin(t * 22) * 0.03; // the jiggly reform
+        }
         break;
       case "gremlin":
         m.bob = Math.sin(t * 2.4) * 1.4;
         m.dx = Math.sin(t * 5.5) * 0.6; // twitchy, up to something
+        if ((q = quirk(t, 8.6, 1.3)) >= 0) {
+          // The case-of-the-place: eyes dart one way, then the other.
+          this.forceGlance = q < 0.5 ? -1 : 1;
+          m.dx += (q < 0.5 ? -1 : 1) * 1.2;
+          m.rot = (q < 0.5 ? -1 : 1) * 0.05;
+        }
         break;
       case "scholar":
         m.bob = Math.sin(t * 1.4) * 0.9;
         m.rot = Math.sin(t * 0.8) * 0.03; // a contemplative nod
+        if ((q = quirk(t, 9.7, 1.7)) >= 0) {
+          // A thought lands: two slow, convinced nods at the middle distance.
+          m.rot += Math.sin(q * Math.PI * 2) * 0.09;
+          m.bob += Math.sin(q * Math.PI * 2) * 1.2;
+          this.forceGlance = 1;
+        }
         break;
       case "office":
         m.bob = Math.sin(t * 1.1) * 0.6;
         m.sy = 0.98; // a permanent, weary slump
+        if ((q = quirk(t, 12.2, 2.5)) >= 0) {
+          // The sigh: a long inhale up, held, then everything lets go.
+          m.sy *= 1 + Math.sin(q * Math.PI * 2) * 0.055;
+          m.bob += -Math.sin(q * Math.PI * 2) * 1.6;
+          m.rot = q > 0.5 ? Math.sin((q - 0.5) * Math.PI * 2) * 0.05 : 0;
+        }
         break;
       case "menace":
         m.bob = Math.sin(t * 1.0) * 0.7;
         m.rot = Math.sin(t * 0.6) * 0.02; // haughtily still, chin up
+        if ((q = quirk(t, 10.3, 2.0)) >= 0) {
+          // The appraisal: a slow head-tilt, a long sideways look, judgment.
+          m.rot += Math.sin(q * Math.PI) * 0.13;
+          this.forceGlance = -1;
+        }
         break;
       case "ghost":
         m.bob = Math.sin(t * 1.6) * 3 - 5; // hovers off the grass
+        m.dx = Math.sin(t * 0.8) * 1.5; // drifting, never quite anchored
+        if ((q = quirk(t, 9.1, 1.4)) >= 0) {
+          // The flicker: briefly less here than usual.
+          this.extraAlpha = 0.45 + 0.55 * Math.abs(Math.cos(q * Math.PI * 3));
+        }
+        break;
+      case "humcube":
+        m.bob = Math.sin(t * 1.3) * 1.0;
+        if ((q = quirk(t, 8.2, 1.8)) >= 0) {
+          // The hum, visible: the whole lattice pulses in time.
+          const env = Math.sin(q * Math.PI);
+          m.sy *= 1 + Math.sin(t * 14) * 0.035 * env;
+          m.sx *= 1 - Math.sin(t * 14) * 0.03 * env;
+        }
         break;
       case "carrot":
         m.bob = Math.sin(t * 2.4) * 1.2;
         m.rot = Math.sin(t * 1.7) * 0.05; // teetering on its tip, serenely
+        if ((q = quirk(t, 7.9, 0.9)) >= 0) {
+          // The greens shake themselves out, like a tiny wet dog.
+          m.rot += Math.sin(t * 30) * 0.06 * Math.sin(q * Math.PI);
+          m.bob -= Math.sin(q * Math.PI) * 1.2;
+        }
         break;
       case "baby":
         m.bob = Math.sin(t * 2.6) * 1.6;
         m.dx = Math.sin(t * 6) * 0.5; // a delighted wiggle
+        if ((q = quirk(t, 6.6, 1.2)) >= 0) {
+          // Sheer joy arrives and must be bounced out.
+          m.bob = -Math.abs(Math.sin(t * 11)) * 3.2 * Math.sin(q * Math.PI);
+        }
         break;
       case "child":
         m.bob = -Math.abs(Math.sin(t * 2.2)) * 1.6; // can't stop hopping
+        if ((q = quirk(t, 8.9, 1.0)) >= 0) {
+          // An unprompted twirl, because standing still is for adults.
+          m.rot = q * Math.PI * 2;
+          m.bob -= Math.sin(q * Math.PI) * 4;
+        }
         break;
       case "teen":
         m.bob = Math.sin(t * 1.2) * 0.8;
         m.rot = 0.04; // a practiced slouch
+        if ((q = quirk(t, 13.4, 1.3)) >= 0) {
+          // The hair flip: up, back, and returned to the slouch, unbothered.
+          m.rot -= Math.sin(q * Math.PI) * 0.13;
+          m.bob -= Math.sin(q * Math.PI) * 2;
+        }
         break;
       default:
         m.bob = Math.sin(t * 2) * 1.5;
@@ -1497,10 +1716,16 @@ export class Scene {
     const isGhost = v.key === "ghost";
     const ambient = this.act === null && hopY === null;
 
+    // Per-frame micro-animation flags; motion code below may raise them.
+    this.altFrame = false;
+    this.forceGlance = 0;
+    this.extraAlpha = 1;
+
     // Face the way we're moving. Facing derives from *positional* movement
     // only — ambient jitter (tantrum shimmy, shake pulses) never flips it.
-    if (Math.abs(dxAct - this.prevPosDx) > 0.12) {
-      this.facing = dxAct > this.prevPosDx ? 1 : -1;
+    const step = dxAct - this.prevPosDx;
+    if (Math.abs(step) > 0.12) {
+      this.facing = step > 0 ? 1 : -1;
     }
     this.prevPosDx = dxAct;
 
@@ -1519,13 +1744,24 @@ export class Scene {
       squashY *= m.sy;
       rot += m.rot;
     } else {
-      // Act context: keep the old gentle defaults.
+      // Act context. Any leg of choreography that's actually travelling gets
+      // the trot: bounce, a lean into the direction, squash on each landing —
+      // so chases and carries read as running, not sliding.
+      const moving = hopY === null && !v.asleep && Math.abs(step) > 0.2;
+      if (moving) {
+        const ph = Math.abs(Math.sin(t * 9));
+        bob = trotBob(t);
+        squashY *= 1 + ph * 0.08;
+        squashX *= 1 - ph * 0.05;
+        rot += this.facing * 0.05;
+        if (v.key === "dog") this.altFrame = true; // tail up on the run
+      }
       if (v.asleep) {
         bob = 2;
         squashY = 0.86 + Math.sin(t * 1.1) * 0.015;
         squashX = 1.1;
       }
-      if (isGhost && hopY === null) {
+      if (isGhost && hopY === null && !moving) {
         bob = Math.sin(t * 1.6) * 3 - 5;
       }
     }
@@ -1555,6 +1791,31 @@ export class Scene {
     this.curDy = dy;
     const groundY = this.floorY + dy;
 
+    // --- Face life: blinks on a clock, idle glances, quirk overrides -------
+    const pn = performance.now();
+    let sprite = this.creatureCanvas;
+    if (!v.asleep && v.key !== "egg") {
+      if (pn >= this.nextBlinkAt) {
+        this.blinkUntil = pn + 140;
+        this.nextBlinkAt = pn + 2200 + Math.random() * 4200;
+      }
+      if (ambient && pn >= this.nextGlanceAt) {
+        // Something rustles, somewhere. Worth a look.
+        this.glanceDir = Math.random() < 0.5 ? -1 : 1;
+        this.glanceUntil = pn + 650 + Math.random() * 900;
+        this.nextGlanceAt = pn + 5000 + Math.random() * 9000;
+      }
+      if (pn < this.blinkUntil) {
+        sprite = this.frames.blink;
+      } else if (this.altFrame) {
+        sprite = this.frames.alt;
+      } else {
+        const g = this.forceGlance !== 0 ? this.forceGlance : ambient && pn < this.glanceUntil ? this.glanceDir : 0;
+        if (g === -1) sprite = this.frames.glanceL;
+        else if (g === 1) sprite = this.frames.glanceR;
+      }
+    }
+
     // Soft shadow (fainter under a hovering ghost)
     ctx.fillStyle = isGhost ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.15)";
     const shW = cw * (isGhost ? 0.5 : 0.7);
@@ -1582,7 +1843,8 @@ export class Scene {
     ctx.translate(cx, cy);
     ctx.rotate(rot);
     ctx.scale(squashX * flip, squashY);
-    ctx.drawImage(this.creatureCanvas, -cw / 2, -cw / 2, cw, cw);
+    if (this.extraAlpha < 1) ctx.globalAlpha *= this.extraAlpha; // ghost flicker
+    ctx.drawImage(sprite, -cw / 2, -cw / 2, cw, cw);
     ctx.restore();
   }
 }
