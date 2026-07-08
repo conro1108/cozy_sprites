@@ -21,7 +21,9 @@ export type PropName =
   | "note"
   | "garden"
   | "scarecrow"
-  | "log";
+  | "log"
+  | "sun"
+  | "moon";
 
 interface PropDef {
   rows: string[];
@@ -251,6 +253,39 @@ const PROPS: Record<PropName, PropDef> = {
       ".kkkkkkkkkkkk.",
     ],
     palette: { k: "#5c3d22", t: "#a97048", b: "#8a5a3c" },
+  },
+  sun: {
+    // a warm pixel disk, brighter at the heart — no outline, it's made of light
+    rows: [
+      "...oooooo...",
+      "..oyyyyyyo..",
+      ".oyyllllyyo.",
+      "oyyllllllyyo",
+      "oyllllllllyo",
+      "oyllllllllyo",
+      "oyllllllllyo",
+      "oyllllllllyo",
+      ".oyyllllyyo.",
+      "..oyyyyyyo..",
+      "...oooooo...",
+    ],
+    palette: { o: "#f5c968", y: "#ffe9a8", l: "#fff4c9" },
+  },
+  moon: {
+    // pale disk, shaded along the lower right, a couple of craters
+    rows: [
+      "...mmmm...",
+      "..mmmmmm..",
+      ".mmmmmmmm.",
+      "mmmsmmmmmm",
+      "mmssmmmmsm",
+      "mmmsmmmsss",
+      "mmmmmmmmss",
+      ".mmmmmssss",
+      "..mmsssss.",
+      "...ssss...",
+    ],
+    palette: { m: "#f1e8cc", s: "#b9af91" },
   },
   note: {
     rows: [

@@ -252,6 +252,7 @@ function higherLower(ctx: MenuCtx, p: Panel): void {
   choices.append(higher, lower);
 
   const guess = (isHigher: boolean) => {
+    if (round >= total) return; // game over — ignore stray taps during the wrap-up
     let next = rollCard();
     while (next === current) next = rollCard();
     const outcome = judgeHigherLower(current, isHigher, next);
@@ -262,12 +263,16 @@ function higherLower(ctx: MenuCtx, p: Panel): void {
     result.style.color = outcome === "win" ? "#2f8f2f" : "#c0492f";
     numEl.textContent = String(next);
     if (round >= total) {
-      // Verdict comes from the pet, not the panel.
+      // A closing beat: tally on screen, buttons dead, then hand the verdict
+      // to the pet (it speaks via finishGame) instead of vanishing mid-look.
       const won = wins >= 3;
+      higher.disabled = true;
+      lower.disabled = true;
+      info.textContent = `That's ${total} — ${wins} of ${total} correct.`;
       setTimeout(() => {
         p.close();
         ctx.finishGame("higherlower", won);
-      }, 650);
+      }, 1400);
     } else {
       info.textContent = `Round ${round + 1} of ${total} · ${wins} correct`;
     }
@@ -489,7 +494,10 @@ function rps(ctx: MenuCtx, round = 1): void {
 // Loops: after the reveal, one tap hides it again.
 function hideSeek(ctx: MenuCtx): void {
   const spot = pickHideSpot();
-  ctx.scene().playHide(() => {
+  // Sometimes it hides… imperfectly, and a scrap of head stays showing at the
+  // spot. A freebie round for anyone paying attention.
+  const peek = Math.random() < 0.3 ? spot : null;
+  ctx.scene().playHide(peek, () => {
     const { el, close } = stageOverlay(ctx);
     const hint = document.createElement("p");
     hint.className = "stage-hint";
@@ -1276,8 +1284,8 @@ function decoratePasture(pasture: HTMLElement, festival: boolean): void {
     // Dusk sky: moon, a scatter of stars, lantern light, fireflies low over
     // the grass.
     pasture.classList.add("night");
-    const moon = document.createElement("div");
-    moon.className = "moon";
+    const moon = propEl("moon", 3);
+    moon.classList.add("moon");
     pasture.appendChild(moon);
     for (let i = 0; i < 8; i++) {
       const star = document.createElement("div");
@@ -1300,8 +1308,8 @@ function decoratePasture(pasture: HTMLElement, festival: boolean): void {
     }
   } else {
     // Sky: sun, drifting clouds, and bunting strung along the top for the vibe.
-    const sun = document.createElement("div");
-    sun.className = "sun";
+    const sun = propEl("sun", 3);
+    sun.classList.add("sun");
     pasture.appendChild(sun);
     const cloudA = propEl("cloud", 2);
     cloudA.classList.add("prop", "cloud", "cloud-a");

@@ -98,6 +98,8 @@ export class Scene {
   private pulseStart = 0;
   private act: Act | null = null;
   private hidden = false; // creature is off hiding (hide & seek)
+  private peekSpot: string | null = null; // imperfect hide: head pokes out here
+  private peekTopFrac = 0; // sprite-canvas fraction above the first opaque row
   private curDx = 0; // creature's current x offset (for bubble anchoring)
   private curDy = 0; // creature's current depth offset (for sorting/anchoring)
   private facing: 1 | -1 = 1; // 1 = facing right; mirrors the sprite when -1
@@ -243,8 +245,12 @@ export class Scene {
     this.wanderTargetY = dy;
   }
 
-  /** Poof — the creature vanishes to go hide. Stays hidden until reveal. */
-  playHide(onDone?: () => void): void {
+  /** Poof — the creature vanishes to go hide. Stays hidden until reveal.
+   *  Pass `peekAt` (a hide spot) for an imperfect hide: the top of its head
+   *  stays visible there the whole time. A gift to the seeker. */
+  playHide(peekAt: string | null = null, onDone?: () => void): void {
+    this.peekSpot = peekAt;
+    if (peekAt) this.peekTopFrac = spriteTopFraction(this.creatureCanvas);
     this.startAct("hide", 500, {}, () => {
       this.hidden = true;
       onDone?.();
@@ -254,6 +260,7 @@ export class Scene {
   /** Creature pops out from the actual hiding spot, then returns to center. */
   playReveal(spot: string, onDone?: () => void): void {
     this.hidden = false;
+    this.peekSpot = null;
     const pos = this.hideSpotPos(spot);
     // Depth offset of the spot relative to the resting line, so the pop-out
     // happens *at* the spot's depth and the trot home walks back forward.
@@ -287,16 +294,18 @@ export class Scene {
 
   /** Where a hide-and-seek reveal pops out, in scene coords (floor-relative).
    *  Depths sit just behind each spot's prop sort anchor, so "behind the
-   *  fence" genuinely pops out *behind* the fence. */
-  private hideSpotPos(spot: string): { x: number; y: number } {
+   *  fence" genuinely pops out *behind* the fence. `peek` is where the crown
+   *  of an imperfectly hidden head sits — just clear of that spot's cover
+   *  (the stump's sawn top, the fence rail, the mushroom cap, the blooms). */
+  private hideSpotPos(spot: string): { x: number; y: number; peek: number } {
     const f = this.floorY;
-    const spots: Record<string, { x: number; y: number }> = {
-      "behind the stump": { x: 16, y: f + 10 },
-      "in the flowers": { x: 68, y: f + 26 },
-      "behind the fence": { x: 98, y: f + 2 },
-      "under the mushroom": { x: 82, y: f + 14 },
+    const spots: Record<string, { x: number; y: number; peek: number }> = {
+      "behind the stump": { x: 16, y: f + 10, peek: f - 7 },
+      "in the flowers": { x: 68, y: f + 26, peek: f + 14 },
+      "behind the fence": { x: 98, y: f + 2, peek: f - 13 },
+      "under the mushroom": { x: 82, y: f + 14, peek: f - 1 },
     };
-    return spots[spot] ?? { x: CREATURE_X, y: f + 10 };
+    return spots[spot] ?? { x: CREATURE_X, y: f + 10, peek: f - 7 };
   }
 
   /**
@@ -469,7 +478,7 @@ export class Scene {
           const zy = headY - q * 16;
           const fadeIn = Math.min(1, q / 0.12);
           ctx.globalAlpha = fadeIn * Math.max(0, 1 - Math.max(0, q - 0.5) * 2);
-          this.drawZ(Math.round(zx), Math.round(zy), q > 0.55 ? 2 : 1);
+          this.drawZ(Math.round(zx), Math.round(zy), 1);
         }
         ctx.globalAlpha = 1;
       }
@@ -492,8 +501,9 @@ export class Scene {
     }
   }
 
-  /** A pixel Z at unit size `s` (1 = 4×4, 2 = 8×8): grows as it floats up.
-   *  The diagonal needs two steps to read as a Z and not an H. */
+  /** A pixel Z at unit size `s` (1 = 4×4) — kept small so it sits in the same
+   *  register as the tiny hearts. The diagonal needs two steps to read as a Z
+   *  and not an H. */
   private drawZ(x: number, y: number, s: number): void {
     const ctx = this.ctx;
     ctx.fillStyle = "#e9e2ff";
@@ -716,6 +726,51 @@ export class Scene {
     ctx.fillRect(rx - 2, ry - 4, 4, 1);
   }
 
+  /** An imperfect hide: the creature crouches fully behind the spot's cover
+   *  and just the crown of its head clears it, bobbing gently. The sprite is
+   *  sunk so its first opaque row rides at the spot's `peek` line, and a
+   *  fixed clip band cuts everything below — the cover does the rest. */
+  private drawPeek(t: number): void {
+    const pos = this.hideSpotPos(this.peekSpot!);
+    const dy = pos.y - this.floorY - 9;
+    const cw = CELL * 3 * this.depthScale(dy);
+    // Rest position of the sprite's first opaque row (mirrors drawCreature:
+    // sprite top = floorY + dy - cw + 12, plus the sprite's empty top rows).
+    const headTopRest = this.floorY + dy - cw + 12 + this.peekTopFrac * cw;
+    // Sink the whole sprite so that row sits at the peek line; the bob is
+    // mostly-down so the head rises into view and ducks nearly out of it.
+    const bob = pos.peek - headTopRest + Math.sin(t * 2.5) * 1.5 + 1;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(Math.round(pos.x - cw / 2), Math.round(pos.peek) - 2, Math.round(cw), 7);
+    ctx.clip();
+    this.drawCreature(t, pos.x - CREATURE_X, 1, bob, undefined, undefined, dy);
+    ctx.restore();
+  }
+
+  /** A good stick — fetch's other wrong answer. Carried sideways, naturally. */
+  private drawStick(x: number, y: number): void {
+    const ctx = this.ctx;
+    const rx = Math.round(x);
+    const ry = Math.round(y);
+    ctx.fillStyle = "#8a5a3c";
+    ctx.fillRect(rx - 5, ry, 10, 2);
+    ctx.fillRect(rx + 1, ry - 2, 2, 2); // the fork
+    ctx.fillStyle = "#5c3d22";
+    ctx.fillRect(rx - 5, ry + 1, 10, 1);
+  }
+
+  /** A tiny floating "?" for moments of genuine bafflement. */
+  private drawQuestionMark(x: number, y: number): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = "#fff7dc";
+    ctx.fillRect(x - 1, y, 3, 1);
+    ctx.fillRect(x + 1, y + 1, 1, 1);
+    ctx.fillRect(x, y + 2, 1, 1);
+    ctx.fillRect(x, y + 4, 1, 1);
+  }
+
   private drawSparkle(x: number, y: number, phase: number): void {
     const ctx = this.ctx;
     if (Math.sin(phase) < 0) return;
@@ -733,6 +788,8 @@ export class Scene {
       if (!this.hidden) {
         this.updateWander(now);
         this.drawCreature(t, this.wanderX, 1, null, undefined, undefined, this.wanderY);
+      } else if (this.peekSpot) {
+        this.drawPeek(t);
       }
       return;
     }
@@ -933,10 +990,17 @@ export class Scene {
     let dx = 0;
     let ball: { x: number; y: number } | null = null;
     let sock: { x: number; y: number } | null = null;
+    let stick: { x: number; y: number } | null = null;
 
     const throwArc = (q: number) => ({
       x: CREATURE_X + q * dist + Math.sin(q * Math.PI) * lateral,
       y: FLOOR_Y - 6 - Math.sin(q * Math.PI) * (arc + 8),
+    });
+    // Where a carried object sits on the trot home: in the mouth — front of
+    // the face (it runs back facing -dir), riding the same bob as the body.
+    const mouth = (extraY = 0) => ({
+      x: CREATURE_X + dx - 6 * dir,
+      y: FLOOR_Y - 8 + Math.sin(t * 2) * 1.5 + extraY,
     });
 
     switch (variant) {
@@ -982,8 +1046,9 @@ export class Scene {
         break;
       }
 
-      case "sock": {
-        // Full chase, but returns with a sock instead of the ball.
+      case "sock":
+      case "stick": {
+        // Full chase, but returns with the wrong object held proudly in its mouth.
         if (p < 0.22) {
           ball = throwArc(p / 0.22);
         } else if (p < 0.5) {
@@ -996,9 +1061,32 @@ export class Scene {
         } else {
           const q = (p - 0.66) / 0.34;
           dx = (1 - q) * dist;
-          sock = { x: CREATURE_X + dx + 6 * dir, y: FLOOR_Y + 3 };
+          if (variant === "sock") sock = mouth();
+          else stick = mouth(2);
         }
         this.drawCreature(t, dx, 1, null);
+        break;
+      }
+
+      case "whichway": {
+        // The throw looks normal — then the ball simply stops existing. The
+        // chase becomes a search: whipping side to side, hopping, no leads.
+        if (p < 0.22) {
+          ball = throwArc(p / 0.22);
+          this.drawCreature(t, 0, 1, null);
+        } else if (p < 0.45) {
+          const q = (p - 0.22) / 0.23;
+          dx = q * dist;
+          this.drawCreature(t, dx, 1, null);
+        } else {
+          const q = (p - 0.45) / 0.55;
+          dx = dist + Math.sin(q * Math.PI * 5) * 9; // facing flips with each whip
+          const hop = Math.abs(Math.sin(q * Math.PI * 9)) * 2;
+          this.drawCreature(t, dx, 1, -hop);
+          if (Math.sin(t * 6) > -0.2) {
+            this.drawQuestionMark(Math.round(CREATURE_X + dx), FLOOR_Y - 26);
+          }
+        }
         break;
       }
 
@@ -1048,8 +1136,10 @@ export class Scene {
         } else {
           const q = (p - 0.45) / 0.55;
           dx = (1 - q) * dist;
-          ball = { x: CREATURE_X + dx + 5 * dir, y: FLOOR_Y + 2 };
-          this.drawCreature(t, dx, 1, -Math.abs(Math.sin(q * Math.PI * 3)) * 3);
+          const hop = Math.abs(Math.sin(q * Math.PI * 3)) * 3;
+          // Carried home in the mouth, riding the victory bounce.
+          ball = { x: CREATURE_X + dx - 6 * dir, y: FLOOR_Y - 8 - hop };
+          this.drawCreature(t, dx, 1, -hop);
         }
         break;
       }
@@ -1068,7 +1158,7 @@ export class Scene {
         } else {
           const q = (p - 0.7) / 0.3;
           dx = (1 - q) * dist;
-          ball = { x: CREATURE_X + dx + 6 * dir, y: FLOOR_Y + 4 };
+          ball = mouth(); // trots it back in its mouth, not dragging it behind
         }
         this.drawCreature(t, dx, 1, null);
         break;
@@ -1077,6 +1167,7 @@ export class Scene {
 
     if (ball) this.drawBall(ball.x, ball.y);
     if (sock) this.drawSock(sock.x, sock.y);
+    if (stick) this.drawStick(stick.x, stick.y);
   }
 
   /**
@@ -1494,4 +1585,17 @@ export class Scene {
     ctx.drawImage(this.creatureCanvas, -cw / 2, -cw / 2, cw, cw);
     ctx.restore();
   }
+}
+
+/** Fraction of a sprite canvas above its first opaque pixel row — bodies sit
+ *  at different heights in the 16×16 grid (baby is six empty rows deep), so
+ *  the peek band has to find the actual head, not the grid top. */
+function spriteTopFraction(c: HTMLCanvasElement): number {
+  const data = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
+  for (let y = 0; y < c.height; y++) {
+    for (let x = 0; x < c.width; x++) {
+      if (data[(y * c.width + x) * 4 + 3] > 0) return y / c.height;
+    }
+  }
+  return 0;
 }

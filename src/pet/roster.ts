@@ -60,7 +60,7 @@ export const ADULTS: Record<AdultForm, AdultDef> = {
   scholar: {
     id: "scholar",
     name: "Little Scholar",
-    blurb: "Associated with disciplined pets, vegetables, and confidently incorrect research.",
+    blurb: "Associated with discipline, vegetables, and confidently incorrect research.",
     favorite: "carrot",
     disliked: "cake",
     preferredGame: "higherlower",

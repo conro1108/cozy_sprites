@@ -56,6 +56,8 @@ export type FetchVariant =
   | "wrongway" // sprints off in the wrong direction
   | "overfence" // the ball sails over the fence, gone
   | "sock" // comes back with… a sock
+  | "stick" // comes back with a stick. A good stick.
+  | "whichway" // loses track of the ball entirely. Which way did it go??
   | "distracted" // never even commits to the chase
   | "cube"; // returns holding the cube. You threw a ball.
 
@@ -135,9 +137,28 @@ export function resolveFetch(
     const variant: FetchVariant = rng() < 0.22 ? "epic" : "return";
     return { success: true, variant, line: pick(FETCH_LINES[variant], rng) };
   }
-  const fails: FetchVariant[] = ["wrongway", "overfence", "sock", "distracted"];
-  const variant = fails[Math.floor(rng() * fails.length)];
+  const variant = pickFail(rng());
   return { success: false, variant, line: pick(FETCH_LINES[variant], rng) };
+}
+
+// Weighted fail pool. The ordinary misses carry the game; the wrong-object
+// returns (sock, stick) stay rare so they land as a surprise, not a bit.
+const FAIL_WEIGHTS: [FetchVariant, number][] = [
+  ["wrongway", 0.26],
+  ["distracted", 0.24],
+  ["overfence", 0.2],
+  ["whichway", 0.16],
+  ["stick", 0.08],
+  ["sock", 0.06],
+];
+
+function pickFail(roll: number): FetchVariant {
+  let acc = 0;
+  for (const [variant, w] of FAIL_WEIGHTS) {
+    acc += w;
+    if (roll < acc) return variant;
+  }
+  return FAIL_WEIGHTS[FAIL_WEIGHTS.length - 1][0];
 }
 
 const FETCH_LINES: Record<FetchVariant, string[]> = {
@@ -167,6 +188,17 @@ const FETCH_LINES: Record<FetchVariant, string[]> = {
     "Brought back a sock.",
     "Brought back the wrong object entirely.",
     "Returned with one damp sock. Whose?",
+  ],
+  stick: [
+    "Found a stick. The ball is dead to me.",
+    "Behold: stick.",
+    "The ball was unavailable. The stick volunteered.",
+  ],
+  whichway: [
+    "Which way did it go??",
+    "It vanished. Genuinely gone.",
+    "I looked away for one second.",
+    "The grass ate it. I checked everywhere.",
   ],
   distracted: [
     "Got distracted by a superior smell.",

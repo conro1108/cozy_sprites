@@ -263,6 +263,11 @@ function mountGame(): void {
       say("Zzz…");
       return;
     }
+    if (pet?.sick) {
+      // Too unwell to play — medicine first, games after.
+      say(SICK_PLAY_LINES[Math.floor(Math.random() * SICK_PLAY_LINES.length)]);
+      return;
+    }
     // Don't open the picker over a running act or a live in-scene game.
     if (!scene?.busy() && !app.querySelector(".stage-controls")) openPlay(ctx);
   });
@@ -555,6 +560,13 @@ function doDiscipline(): void {
 }
 
 const DAY_DARK_LINES = ["It is not even dark.", "Mood lighting. Bold.", "Ambience, I suppose."];
+
+const SICK_PLAY_LINES = [
+  "No games. I am unwell.",
+  "Too wobbly to play.",
+  "Medicine first. Glory later.",
+  "*declines, feverishly*",
+];
 
 function doLight(): void {
   if (!pet || dying) return;

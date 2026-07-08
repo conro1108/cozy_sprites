@@ -703,15 +703,15 @@ body {
   pointer-events: none; /* taps fall through to the grass (dismiss) */
 }
 
+/* Sun and moon are pixel props like the rest of the diorama; the glow follows
+   the sprite's alpha (drop-shadow), not a rectangle around the <img>. */
 .sun {
   position: absolute;
   top: 22px;
   right: 7%;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: #ffe9a8;
-  box-shadow: 0 0 18px 8px rgba(255, 233, 168, 0.65);
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 10px rgba(255, 233, 168, 0.8));
+  pointer-events: none;
 }
 
 .pasture .cloud {
@@ -762,13 +762,9 @@ body {
   position: absolute;
   top: 22px;
   right: 7%;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: #f1e8cc;
-  box-shadow:
-    inset -7px -5px 0 rgba(185, 175, 145, 0.55),
-    0 0 14px 5px rgba(241, 232, 204, 0.35);
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 8px rgba(241, 232, 204, 0.45));
+  pointer-events: none;
 }
 
 .star {

@@ -59,8 +59,20 @@ describe("resolveFetch", () => {
   });
   it("tags a failure with one of the fumble variants", () => {
     const r = resolveFetch(0.05, () => 0);
-    expect(["wrongway", "overfence", "sock", "distracted"]).toContain(r.variant);
+    expect(["wrongway", "overfence", "sock", "stick", "whichway", "distracted"]).toContain(r.variant);
     expect(r.line.length).toBeGreaterThan(0);
+  });
+  it("keeps the wrong-object returns rare across the fail pool", () => {
+    // Sweep the rng range: sock+stick together should be a small slice of fails.
+    let wrongObject = 0;
+    const n = 200;
+    for (let i = 0; i < n; i++) {
+      const roll = i / n;
+      const r = resolveFetch(0.05, () => roll);
+      if (r.variant === "sock" || r.variant === "stick") wrongObject++;
+    }
+    expect(wrongObject / n).toBeLessThan(0.2);
+    expect(wrongObject).toBeGreaterThan(0);
   });
   it("babies fumble even a perfect throw", () => {
     expect(resolveFetch(0.6, () => 0, "baby").success).toBe(false);
