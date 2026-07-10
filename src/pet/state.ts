@@ -666,7 +666,9 @@ export function stepEvents(
       s.poops++;
       events.push("poop");
     } else {
-      const ambientRate = s.stage === "baby" ? 0.2 : 0.06;
+      let ambientRate = s.stage === "baby" ? 0.2 : 0.06;
+      // Dysentery is the runs — the floor floods far faster than nature's pace.
+      if (s.sick && s.illness === "dysentery") ambientRate += 0.9;
       if (rng() < ambientRate * perMin) {
         s.poops++;
         events.push("poop");

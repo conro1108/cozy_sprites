@@ -654,6 +654,16 @@ describe("stepEvents", () => {
     const { events } = stepEvents(pet, 60_000, () => 0);
     expect(events).toEqual([]);
   });
+
+  it("dysentery floods the floor at an rng a healthy pet wouldn't poop on", () => {
+    // rng 0.5 sits above a healthy adult's 0.06 ambient rate but below
+    // dysentery's boosted ~0.96 — so only the sick pet soils the floor.
+    const healthy = asStage(createPet("Milo", T0), "adult");
+    expect(stepEvents(healthy, 60_000, () => 0.5).events).not.toContain("poop");
+
+    const runs = { ...healthy, sick: true, illness: "dysentery" as const };
+    expect(stepEvents(runs, 60_000, () => 0.5).events).toContain("poop");
+  });
 });
 
 describe("fiber-driven pooping", () => {

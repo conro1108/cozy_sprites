@@ -68,6 +68,8 @@ export interface SceneView {
   tantrum?: boolean;
   /** 0..1 — how energetic the creature is. Old-timers rest more, walk slower. */
   activity?: number;
+  /** Dysentery: the messes render as wet diarrhea pools, not tidy coils. */
+  runny?: boolean;
 }
 
 type Pulse = "none" | "happy" | "shake" | "evolve" | "eat" | "nudge" | "love";
@@ -974,6 +976,10 @@ export class Scene {
   }
 
   private drawPoop(x: number, y: number): void {
+    if (this.view.runny) {
+      this.drawPoopPool(x, y);
+      return;
+    }
     const ctx = this.ctx;
     ctx.fillStyle = "#6b4a2a";
     ctx.fillRect(x, y, 8, 3);
@@ -981,6 +987,21 @@ export class Scene {
     ctx.fillRect(x + 2, y - 4, 4, 2);
     ctx.fillStyle = "#8a6a3a";
     ctx.fillRect(x + 2, y - 3, 2, 1);
+  }
+
+  /** Dysentery: a low, spread puddle instead of a tidy coil — wider footprint,
+   *  a stray splatter or two, and a wet sheen catching the light. */
+  private drawPoopPool(x: number, y: number): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = "#5c3f24";
+    ctx.fillRect(x - 3, y + 1, 15, 2); // the spread base
+    ctx.fillRect(x - 1, y, 11, 1); // slightly domed middle
+    ctx.fillRect(x - 4, y + 2, 17, 1); // thin outer edge, seeping wider
+    ctx.fillRect(x + 12, y, 2, 1); // stray splatter, downwind
+    ctx.fillRect(x - 5, y + 1, 1, 1);
+    ctx.fillStyle = "#7a5730"; // wet sheen
+    ctx.fillRect(x + 1, y, 4, 1);
+    ctx.fillRect(x + 6, y + 1, 3, 1);
   }
 
   /** A little broom standing on the ground at (x, y): angled handle up-right,

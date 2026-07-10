@@ -343,6 +343,7 @@ function render(): void {
     variant,
     tantrum,
     activity: activityOf(pet, now),
+    runny: pet.sick && pet.illness === "dysentery",
   });
 }
 
