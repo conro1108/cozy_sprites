@@ -20,6 +20,34 @@ export const SCENE_W = 112; // fixed content width; height adapts to the stage
 const GRASS_DEPTH = 42; // grass below the horizon (floor sits this far up)
 const CREATURE_X = 56; // resting center
 
+// Distant hill ridge: hand-contoured control points (x, height above the
+// floor line), linearly interpolated into a single irregular skyline —
+// varied slopes and a flat-ish valley or two, rather than a row of identical
+// symmetric bumps (which reads as a sine wave). HILL_MIN_H is its lowest
+// point; the sky's horizon band is sized to match so the hills always mask
+// it fully and no lighter seam shows through in the valleys.
+const HILL_PTS: [number, number][] = [
+  [0, 10],
+  [16, 16],
+  [34, 9],
+  [42, 9],
+  [58, 19],
+  [66, 14],
+  [80, 22],
+  [90, 11],
+  [104, 15],
+  [112, 9],
+];
+const HILL_MIN_H = Math.min(...HILL_PTS.map(([, h]) => h));
+function hillHeightAt(x: number): number {
+  for (let i = 0; i < HILL_PTS.length - 1; i++) {
+    const [x0, h0] = HILL_PTS[i];
+    const [x1, h1] = HILL_PTS[i + 1];
+    if (x >= x0 && x <= x1) return h0 + ((h1 - h0) * (x - x0)) / (x1 - x0);
+  }
+  return HILL_PTS[HILL_PTS.length - 1][1];
+}
+
 export interface SceneView {
   key: string; // creature key
   mood: Mood;
@@ -436,7 +464,7 @@ export class Scene {
     ctx.fillStyle = dark ? "#141232" : v.night ? "#2b2552" : "#a8dcec";
     ctx.fillRect(0, 0, SCENE_W, FLOOR_Y);
     ctx.fillStyle = dark ? "#1d1940" : v.night ? "#3a3462" : "#cfeef8";
-    ctx.fillRect(0, FLOOR_Y - 22, SCENE_W, 22);
+    ctx.fillRect(0, FLOOR_Y - HILL_MIN_H, SCENE_W, HILL_MIN_H);
 
     if (v.night) {
       // moon + twinkling stars
@@ -474,26 +502,13 @@ export class Scene {
     }
 
     // --- Distant hills ----------------------------------------------------------
-    // A low ridge with a few soft mounds. Chunky integer step-rows (no ellipse)
-    // to match the meadow's hard pixels, but kept low and single-toned so the
-    // hills stay quiet background rather than reading as a hard-edged prop.
+    // A single continuous ridge line (see HILL_PTS) drawn as solid 1px-wide
+    // columns down to the floor — single-toned so it stays quiet background
+    // rather than reading as a hard-edged prop.
     ctx.fillStyle = dark ? "#22303a" : v.night ? "#33484a" : "#7ab35e";
-    const hillY = FLOOR_Y - 12;
-    ctx.fillRect(0, hillY, SCENE_W, 12); // the ridge the mounds rise from
-    const mounds: [number, number][] = [
-      [8, 8],
-      [42, 6],
-      [76, 8],
-      [110, 6],
-    ];
-    for (const [mx, h] of mounds) {
-      // Stack centred spans that narrow as they climb: wide at the ridge, a
-      // small cap at the peak — a stepped hump, one pixel per step (matches
-      // the stump/dirt patch's finer row density).
-      for (let dy = 0; dy < h; dy++) {
-        const halfW = Math.round(22 * (1 - dy / h));
-        ctx.fillRect(mx - halfW, hillY - dy - 1, halfW * 2 + 1, 1);
-      }
+    for (let x = 0; x < SCENE_W; x++) {
+      const h = Math.round(hillHeightAt(x));
+      ctx.fillRect(x, FLOOR_Y - h, 1, h);
     }
 
     // --- Grass -------------------------------------------------------------------
@@ -808,10 +823,10 @@ export class Scene {
     for (const [dy, hw] of capRows) ctx.fillRect(cx - hw, my + dy, hw * 2 + 1, 1);
     ctx.fillStyle = dark ? "#5e2c28" : night ? "#853c34" : "#b8432f";
     ctx.fillRect(cx - 6, my - 1, 13, 1); // shadow where the rim overhangs the stem
-    // spots
+    // spots — mirrored at the same row so both sit safely inside the dome
     ctx.fillStyle = dark ? "#b0a89a" : "#fdf3e0";
     ctx.fillRect(cx - 4, my - 5, 2, 2);
-    ctx.fillRect(cx + 2, my - 6, 2, 2);
+    ctx.fillRect(cx + 3, my - 5, 2, 2);
   }
 
   /** Flower positions — returned so each can be depth-sorted individually. */
