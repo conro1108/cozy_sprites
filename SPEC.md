@@ -114,3 +114,71 @@ winner, so an ambiguous raising doesn't always resolve the same way twice.
 
 Once the form is set, it colors everything downstream: favorite/disliked food,
 preferred game, how much it enjoys being patted, and its entire dialogue voice.
+
+## Pathways to adulthood, in more depth
+
+Every candidate form is quietly scored the whole time you're raising the pet,
+off the same handful of ingredients: what it ate, what it played, how good
+your discipline calls were, and whether care happened in the dark. At the
+teen→adult boundary, whichever form scored highest wins. Nothing is visible
+to the player — the table above is the honest summary, this is the fuller
+story of how the nine actually compete with each other.
+
+- **Loyal Dog Thing** wants two things at once: fetch played more than
+  anything else, and a genuinely well-cared-for run (good health, discipline
+  calls mostly right). It's forgiving of ordinary wear and tear — a couple of
+  slip-ups won't cost it the path — but real neglect will.
+
+- **Dramatic Blob** is driven almost entirely by cake, with a secondary taste
+  for Higher/Lower. Crucially it *wants* some mess in the record — a
+  moderate band of care mistakes reads as "pampered and a little neglected,"
+  its whole vibe. Too clean a record and it drifts toward Menace instead;
+  too chaotic and it drifts toward Gremlin.
+
+- **Gremlin** is what happens when the cube and chaos arrive together: care
+  mistakes, low discipline, and a cube taste, with low discipline in
+  particular acting as the spark that ignites the other two. A pet that eats
+  cube calmly, with good discipline, doesn't read as a Gremlin at all — see
+  the Humming Cube below.
+
+- **Little Scholar** is discipline plus curiosity, expressed as vegetables:
+  a strong discipline record, a Higher/Lower habit, and actively avoiding
+  cake. It's the same "disciplined" foundation as Menace but pointed in the
+  opposite dietary direction — Scholar earns points for *not* eating cake,
+  Menace earns points *for* it.
+
+- **Tired Office Creature** is the floor everyone else has to clear. It
+  starts with a baseline no other form gets, and picks up a small extra
+  nudge from a diet that's merely balanced — not devoted to anything, not
+  avoiding anything either. A raising that never firmly committed to a
+  personality lands here by default, which is the point: this is what
+  "fine, nothing remarkable happened" looks like as a pet.
+
+- **Fancy Little Menace** is discipline again, but paired with a real
+  appetite for cake and an unusually clean mistake record — stricter about
+  mistakes than Scholar is. Read together with Scholar and Blob, cake is
+  doing three different jobs depending on its company: disciplined
+  restraint reads Scholar, disciplined indulgence reads Menace, undisciplined
+  indulgence reads Blob.
+
+- **Quiet Ghost** *(secret)* is on a steep, single-ingredient curve: care
+  given specifically at night, with the lights off, has to be the dominant
+  pattern of the whole upbringing, not just an occasional late feeding. Cross
+  that threshold and almost nothing else about the raising matters.
+
+- **The Humming Cube** *(secret)* shares its favorite food with Gremlin —
+  the cube — but arrives from the opposite temperament: a real cube diet
+  plus genuinely favoring the Cube's Hum game above the other five, without
+  the chaos (mistakes, low discipline) that defines Gremlin. Same food,
+  opposite spirit, different animal entirely.
+
+- **The Blessed Carrot** *(secret)* is the one absolute rule in the whole
+  system: every single meal has to be a carrot, with no exceptions and
+  enough meals eaten for the vow to mean something. One burger, even one,
+  and this path is off the table for good — there's no partial credit, which
+  is what makes it worth chasing.
+
+When the scoring comes out close — two or more forms within a hair of each
+other — the game treats that as a genuine toss-up and rolls between the
+near-tied candidates rather than mechanically favoring one, so the rare
+ambiguous raising doesn't always resolve to the identical adult.

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc 3.10" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Cozy Sprites — State of the Union</title>
+  <style>
+
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: 1.5em;}
+div.column{flex: auto;}
+@media screen {
+div.columns{gap: min(4vw, 1.5em);}
+div.column{overflow-x: auto;}
+}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">body {
+max-width: 780px;
+margin: 3rem auto;
+padding: 0 1.5rem 4rem;
+font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+line-height: 1.65;
+color: #1f2328;
+background: #fdfdfb;
+}
+h1, h2, h3 {
+line-height: 1.25;
+font-weight: 650;
+}
+h1 {
+font-size: 2rem;
+border-bottom: 1px solid #e5e2da;
+padding-bottom: 0.5rem;
+}
+h2 {
+font-size: 1.35rem;
+margin-top: 2.5rem;
+border-bottom: 1px solid #eeece5;
+padding-bottom: 0.3rem;
+}
+p, ul, ol {
+font-size: 1rem;
+}
+code {
+background: #f1efe8;
+padding: 0.15em 0.4em;
+border-radius: 4px;
+font-size: 0.9em;
+}
+table {
+border-collapse: collapse;
+width: 100%;
+margin: 1.25rem 0;
+font-size: 0.95rem;
+}
+th, td {
+border: 1px solid #e5e2da;
+padding: 0.5rem 0.75rem;
+text-align: left;
+vertical-align: top;
+}
+th {
+background: #f6f4ee;
+font-weight: 600;
+}
+tr:nth-child(even) td {
+background: #fbfaf6;
+}
+strong {
+color: #14110f;
+}
+blockquote {
+border-left: 3px solid #d8d4c8;
+margin-left: 0;
+padding-left: 1rem;
+color: #57534a;
+}
+a {
+color: #8a5a2b;
+}
+@media (prefers-color-scheme: dark) {
+body {
+background: #191714;
+color: #e9e5da;
+}
+h1 { border-bottom-color: #35312a; }
+h2 { border-bottom-color: #2c2820; }
+code { background: #262219; }
+th, td { border-color: #35312a; }
+th { background: #211e18; }
+tr:nth-child(even) td { background: #1e1b16; }
+strong { color: #fff; }
+blockquote { border-left-color: #4a4638; color: #b8b2a2; }
+a { color: #d3a874; }
+}
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Cozy Sprites — State of the Union</h1>
+</header>
+<h1 id="cozy-sprites-state-of-the-union">Cozy Sprites — State of the
+Union</h1>
+<p>A pocket pet. Hatch it, raise it, watch who it becomes. This is a
+plain-language tour of how the game actually works today — not a design
+wishlist (see <code>AREAS.md</code> for that), just what’s live.</p>
+<h2 id="the-arc">The arc</h2>
+<p><strong>Egg → Baby → Child → Teen → Adult.</strong> One straight
+line, no branching stage tree — the <em>branching</em> all happens in
+which of nine adult personalities you land on. Each stage has its own
+rhythm:</p>
+<ul>
+<li><strong>Egg</strong> — inert. Nothing drains, nothing can go wrong.
+It just waits to hatch.</li>
+<li><strong>Baby</strong> — hectic on purpose. Needs fall fast, it
+hatches already hungry, and it can’t yet be disciplined — you’re just
+learning the controls together.</li>
+<li><strong>Child / Teen</strong> — the long middle. Needs drain at a
+calmer pace. Teens start testing boundaries: more attention calls, and a
+good chunk of them are fake.</li>
+<li><strong>Adult</strong> — the destination. Growth stops; personality
+is locked in and the game becomes about maintaining, not raising.</li>
+</ul>
+<p>A pet only ages while it’s awake — sleep (see below) effectively
+pauses the clock, so neglecting bedtime is the fast way through
+childhood, not the slow one.</p>
+<h2 id="the-four-visible-meters">The four visible meters</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Meter</th>
+<th>What moves it</th>
+<th>What happens at empty</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Hunger</strong></td>
+<td>Food fills it, time drains it</td>
+<td>Health bleeds down</td>
+</tr>
+<tr>
+<td><strong>Happiness</strong></td>
+<td>Play, pats, favorite foods fill it; time drains it</td>
+<td>Same — health bleeds down</td>
+</tr>
+<tr>
+<td><strong>Health</strong></td>
+<td>Rises on good sustained care, falls from hunger, sickness, mess, and
+bad discipline calls</td>
+<td>Pet is in mortal danger (see Death)</td>
+</tr>
+<tr>
+<td><strong>Discipline</strong></td>
+<td>Rises when you correctly call out a fake demand, falls when you get
+it wrong</td>
+<td>No direct penalty — it’s a track record, and it quietly steers who
+the pet grows into</td>
+</tr>
+</tbody>
+</table>
+<p>Hunger and happiness are the day-to-day dial you’re turning. Health
+is the lagging scorecard for how well you’ve been turning it — it only
+really moves when things have been good <em>or</em> bad for a while, not
+from a single meal.</p>
+<h2 id="mess-and-sickness">Mess and sickness</h2>
+<p>Food isn’t magic — it has fiber, and fiber becomes a poop on a short
+digestive delay. Leave poop on the floor and it drags on health and
+raises the odds of falling sick. Sickness itself is random but weighted:
+bad health, an unclean floor, and a heavy cake habit all load the dice.
+Medicine cures it — most ailments in one dose, the plague takes two.
+Giving medicine when nothing’s wrong is a small ding against you (don’t
+cry wolf with the medicine cabinet).</p>
+<h2 id="day-night-and-sleep">Day, night, and sleep</h2>
+<p>There’s a day/night cycle. At night, turning the lights off lets the
+pet sleep — sleeping pets can’t be fed, played with, or patted, but they
+also stop aging and their needs drain much more slowly. Leaving the
+lights on at night costs happiness (it can’t sleep with them on).
+Morning relights the lantern on its own — nobody has to remember to do
+it.</p>
+<p>Caring for the pet specifically at night, in the dark, is its own
+quiet thread — more on that below.</p>
+<h2 id="attention-calls-and-the-honesty-game">Attention calls, and the
+honesty game</h2>
+<p>Periodically the pet calls for something: a pat, a snack, or play.
+Some calls are <strong>genuine</strong> — it actually needs that thing.
+From the teen stage onward, some are <strong>fake</strong> — testing
+you. The whole discipline system is about telling the two apart:</p>
+<ul>
+<li>Meet a <strong>genuine</strong> call → happiness reward, discipline
+untouched.</li>
+<li>Meet a <strong>fake</strong> call → the pet is delighted, but you’ve
+spoiled it: a mark against you.</li>
+<li><strong>Discipline</strong> a fake call correctly → discipline goes
+up.</li>
+<li><strong>Discipline</strong> a genuine call by mistake → discipline,
+happiness, and health all take a hit. Don’t scold real hunger.</li>
+</ul>
+<p>Separately, poking the pet (as opposed to answering a real call) is a
+light running gag: the first poke gets a reaction, a poking streak gets
+progressively ignored, and pushing a streak too far annoys it. A
+<strong>pat</strong> is the gentle, always-welcome counterpart — it
+never backfires, it just eventually stops paying out if you overdo
+it.</p>
+<h2 id="feeding-playing-and-favorites">Feeding, playing, and
+favorites</h2>
+<p>Five foods (burger, cake, carrot, noodles, the mysterious cube), six
+mini-games (Higher/Lower, Fetch, Rock-Paper-Scissors, Hide &amp; Seek,
+Would You Rather, and the secret-feeling Cube’s Hum). Every adult form
+has a favorite food (a bonus when fed) and usually a disliked one (a
+small penalty) — before adulthood, nobody has any opinions yet.</p>
+<h2 id="death">Death</h2>
+<p>The one hard failure state, and it’s slow and telegraphed: health has
+to sit at rock bottom for a <em>sustained</em> stretch before the pet
+actually dies. A bad week doesn’t kill it; abandoning it does. Eggs
+can’t die at all. Death ends in a memorial and a fresh egg — the
+finished pet joins the Farm archive.</p>
+<h2 id="becoming-someone-the-nine-adult-forms">Becoming someone: the
+nine adult forms</h2>
+<p>You are never shown a formula. The personality that emerges is a
+quiet read of <em>how</em> you raised it — what it ate, what it played,
+how honest you were with discipline, whether you ever cared for it in
+the dark. Six forms are visible from the start; three are secrets nobody
+tells you about until you earn one.</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Form</th>
+<th>Emerges from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Loyal Dog Thing</strong></td>
+<td>A fetch enthusiast, consistently well cared for</td>
+</tr>
+<tr>
+<td><strong>Dramatic Blob</strong></td>
+<td>A cake habit, plus a bit of drama and mild neglect</td>
+</tr>
+<tr>
+<td><strong>Gremlin</strong></td>
+<td>Chaos: care mistakes, low discipline, a taste for the cube</td>
+</tr>
+<tr>
+<td><strong>Little Scholar</strong></td>
+<td>High discipline, a Higher/Lower streak, and going easy on cake</td>
+</tr>
+<tr>
+<td><strong>Tired Office Creature</strong></td>
+<td>The default — nothing about the upbringing strongly committed to
+anything</td>
+</tr>
+<tr>
+<td><strong>Fancy Little Menace</strong></td>
+<td>High discipline, refined (cake-leaning) taste, very few
+mistakes</td>
+</tr>
+<tr>
+<td><strong>Quiet Ghost</strong> <em>(secret)</em></td>
+<td>Raised mostly at night — care consistently given with the lights
+off</td>
+</tr>
+<tr>
+<td><strong>The Humming Cube</strong> <em>(secret)</em></td>
+<td>A real cube diet paired with a devotion to the Cube’s Hum game —
+calm, not chaotic</td>
+</tr>
+<tr>
+<td><strong>The Blessed Carrot</strong> <em>(secret)</em></td>
+<td>Total dietary purity: carrots, every single meal, no exceptions</td>
+</tr>
+</tbody>
+</table>
+<p>If the upbringing genuinely didn’t lean anywhere — a real toss-up
+between two paths — the game breaks the tie randomly rather than always
+picking the same winner, so an ambiguous raising doesn’t always resolve
+the same way twice.</p>
+<p>Once the form is set, it colors everything downstream:
+favorite/disliked food, preferred game, how much it enjoys being patted,
+and its entire dialogue voice.</p>
+<h2 id="pathways-to-adulthood-in-more-depth">Pathways to adulthood, in
+more depth</h2>
+<p>Every candidate form is quietly scored the whole time you’re raising
+the pet, off the same handful of ingredients: what it ate, what it
+played, how good your discipline calls were, and whether care happened
+in the dark. At the teen→adult boundary, whichever form scored highest
+wins. Nothing is visible to the player — the table above is the honest
+summary, this is the fuller story of how the nine actually compete with
+each other.</p>
+<ul>
+<li><p><strong>Loyal Dog Thing</strong> wants two things at once: fetch
+played more than anything else, and a genuinely well-cared-for run (good
+health, discipline calls mostly right). It’s forgiving of ordinary wear
+and tear — a couple of slip-ups won’t cost it the path — but real
+neglect will.</p></li>
+<li><p><strong>Dramatic Blob</strong> is driven almost entirely by cake,
+with a secondary taste for Higher/Lower. Crucially it <em>wants</em>
+some mess in the record — a moderate band of care mistakes reads as
+“pampered and a little neglected,” its whole vibe. Too clean a record
+and it drifts toward Menace instead; too chaotic and it drifts toward
+Gremlin.</p></li>
+<li><p><strong>Gremlin</strong> is what happens when the cube and chaos
+arrive together: care mistakes, low discipline, and a cube taste, with
+low discipline in particular acting as the spark that ignites the other
+two. A pet that eats cube calmly, with good discipline, doesn’t read as
+a Gremlin at all — see the Humming Cube below.</p></li>
+<li><p><strong>Little Scholar</strong> is discipline plus curiosity,
+expressed as vegetables: a strong discipline record, a Higher/Lower
+habit, and actively avoiding cake. It’s the same “disciplined”
+foundation as Menace but pointed in the opposite dietary direction —
+Scholar earns points for <em>not</em> eating cake, Menace earns points
+<em>for</em> it.</p></li>
+<li><p><strong>Tired Office Creature</strong> is the floor everyone else
+has to clear. It starts with a baseline no other form gets, and picks up
+a small extra nudge from a diet that’s merely balanced — not devoted to
+anything, not avoiding anything either. A raising that never firmly
+committed to a personality lands here by default, which is the point:
+this is what “fine, nothing remarkable happened” looks like as a
+pet.</p></li>
+<li><p><strong>Fancy Little Menace</strong> is discipline again, but
+paired with a real appetite for cake and an unusually clean mistake
+record — stricter about mistakes than Scholar is. Read together with
+Scholar and Blob, cake is doing three different jobs depending on its
+company: disciplined restraint reads Scholar, disciplined indulgence
+reads Menace, undisciplined indulgence reads Blob.</p></li>
+<li><p><strong>Quiet Ghost</strong> <em>(secret)</em> is on a steep,
+single-ingredient curve: care given specifically at night, with the
+lights off, has to be the dominant pattern of the whole upbringing, not
+just an occasional late feeding. Cross that threshold and almost nothing
+else about the raising matters.</p></li>
+<li><p><strong>The Humming Cube</strong> <em>(secret)</em> shares its
+favorite food with Gremlin — the cube — but arrives from the opposite
+temperament: a real cube diet plus genuinely favoring the Cube’s Hum
+game above the other five, without the chaos (mistakes, low discipline)
+that defines Gremlin. Same food, opposite spirit, different animal
+entirely.</p></li>
+<li><p><strong>The Blessed Carrot</strong> <em>(secret)</em> is the one
+absolute rule in the whole system: every single meal has to be a carrot,
+with no exceptions and enough meals eaten for the vow to mean something.
+One burger, even one, and this path is off the table for good — there’s
+no partial credit, which is what makes it worth chasing.</p></li>
+</ul>
+<p>When the scoring comes out close — two or more forms within a hair of
+each other — the game treats that as a genuine toss-up and rolls between
+the near-tied candidates rather than mechanically favoring one, so the
+rare ambiguous raising doesn’t always resolve to the identical
+adult.</p>
+</body>
+</html>
