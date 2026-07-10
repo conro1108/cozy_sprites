@@ -11,6 +11,7 @@ import {
   applyGameResult,
   stepEvents,
   tap,
+  pat as patPet,
   toggleLight,
 } from "./pet/state";
 import type { AdultForm, FoodId, GameId, PetState } from "./pet/types";
@@ -252,7 +253,7 @@ function mountGame(): void {
   const canvas = app.querySelector<HTMLCanvasElement>("#scene")!;
   scene = new Scene(canvas);
   scene.start();
-  canvas.addEventListener("click", onTapPet);
+  bindPetGestures(canvas);
 
   nav.status.addEventListener("click", () => openStatus(ctx, Date.now()));
   nav.food.addEventListener("click", () => openFood(ctx));
@@ -437,6 +438,103 @@ function sayCat(cat: Category): void {
 }
 
 // --- Actions ----------------------------------------------------------------
+// --- Pet gestures -----------------------------------------------------------
+// A pat and a poke are different things, so they're different gestures. A quick
+// jab is a poke; holding still or rubbing is a pat. You cannot pat something by
+// stabbing it, and the input shouldn't pretend otherwise.
+const HOLD_MS = 260; // press this long without leaving and it's a pat
+const RUB_PX = 10; // …or move this far while down, and it's a rub
+
+let gestureMoved = 0;
+let gestureX = 0;
+let gestureY = 0;
+let gestureDown = false;
+let gestureSpent = false; // the pat already fired; don't also poke on release
+let holdTimer: ReturnType<typeof setTimeout> | undefined;
+/** Suppresses a repeat "that's enough" line for an unbroken run of pats. */
+let saidEnough = false;
+
+function bindPetGestures(canvas: HTMLCanvasElement): void {
+  canvas.addEventListener("pointerdown", (e) => {
+    gestureDown = true;
+    gestureSpent = false;
+    gestureMoved = 0;
+    gestureX = e.clientX;
+    gestureY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+    // Fire on the hold itself rather than on release — waiting for the finger
+    // to lift would make a deliberate, gentle gesture feel unacknowledged.
+    holdTimer = setTimeout(() => {
+      if (gestureDown && !gestureSpent) {
+        gestureSpent = true;
+        doPat();
+      }
+    }, HOLD_MS);
+  });
+
+  canvas.addEventListener("pointermove", (e) => {
+    if (!gestureDown) return;
+    gestureMoved += Math.hypot(e.clientX - gestureX, e.clientY - gestureY);
+    gestureX = e.clientX;
+    gestureY = e.clientY;
+    if (!gestureSpent && gestureMoved >= RUB_PX) {
+      gestureSpent = true;
+      doPat();
+    }
+  });
+
+  const end = () => {
+    clearTimeout(holdTimer);
+    if (!gestureDown) return;
+    gestureDown = false;
+    // Short, still, and released: that's a poke.
+    if (!gestureSpent) onTapPet();
+  };
+  canvas.addEventListener("pointerup", end);
+  canvas.addEventListener("pointercancel", end);
+}
+
+function doPat(): void {
+  if (!pet || dying || pet.deadAt !== null) return;
+  if (scene?.busy()) return;
+  const { state, reaction } = patPet(pet, Date.now());
+  pet = state;
+  switch (reaction) {
+    case "cant":
+      if (pet.asleep) say("Zzz…");
+      break;
+    case "answered":
+      // It asked to be patted, and was. The whole point of the gesture.
+      say(attentionSatisfiedLine("pat"));
+      scene?.triggerPulse("love");
+      playSfx("love");
+      saidEnough = false;
+      break;
+    case "spoiled":
+      say(attentionSpoiledLine());
+      scene?.triggerPulse("happy");
+      playSfx("happy");
+      saidEnough = false;
+      break;
+    case "enough":
+      // Never punished, just no longer paying. Say so once, not every stroke.
+      if (!saidEnough) {
+        saidEnough = true;
+        say(pickLine(pet, "pat_enough"));
+      }
+      scene?.triggerPulse("nudge");
+      playSfx("pat");
+      break;
+    case "enjoyed":
+      if (shouldSpeak(pet, "pat")) say(pickLine(pet, "pat"));
+      scene?.triggerPulse("love");
+      playSfx("pat");
+      saidEnough = false;
+      break;
+  }
+  commit();
+}
+
 function onTapPet(): void {
   if (!pet || dying || pet.deadAt !== null) return;
   if (scene?.busy()) return;
@@ -469,7 +567,8 @@ function onTapPet(): void {
       playSfx("happy");
       break;
     case "hint":
-      if (r.want && r.want !== "pat") say(attentionWrongLine(r.want));
+      // Including a pat-call: it wanted holding, you jabbed it.
+      if (r.want) say(attentionWrongLine(r.want));
       scene?.triggerPulse("nudge");
       playSfx("tap");
       break;

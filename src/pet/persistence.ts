@@ -60,6 +60,13 @@ export function migratePet(p: PetState): PetState {
     causeOfDeath: p.causeOfDeath ?? null,
     attentionWant: p.attentionWant ?? (p.wantsAttention ? "pat" : null),
     tapStreak: p.tapStreak ?? 0,
+    // Pre-accumulator saves aged by wall clock, so progress through the current
+    // stage was (lastUpdated − stageStartedAt). Deriving from that preserves an
+    // in-flight pet's progress without resetting it or making it instantly
+    // evolve. A bare ?? 0 to undefined here would go NaN and freeze growth.
+    stageElapsedMs:
+      p.stageElapsedMs ?? Math.max(0, (p.lastUpdated ?? 0) - (p.stageStartedAt ?? 0)),
+    recentPats: p.recentPats ?? [],
     // Backfill hidden stats + any newly-added game counters (e.g. cubehum) so an
     // old save doesn't turn gamePlays[newGame]++ into NaN and poison scoring.
     hidden: {

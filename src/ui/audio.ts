@@ -19,7 +19,14 @@ export type SfxName =
   | "evolve"
   | "death"
   | "win"
-  | "lose";
+  | "lose"
+  | "pat" // the soft, warm sound of being pet (not the sharp poke of "tap")
+  | "throw" // fetch: the ball leaves your hand
+  | "fetchback" // fetch: trots back, prize in mouth
+  | "hide" // hide & seek: scurries off to hide
+  | "found" // hide & seek: there you are
+  | "empty" // hide & seek: nothing here…
+  | "cubewrong"; // the cube's hum: a broken chain
 
 /** One oscillator beep. `at` is seconds from the start of the effect; `to`
  *  glides the pitch across `dur` (chirps up, sad slides down). */
@@ -78,6 +85,29 @@ export const SFX: Record<SfxName, Tone[]> = {
     { freq: 392, dur: 0.09, at: 0, type: "square", gain: 0.45 },
     { freq: 294, dur: 0.16, at: 0.09, type: "square", gain: 0.45 },
   ],
+  // Soft and low, a warm little rise — being pet, not poked.
+  pat: [
+    { freq: 330, dur: 0.1, at: 0, type: "sine", gain: 0.5 },
+    { freq: 415, dur: 0.16, at: 0.08, type: "sine", gain: 0.45 },
+  ],
+  // Fetch: a rising whoosh as it leaves your hand.
+  throw: [{ freq: 260, to: 620, dur: 0.16, at: 0, type: "triangle", gain: 0.45 }],
+  // Fetch: a bright, pleased two-note trot back.
+  fetchback: [
+    { freq: 587, dur: 0.06, at: 0, type: "square", gain: 0.4 },
+    { freq: 784, dur: 0.1, at: 0.06, type: "square", gain: 0.4 },
+  ],
+  // Hide & seek: a quick down-swoop as it darts off to hide.
+  hide: [{ freq: 700, to: 300, dur: 0.14, at: 0, type: "triangle", gain: 0.4 }],
+  // Hide & seek: a soft "there you are" pop.
+  found: [
+    { freq: 523, dur: 0.07, at: 0, type: "sine", gain: 0.5 },
+    { freq: 698, dur: 0.12, at: 0.07, type: "sine", gain: 0.5 },
+  ],
+  // Hide & seek: a hollow little "nothing here" sink.
+  empty: [{ freq: 392, to: 262, dur: 0.2, at: 0, type: "sine", gain: 0.45 }],
+  // The cube's hum: a sour descending buzz — you broke the chain.
+  cubewrong: [{ freq: 300, to: 150, dur: 0.3, at: 0, type: "sawtooth", gain: 0.5 }],
 };
 
 // --- Mute preference ---------------------------------------------------------
@@ -139,16 +169,60 @@ export function unlockAudio(): void {
 }
 
 export function playSfx(name: SfxName): void {
+  playTones(SFX[name]);
+}
+
+/** Schedule an ad-hoc set of tones (for pitched-by-index sounds that aren't
+ *  worth a static table entry). Same guarantees as playSfx: respects mute,
+ *  never throws into the caller. */
+function playTones(tones: Tone[]): void {
   if (isMuted()) return;
   const c = audio();
   if (!c || !master) return;
   if (c.state === "suspended") void c.resume();
   const start = c.currentTime + 0.005; // a hair of lead time to schedule against
   try {
-    for (const tone of SFX[name]) scheduleTone(c, master, tone, start);
+    for (const tone of tones) scheduleTone(c, master, tone, start);
   } catch {
     // A sound failing is never worth an exception reaching the game loop.
   }
+}
+
+// A major pentatonic scale (C D E G A). No two notes clash, so a random
+// sequence of them is always a passable little melody — exactly what a
+// simon-says needs, where the order is out of our hands.
+const PENTATONIC = [523.25, 587.33, 659.25, 783.99, 880.0];
+
+/** Frequency for scale step `n`, wrapping up an octave every 5 steps so the
+ *  mapping stays pentatonic no matter how high the index climbs. */
+function pentatonic(n: number): number {
+  const len = PENTATONIC.length;
+  const octave = Math.floor(n / len);
+  const note = PENTATONIC[((n % len) + len) % len];
+  return note * 2 ** octave;
+}
+
+/** Play the pentatonic note for a given step/face index. The cube's hum uses
+ *  this so each face has its own fixed pitch: the same note sounds when the
+ *  cube demonstrates a step and when you play it back, and any sequence of
+ *  faces comes out as a learnable melody. */
+export function playTone(step: number): void {
+  playTones([{ freq: pentatonic(step), dur: 0.16, at: 0, type: "triangle", gain: 0.5 }]);
+}
+
+/** A short rising flourish for clearing a hum. The whole run steps up with the
+ *  streak, so longer runs literally sound higher and prouder. */
+export function playCubeClear(streak: number): void {
+  const base = Math.min(Math.max(0, streak), 7);
+  playTones(
+    [0, 2, 4].map((d, i) => ({
+      freq: pentatonic(base + d),
+      dur: i === 2 ? 0.18 : 0.09,
+      at: i * 0.075,
+      type: "triangle" as OscillatorType,
+      gain: 0.5,
+    })),
+  );
 }
 
 function scheduleTone(c: AudioContext, out: GainNode, tone: Tone, start: number): void {

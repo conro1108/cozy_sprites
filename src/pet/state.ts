@@ -30,6 +30,15 @@ export const TIMING: Record<Exclude<Stage, "adult">, number> = {
 
 const STAGE_ORDER: Stage[] = ["egg", "baby", "child", "teen", "adult"];
 
+/**
+ * Fraction of elapsed time that counts toward growing up while ASLEEP.
+ *   0   → sleep freezes aging entirely (a pet only grows while awake).
+ *   0.1 → sleep still ages it, but "greatly slowed".
+ * In production a pet sleeps ~12h/day, so this governs whether roughly half its
+ * life ages or not — not a rounding detail. Deliberately trivial to tune.
+ */
+export const SLEEP_AGE_RATE = 0;
+
 // --- Decay rates (per millisecond) -----------------------------------------
 // Demo-tuned to match the compressed stage timers above: needs must actually
 // move during a ~15-minute play session or feeding/playing feels like it does
@@ -72,6 +81,7 @@ export function createPet(name: string, now: number): PetState {
     lastUpdated: now,
     stage: "egg",
     stageStartedAt: now,
+    stageElapsedMs: 0,
     form: null,
     // Start with a little headroom so the first feed/play visibly moves a
     // heart instead of hitting an already-full meter (reads as "nothing
@@ -96,6 +106,7 @@ export function createPet(name: string, now: number): PetState {
     attentionWant: null,
     hidden: emptyHidden(),
     recentTaps: [],
+    recentPats: [],
     tapStreak: 0,
     lastIdleLineAt: 0,
   };
@@ -120,6 +131,16 @@ export function isNight(now: number): boolean {
   return now % DAY_CYCLE_MS >= NIGHT_START_MS;
 }
 
+/** The next dusk or dawn strictly after `t`. Lets applyElapsedDecay cut the
+ *  elapsed span at day/night edges so each chunk is uniformly awake or asleep
+ *  (and thus ages at one constant rate). */
+function nextDayNightBoundary(t: number): number {
+  const cycleStart = Math.floor(t / DAY_CYCLE_MS) * DAY_CYCLE_MS;
+  const dusk = cycleStart + NIGHT_START_MS;
+  // In the day half → next edge is dusk; in the night half → next edge is dawn.
+  return t < dusk ? dusk : cycleStart + DAY_CYCLE_MS;
+}
+
 export function ageMs(state: PetState, now: number): number {
   return Math.max(0, now - state.createdAt);
 }
@@ -138,9 +159,11 @@ export function needsCare(state: PetState): boolean {
 // --- The deterministic tick -------------------------------------------------
 /**
  * Advance stats + life stage from lastUpdated up to `now`. The elapsed span is
- * processed in per-stage chunks so that a gap crossing a stage boundary (e.g.
- * the egg hatching into a fast-decaying baby while the tab was backgrounded)
- * applies each stage's own decay rate to its own slice of time.
+ * processed in chunks that break at BOTH stage boundaries and day/night edges,
+ * so each chunk is uniform in stage (its own decay rate) and in awake/asleep
+ * state (its own aging rate). Aging is an awake-time accumulator: awake time
+ * counts at 1×, asleep time at SLEEP_AGE_RATE — a sleeping pet barely grows,
+ * which matters because in production a pet sleeps ~12h/day.
  */
 export function applyElapsedDecay(state: PetState, now: number): PetState {
   if (now <= state.lastUpdated) return state;
@@ -151,15 +174,33 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
 
   while (cursor < now && s.deadAt === null) {
     let segEnd = now;
-    if (s.stage !== "adult") {
-      const stageEnd = s.stageStartedAt + TIMING[s.stage];
-      if (stageEnd < segEnd) segEnd = stageEnd;
+
+    // 1) Cut at the next day/night edge so the chunk is uniformly awake or
+    //    asleep. Sample isNight at the START — segEnd may land exactly on an
+    //    edge where isNight flips, which would misclassify the chunk.
+    const boundary = nextDayNightBoundary(cursor);
+    if (boundary < segEnd) segEnd = boundary;
+    const night = isNight(cursor);
+    const asleep = night && !s.lightsOn && s.stage !== "egg";
+    const ageRate = asleep ? SLEEP_AGE_RATE : 1;
+
+    // 2) Cut where this stage's awake-time budget runs out, so the overshoot
+    //    decays at the NEXT stage's rate. At ageRate 0 the budget never
+    //    depletes within an asleep chunk, so there's nothing to cut.
+    if (s.stage !== "adult" && ageRate > 0) {
+      const remaining = TIMING[s.stage] - s.stageElapsedMs;
+      const advanceAt = cursor + remaining / ageRate;
+      if (advanceAt < segEnd) segEnd = advanceAt;
     }
+
     const seg = segEnd - cursor;
-    if (seg > 0) decaySegment(s, seg, segEnd);
+    if (seg > 0) {
+      decaySegment(s, seg, segEnd, night);
+      if (s.stage !== "adult") s.stageElapsedMs += seg * ageRate;
+    }
     cursor = segEnd;
-    if (s.stage !== "adult" && cursor >= s.stageStartedAt + TIMING[s.stage]) {
-      advanceOne(s);
+    if (s.stage !== "adult" && s.stageElapsedMs >= TIMING[s.stage]) {
+      advanceOne(s, segEnd);
     }
   }
 
@@ -174,9 +215,11 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
   return s;
 }
 
-/** Apply `seg` ms of decay at the current stage's rates. Mutates `s`. */
-function decaySegment(s: PetState, seg: number, segTime: number): void {
-  const night = isNight(segTime);
+/** Apply `seg` ms of decay at the current stage's rates. Mutates `s`. `night`
+ *  is precomputed by the caller (sampled at the chunk's start, since the chunk
+ *  is uniform in day/night) — do NOT re-derive it from segTime, which may sit
+ *  on an edge. */
+function decaySegment(s: PetState, seg: number, segTime: number, night: boolean): void {
   const asleep = night && !s.lightsOn && s.stage !== "egg";
 
   const decayMult = STAGE_DECAY_MULT[s.stage] * (asleep ? 0.3 : 1);
@@ -230,12 +273,15 @@ function causeOfDeath(s: PetState): string {
   return "general neglect";
 }
 
-/** Move to the next life stage. Mutates `s`. Caller guarantees stage≠adult. */
-function advanceOne(s: PetState): void {
+/** Move to the next life stage. Mutates `s`. Caller guarantees stage≠adult.
+ *  `at` is the wall-clock moment the boundary was crossed. */
+function advanceOne(s: PetState, at: number): void {
   const cur = s.stage as Exclude<Stage, "adult">;
   const next = STAGE_ORDER[STAGE_ORDER.indexOf(cur) + 1];
-  // The next stage began when this one ended, not "now".
-  s.stageStartedAt = s.stageStartedAt + TIMING[cur];
+  // Carry the awake-time overshoot into the next stage rather than dropping it,
+  // so a long catch-up that blew past the boundary keeps its leftover progress.
+  s.stageElapsedMs = Math.max(0, s.stageElapsedMs - TIMING[cur]);
+  s.stageStartedAt = at;
   s.stage = next;
   if (next === "baby") {
     s.wantsAttention = false;
@@ -500,14 +546,12 @@ export function tap(state: PetState, now: number): TapResult {
   const streakBase = wasQuiet ? 0 : s.tapStreak;
   const next: PetState = { ...s, recentTaps, tapStreak: streakBase };
 
-  // An active call takes priority over poke etiquette — it asked for you.
+  // An active call takes priority over poke etiquette — it asked for you. But a
+  // poke is the wrong gesture for EVERY call now, pat included: a pat-call wants
+  // a pat (see pat()), not a finger-jab. So just hint at what it actually wants.
   if (next.wantsAttention) {
     const want = next.attentionWant ?? "pat";
-    if (want !== "pat") {
-      return { state: next, reaction: "hint", want };
-    }
-    const call = resolveCall(next, "pat", callUnjustified(next));
-    return { state: next, reaction: call === "spoiled" ? "spoiled" : "answered", want: null };
+    return { state: next, reaction: "hint", want };
   }
 
   if (wasQuiet) {
@@ -521,6 +565,72 @@ export function tap(state: PetState, now: number): TapResult {
     return { state: next, reaction: "annoyed", want: null };
   }
   return { state: next, reaction: "ignore", want: null };
+}
+
+// --- Pat interaction (the gentle counterpart to a poke) ---------------------
+export const PAT_WINDOW_MS = 12_000;
+/** Pats allowed within the window before further pats stop paying happiness.
+ *  Gentle by design — a pat is never punished, it just stops landing. */
+export const PAT_SATIATION = 5;
+
+/**
+ * How much a pat delights each adult form, in character with ADULT_FOOD. A dog
+ * lives for pats; a gremlin barely tolerates them; a ghost is a bit aloof; the
+ * hum-cube is serenely indifferent. Non-adult stages use 1 (see patAffinity).
+ */
+export const PAT_AFFINITY: Record<AdultForm, number> = {
+  dog: 1.6, // the user's ask: "dog thing should probably love pats"
+  blob: 1.2,
+  carrot: 1.1,
+  menace: 1.0,
+  office: 1.0,
+  scholar: 0.9,
+  humcube: 1.0, // a cube is indifferent to affection
+  ghost: 0.7, // aloof
+  gremlin: 0.6, // low — barely tolerates a hand
+};
+
+/** Pat multiplier for a pet's current form; 1 before it has one. Exported so
+ *  dialogue can flavour the reaction ("she leans right in"). */
+export function patAffinity(form: AdultForm | null): number {
+  return form ? PAT_AFFINITY[form] : 1;
+}
+
+/** How a pat lands. Unlike a poke, a pat is always welcome — the worst case is
+ *  "enough", where it simply stops paying out (never a happiness penalty). */
+export type PatReaction = "enjoyed" | "answered" | "spoiled" | "enough" | "cant";
+
+export interface PatResult {
+  state: PetState;
+  reaction: PatReaction;
+}
+
+const PAT_HAPPINESS = 0.3;
+
+export function pat(state: PetState, now: number): PatResult {
+  const base = applyElapsedDecay(state, now);
+  // Same gate as feed(): an egg, a sleeper, or the departed can't be patted.
+  if (base.stage === "egg" || base.asleep || base.deadAt !== null) {
+    return { state: base, reaction: "cant" };
+  }
+  const s: PetState = { ...base, hidden: { ...base.hidden } };
+  s.recentPats = [...s.recentPats, now].filter((t) => now - t < PAT_WINDOW_MS);
+
+  // An active pat-call is answered by the right gesture. Reuse the call
+  // machinery: a genuine call → "answered", a fake tantrum comforted → "spoiled".
+  if (s.wantsAttention && (s.attentionWant ?? "pat") === "pat") {
+    const call = resolveCall(s, "pat", callUnjustified(s));
+    return { state: s, reaction: call === "spoiled" ? "spoiled" : "answered" };
+  }
+
+  // Rate limit: past the satiation count the pet has had its fill for now, so a
+  // pat lands but pays nothing. No happiness is ever subtracted.
+  if (s.recentPats.length > PAT_SATIATION) {
+    return { state: s, reaction: "enough" };
+  }
+
+  s.happiness = clampHearts(s.happiness + PAT_HAPPINESS * patAffinity(s.form));
+  return { state: s, reaction: "enjoyed" };
 }
 
 // --- Stochastic events (game-loop level, rng injectable) --------------------

@@ -36,7 +36,7 @@ import type { Scene } from "../render/scene";
 import { festivalTonight } from "./festival";
 import { getNotifyPref, setNotifyPref } from "./notifications";
 import type { NotifyPref } from "./notifications";
-import { isMuted, setMuted, playSfx, unlockAudio } from "./audio";
+import { isMuted, setMuted, playSfx, playTone, playCubeClear, unlockAudio } from "./audio";
 
 export interface MenuCtx {
   pet(): PetState;
@@ -337,6 +337,7 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
         // flashing a detached node or reopen input on a dead panel.
         if (!wrap.isConnected || resolved) return;
         flash(face);
+        playTone(face); // each face has its own pitch — the hum is a melody
         if (idx === seq.length - 1) {
           setTimeout(() => {
             if (!wrap.isConnected || resolved) return;
@@ -352,6 +353,8 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
     if (resolved) return;
     resolved = true;
     accepting = false;
+    // The game only ever ends on a missed note — sound the broken chain.
+    playSfx("cubewrong");
     // Clearing the target length means the cube was impressed; the reward keeps
     // climbing with `cleared` regardless (see cubeHumCredit / applyGameResult).
     const won = cleared >= CUBE_HUM_TARGET;
@@ -375,11 +378,14 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
       // until you miss, and every round cleared is worth a little more.
       cleared = seq.length;
       accepting = false;
+      playCubeClear(cleared); // a rising flourish that climbs with the streak
       status.textContent = "Yes. Again, longer.";
       seq = extendHum(seq);
       setTimeout(() => {
         if (wrap.isConnected && !resolved) playSeq();
       }, 720);
+    } else {
+      playTone(face); // hum back the note you just pressed, in its own pitch
     }
   };
 
@@ -435,6 +441,10 @@ function fetchGame(ctx: MenuCtx): void {
   btn.addEventListener("click", () => {
     const res = resolveFetch(pos, undefined, ctx.pet().stage, spot);
     dismiss();
+    playSfx("throw"); // the ball leaves your hand
+    // The chase runs ~2.5s; when it comes back with a prize, chirp partway
+    // through — well before the win/lose verdict lands at the animation's end.
+    if (res.success) setTimeout(() => playSfx("fetchback"), 1700);
     // The whole point: you see the throw, the chase, and the (non-)return —
     // and the animation matches the variant (sock, over the fence, wrong way…).
     ctx.scene().playFetch(pos, res.variant, () => {
@@ -498,6 +508,7 @@ function hideSeek(ctx: MenuCtx): void {
   // Sometimes it hides… imperfectly, and a scrap of head stays showing at the
   // spot. A freebie round for anyone paying attention.
   const peek = Math.random() < 0.3 ? spot : null;
+  playSfx("hide"); // scurries off
   ctx.scene().playHide(peek, () => {
     const { el, close } = stageOverlay(ctx);
     const hint = document.createElement("p");
@@ -512,6 +523,9 @@ function hideSeek(ctx: MenuCtx): void {
       b.addEventListener("click", () => {
         const won = s === spot;
         close();
+        // Sound the reveal now, at the start of the ~1.4s pop-out — the
+        // win/lose verdict still lands later, at the animation's end.
+        playSfx(won ? "found" : "empty");
         ctx.scene().playReveal(spot, () => {
           ctx.finishGame("hideseek", won, hideSeekLine(won, spot));
           if (canReplay(ctx)) hideSeekAgain(ctx);

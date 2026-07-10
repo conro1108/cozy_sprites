@@ -75,7 +75,14 @@ export interface PetState {
   lastUpdated: number;
 
   stage: Stage;
+  /** Wall-clock moment the CURRENT stage began. Kept for display/debug and for
+   *  the scene's "adults mellow with age" cadence; it no longer drives stage
+   *  advancement (that's stageElapsedMs). */
   stageStartedAt: number;
+  /** Awake-equivalent progress (ms) through the current stage. Time awake
+   *  accrues at 1×, asleep at SLEEP_AGE_RATE — so a sleeping pet barely ages.
+   *  Advances to the next stage when this reaches TIMING[stage]. */
+  stageElapsedMs: number;
   /** Set once the pet evolves into an adult. */
   form: AdultForm | null;
 
@@ -114,6 +121,10 @@ export interface PetState {
   hidden: HiddenStats;
 
   recentTaps: number[];
+  /** Timestamps of recent pats, for the pat satiation window (mirrors
+   *  recentTaps). A pat is never punished; past a threshold it just stops
+   *  paying happiness. */
+  recentPats: number[];
   /** Consecutive pokes in the current unbroken tapping streak — drives the
    *  repeating ignore/annoyed cadence independent of how many age out of
    *  `recentTaps`'s trailing window. Resets only once the streak goes quiet. */

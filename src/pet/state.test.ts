@@ -3,8 +3,10 @@ import {
   DAY_CYCLE_MS,
   DEATH_AFTER_ZERO_HEALTH_MS,
   MAX_HEARTS,
+  PAT_SATIATION,
   TAP_ANNOY_THRESHOLD,
   TAP_WINDOW_MS,
+  TIMING,
   applyElapsedDecay,
   applyGameResult,
   clean,
@@ -13,6 +15,7 @@ import {
   feed,
   giveMedicine,
   isNight,
+  pat,
   rollIllness,
   stepEvents,
   tap,
@@ -120,6 +123,46 @@ describe("stage advancement", () => {
     const later = applyElapsedDecay(pet, T0 + 60 * 60_000);
     expect(later.stage).toBe("adult");
     expect(later.form).not.toBeNull();
+  });
+});
+
+describe("aging pauses while asleep", () => {
+  const cycle = Math.floor(T0 / DAY_CYCLE_MS) * DAY_CYCLE_MS;
+  const nightStart = cycle + 8 * 60_000; // deep in the night window
+  const span = 90_000; // 1.5 min — stays before dawn, so state is uniform
+
+  it("confirms the fixture stays night across the whole span", () => {
+    expect(isNight(nightStart)).toBe(true);
+    expect(isNight(nightStart + span)).toBe(true);
+  });
+
+  it("freezes stage progress while the pet sleeps (SLEEP_AGE_RATE = 0)", () => {
+    const asleepChild = asStage(
+      { ...createPet("Milo", nightStart), lightsOn: false, asleep: true },
+      "child",
+    );
+    const later = applyElapsedDecay(asleepChild, nightStart + span);
+    expect(later.asleep).toBe(true);
+    expect(later.stageElapsedMs).toBe(0);
+  });
+
+  it("accrues stage progress at 1x while awake over the same span", () => {
+    const awakeChild = asStage(
+      { ...createPet("Milo", nightStart), lightsOn: true },
+      "child",
+    );
+    const later = applyElapsedDecay(awakeChild, nightStart + span);
+    expect(later.stageElapsedMs).toBeCloseTo(span);
+  });
+
+  it("still advances on awake time, not wall clock", () => {
+    // Awake the whole way: TIMING.child of awake time must tip it into teen.
+    const awakeChild = asStage(
+      { ...createPet("Milo", T0), lightsOn: true },
+      "child",
+    );
+    const later = applyElapsedDecay(awakeChild, T0 + TIMING.child + 1_000);
+    expect(later.stage).toBe("teen");
   });
 });
 
@@ -432,14 +475,15 @@ describe("tap", () => {
     expect(afterResolve.reaction).toBe("ignore");
   });
 
-  it("answers a genuine pat call", () => {
+  it("hints (not answers) on a pat call — a poke is the wrong gesture now", () => {
     const pet = asStage(
       { ...createPet("Milo", T0), wantsAttention: true, fakeCall: false, attentionWant: "pat" as const },
       "child",
     );
     const r = tap(pet, T0);
-    expect(r.reaction).toBe("answered");
-    expect(r.state.wantsAttention).toBe(false);
+    expect(r.reaction).toBe("hint");
+    expect(r.want).toBe("pat");
+    expect(r.state.wantsAttention).toBe(true); // still waiting for a real pat
   });
 
   it("hints when the call wants something a poke isn't", () => {
@@ -453,15 +497,81 @@ describe("tap", () => {
     expect(r.state.wantsAttention).toBe(true); // still waiting for the snack
   });
 
-  it("comforting a fake pat call spoils the pet (a care mistake)", () => {
+  it("only hints at a fake pat call — a poke can't spoil it (that's pat()'s job)", () => {
     const pet = asStage(
       { ...createPet("Milo", T0), wantsAttention: true, fakeCall: true, attentionWant: "pat" as const },
       "teen",
     );
     const r = tap(pet, T0);
-    expect(r.reaction).toBe("spoiled");
+    expect(r.reaction).toBe("hint");
+    expect(r.state.wantsAttention).toBe(true);
+  });
+});
+
+describe("pat", () => {
+  const child = () => asStage(createPet("Milo", T0), "child");
+
+  it("cannot pat an egg, a sleeper, or the dead", () => {
+    expect(pat(createPet("Milo", T0), T0).reaction).toBe("cant");
+    const asleep = asStage(
+      { ...createPet("Milo", T0), lightsOn: false, asleep: true },
+      "child",
+    );
+    expect(pat(asleep, T0).reaction).toBe("cant");
+    const dead = asStage(
+      { ...createPet("Milo", T0), deadAt: T0, causeOfDeath: "neglect" },
+      "child",
+    );
+    expect(pat(dead, T0).reaction).toBe("cant");
+  });
+
+  it("enjoyed: a plain pat is always welcome and lifts happiness", () => {
+    const r = pat({ ...child(), happiness: 1 }, T0);
+    expect(r.reaction).toBe("enjoyed");
+    expect(r.state.happiness).toBeGreaterThan(1);
+  });
+
+  it("answered: a genuine pat call is satisfied by the right gesture", () => {
+    const pet = asStage(
+      { ...createPet("Milo", T0), wantsAttention: true, fakeCall: false, attentionWant: "pat" as const },
+      "child",
+    );
+    const r = pat(pet, T0);
+    expect(r.reaction).toBe("answered");
     expect(r.state.wantsAttention).toBe(false);
+  });
+
+  it("spoiled: comforting a fake pat call is a care mistake", () => {
+    const pet = asStage(
+      { ...createPet("Milo", T0), wantsAttention: true, fakeCall: true, attentionWant: "pat" as const },
+      "teen",
+    );
+    const r = pat(pet, T0);
+    expect(r.reaction).toBe("spoiled");
     expect(r.state.hidden.careMistakes).toBe(1);
+  });
+
+  it("enough: past satiation a pat stops paying — but never subtracts", () => {
+    let pet: PetState = { ...child(), happiness: 1 };
+    let last = pat(pet, T0);
+    pet = last.state;
+    for (let i = 1; i <= PAT_SATIATION; i++) {
+      last = pat(pet, T0 + i * 100);
+      pet = last.state;
+    }
+    expect(last.reaction).toBe("enough");
+    // Same instant, so no decay confounds the check: the pat itself must not
+    // move happiness at all (never a subtraction).
+    const before = pet.happiness;
+    const extra = pat(pet, pet.lastUpdated);
+    expect(extra.reaction).toBe("enough");
+    expect(extra.state.happiness).toBe(before);
+  });
+
+  it("affinity: a dog loves pats more than a gremlin does", () => {
+    const dog = asStage({ ...createPet("Dog", T0), form: "dog" as const, happiness: 0 }, "adult");
+    const grem = asStage({ ...createPet("Grem", T0), form: "gremlin" as const, happiness: 0 }, "adult");
+    expect(pat(dog, T0).state.happiness).toBeGreaterThan(pat(grem, T0).state.happiness);
   });
 });
 
@@ -641,5 +751,19 @@ describe("save migration", () => {
     const fed = feed(asStage(migrated, "child"), "carrot", T0).state;
     expect(Number.isNaN(fed.poopPressure)).toBe(false);
     expect(fed.poopPressure).toBeGreaterThan(0);
+  });
+
+  it("derives stageElapsedMs from wall-clock progress and defaults recentPats", () => {
+    const aged = {
+      ...createPet("Ancient", T0),
+      stage: "child" as const,
+      stageStartedAt: T0,
+      lastUpdated: T0 + 90_000,
+    };
+    const { stageElapsedMs: _s, recentPats: _p, ...legacy } = aged;
+    const migrated = migratePet(legacy as unknown as PetState);
+    // Progress preserved (no reset, no instant evolve), and no NaN.
+    expect(migrated.stageElapsedMs).toBe(90_000);
+    expect(migrated.recentPats).toEqual([]);
   });
 });

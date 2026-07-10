@@ -481,12 +481,25 @@ export class Scene {
     }
 
     // --- Distant hills ----------------------------------------------------------
+    // A low ridge with a few soft mounds. Chunky integer step-rows (no ellipse)
+    // to match the meadow's hard pixels, but kept low and single-toned so the
+    // hills stay quiet background rather than reading as a hard-edged prop.
     ctx.fillStyle = dark ? "#22303a" : v.night ? "#33484a" : "#7ab35e";
-    ctx.fillRect(0, FLOOR_Y - 12, SCENE_W, 12);
-    for (let x = -8; x < SCENE_W; x += 34) {
-      ctx.beginPath();
-      ctx.ellipse(x + 16, FLOOR_Y - 10, 22, 9, 0, Math.PI, 0);
-      ctx.fill();
+    const hillY = FLOOR_Y - 12;
+    ctx.fillRect(0, hillY, SCENE_W, 12); // the ridge the mounds rise from
+    const mounds: [number, number][] = [
+      [8, 8],
+      [42, 6],
+      [76, 8],
+      [110, 6],
+    ];
+    for (const [mx, h] of mounds) {
+      // Stack centred spans that narrow as they climb: wide at the ridge, a
+      // small cap at the peak — a stepped hump, two pixels per step.
+      for (let dy = 0; dy < h; dy += 2) {
+        const halfW = Math.round(22 * (1 - dy / h));
+        ctx.fillRect(mx - halfW, hillY - dy - 2, halfW * 2 + 1, 2);
+      }
     }
 
     // --- Grass -------------------------------------------------------------------
@@ -657,16 +670,47 @@ export class Scene {
       for (const [dy, x, w] of rows) ctx.fillRect(x, top + dy, w, 1);
     };
 
-    // Trunk: a chunky bark barrel flaring into roots that grip the grass.
+    // Trunk: a chunky bark barrel that splays into roots at its base.
     ctx.fillStyle = bark;
     ctx.fillRect(6, top + 1, 19, 9); // barrel
-    ctx.fillRect(4, top + 8, 23, 3); // root flare
     ctx.fillStyle = barkDark;
     ctx.fillRect(10, top + 5, 1, 6); // grooves down the bark
     ctx.fillRect(15, top + 5, 1, 6);
     ctx.fillRect(20, top + 5, 1, 6);
     ctx.fillRect(6, top + 5, 1, 6); // shaded barrel edges
     ctx.fillRect(24, top + 5, 1, 6);
+
+    // Roots: a few asymmetric humps of different widths spreading off the base
+    // into the turf — a broad one sprawling left, a narrower one kicking right,
+    // a small nub between, and one knuckly root crossing down in front. Warm
+    // bark with barkDark seams, so it grips the grass instead of ending in a step.
+    ctx.fillStyle = bark;
+    // broad left root
+    ctx.fillRect(4, top + 8, 3, 1);
+    ctx.fillRect(3, top + 9, 5, 1);
+    ctx.fillRect(2, top + 10, 7, 1);
+    ctx.fillRect(3, top + 11, 5, 1);
+    ctx.fillRect(4, top + 12, 3, 1);
+    // narrower right root
+    ctx.fillRect(22, top + 8, 3, 1);
+    ctx.fillRect(22, top + 9, 5, 1);
+    ctx.fillRect(22, top + 10, 6, 1);
+    ctx.fillRect(24, top + 11, 3, 1);
+    // small root nub tucked between, further back
+    ctx.fillRect(17, top + 10, 5, 1);
+    ctx.fillRect(18, top + 11, 3, 1);
+    // the front root: knuckles down over the base into the grass
+    ctx.fillRect(10, top + 9, 6, 1);
+    ctx.fillRect(10, top + 10, 7, 1);
+    ctx.fillRect(11, top + 11, 5, 1);
+    ctx.fillRect(12, top + 12, 3, 1);
+    ctx.fillRect(12, top + 13, 2, 1);
+    ctx.fillStyle = barkDark;
+    ctx.fillRect(9, top + 9, 1, 3);   // crevice between the left and front roots
+    ctx.fillRect(16, top + 10, 1, 1); // front root's shaded right shoulder
+    ctx.fillRect(15, top + 11, 1, 1);
+    ctx.fillRect(22, top + 10, 1, 1); // crease between the nub and the right root
+    ctx.fillRect(7, top + 10, 1, 1);  // little shadow within the left root
 
     // The sawn top: a fat bark-rimmed oval of pale wood. A shadow row under the
     // front lip lifts the seat proud of the barrel; a single growth ring and a
@@ -924,7 +968,7 @@ export class Scene {
         this.drawCreature(t, this.wanderX, 1, null, undefined, undefined, this.wanderY);
         if (this.evolving()) this.drawEvolveBurst(t);
         // The humming cube's pulse throws a little light around.
-        if (this.view.key === "humcube" && quirk(t, 8.2, 1.8) >= 0) {
+        if (this.view.key === "humcube" && quirk(t, 16.5, 1.8) >= 0) {
           const hx = Math.round(CREATURE_X + this.curDx);
           const hy = Math.round(FLOOR_Y + this.curDy - 20);
           this.drawSparkle(hx - 10, hy + 4, t * 6);
@@ -1390,19 +1434,27 @@ export class Scene {
 
     // Older creatures dwell longer, walk slower, and flop down more often.
     const activity = v.activity ?? 1;
-    const dwellFor = () => (3000 + Math.random() * 4000) * (2 - activity);
+    const dwellFor = () => (7000 + Math.random() * 7000) * (2 - activity);
 
     switch (this.wanderPhase) {
       case "dwell": {
         if (now >= this.wanderUntil) {
-          if (Math.random() < 0.12 + 0.55 * (1 - activity)) {
+          // Idle is the default: most of the time it just keeps standing and
+          // breathing, so a wander or a quirk reads as an occasional event
+          // rather than constant motion. Calmer (low-activity) pets stay put
+          // even more; babies get up and go a little more often.
+          if (Math.random() < 0.45 + 0.25 * (1 - activity)) {
+            this.wanderUntil = now + dwellFor();
+            break;
+          }
+          if (Math.random() < 0.1 + 0.5 * (1 - activity)) {
             // Take a breather: a big yawn, then blob down for a while.
             this.wanderPhase = "yawn";
             this.phaseStart = now;
             this.wanderUntil = now + 1100;
             break;
           }
-          if (Math.random() < 0.18) {
+          if (Math.random() < 0.1) {
             // Off to perch on the stump for a spell.
             this.wanderTargetX = STUMP_SEAT_DX;
             this.wanderTargetY = 0;
@@ -1601,7 +1653,7 @@ export class Scene {
       m.sy = 0.86 + Math.sin(t * 1.4) * 0.018;
       m.sx = 1.1;
       m.bob = this.seatBob(m.sy, seatCw);
-      if (key === "dog" && quirk(t, 6.2, 1.6, 1.3) >= 0) {
+      if (key === "dog" && quirk(t, 13.5, 1.6, 1.3) >= 0) {
         this.altFrame = Math.sin(t * 16) > 0; // a lazy seated wag
       }
       return m;
@@ -1637,7 +1689,7 @@ export class Scene {
     switch (key) {
       case "dog":
         m.bob = -Math.abs(Math.sin(t * 3)) * 2.6; // eager little bounces
-        if ((q = quirk(t, 7.3, 1.5)) >= 0) {
+        if ((q = quirk(t, 15.5, 1.5)) >= 0) {
           // The wag: tail thumps up and down, hindquarters can't stay still.
           const env = Math.sin(q * Math.PI);
           this.altFrame = Math.sin(t * 20) > 0;
@@ -1649,7 +1701,7 @@ export class Scene {
         m.bob = Math.sin(t * 1.6) * 0.8;
         m.sy = 1 + Math.sin(t * 3) * 0.05; // gelatinous wobble
         m.sx = 1 - Math.sin(t * 3) * 0.04;
-        if ((q = quirk(t, 11.4, 2.4)) >= 0) {
+        if ((q = quirk(t, 22.5, 2.4)) >= 0) {
           // The melt: slumps into a puddle of itself, quivers, reforms.
           const env = Math.sin(q * Math.PI);
           m.sy *= 1 - env * 0.34;
@@ -1661,7 +1713,7 @@ export class Scene {
       case "gremlin":
         m.bob = Math.sin(t * 2.4) * 1.4;
         m.dx = Math.sin(t * 5.5) * 0.6; // twitchy, up to something
-        if ((q = quirk(t, 8.6, 1.3)) >= 0) {
+        if ((q = quirk(t, 17.5, 1.3)) >= 0) {
           // The case-of-the-place: eyes dart one way, then the other.
           this.forceGlance = q < 0.5 ? -1 : 1;
           m.dx += (q < 0.5 ? -1 : 1) * 1.2;
@@ -1671,7 +1723,7 @@ export class Scene {
       case "scholar":
         m.bob = Math.sin(t * 1.4) * 0.9;
         m.rot = Math.sin(t * 0.8) * 0.03; // a contemplative nod
-        if ((q = quirk(t, 9.7, 1.7)) >= 0) {
+        if ((q = quirk(t, 20.5, 1.7)) >= 0) {
           // A thought lands: two slow, convinced nods at the middle distance.
           m.rot += Math.sin(q * Math.PI * 2) * 0.09;
           m.bob += Math.sin(q * Math.PI * 2) * 1.2;
@@ -1681,7 +1733,7 @@ export class Scene {
       case "office":
         m.bob = Math.sin(t * 1.1) * 0.6;
         m.sy = 0.98; // a permanent, weary slump
-        if ((q = quirk(t, 12.2, 2.5)) >= 0) {
+        if ((q = quirk(t, 24.5, 2.5)) >= 0) {
           // The sigh: a long inhale up, held, then everything lets go.
           m.sy *= 1 + Math.sin(q * Math.PI * 2) * 0.055;
           m.bob += -Math.sin(q * Math.PI * 2) * 1.6;
@@ -1691,7 +1743,7 @@ export class Scene {
       case "menace":
         m.bob = Math.sin(t * 1.0) * 0.7;
         m.rot = Math.sin(t * 0.6) * 0.02; // haughtily still, chin up
-        if ((q = quirk(t, 10.3, 2.0)) >= 0) {
+        if ((q = quirk(t, 21.5, 2.0)) >= 0) {
           // The appraisal: a slow head-tilt, a long sideways look, judgment.
           m.rot += Math.sin(q * Math.PI) * 0.13;
           this.forceGlance = -1;
@@ -1700,14 +1752,14 @@ export class Scene {
       case "ghost":
         m.bob = Math.sin(t * 1.6) * 3 - 5; // hovers off the grass
         m.dx = Math.sin(t * 0.8) * 1.5; // drifting, never quite anchored
-        if ((q = quirk(t, 9.1, 1.4)) >= 0) {
+        if ((q = quirk(t, 18.5, 1.4)) >= 0) {
           // The flicker: briefly less here than usual.
           this.extraAlpha = 0.45 + 0.55 * Math.abs(Math.cos(q * Math.PI * 3));
         }
         break;
       case "humcube":
         m.bob = Math.sin(t * 1.3) * 1.0;
-        if ((q = quirk(t, 8.2, 1.8)) >= 0) {
+        if ((q = quirk(t, 16.5, 1.8)) >= 0) {
           // The hum, visible: the whole lattice pulses in time.
           const env = Math.sin(q * Math.PI);
           m.sy *= 1 + Math.sin(t * 14) * 0.035 * env;
@@ -1717,7 +1769,7 @@ export class Scene {
       case "carrot":
         m.bob = Math.sin(t * 2.4) * 1.2;
         m.rot = Math.sin(t * 1.7) * 0.05; // teetering on its tip, serenely
-        if ((q = quirk(t, 7.9, 0.9)) >= 0) {
+        if ((q = quirk(t, 16.9, 0.9)) >= 0) {
           // The greens shake themselves out, like a tiny wet dog.
           m.rot += Math.sin(t * 30) * 0.06 * Math.sin(q * Math.PI);
           m.bob -= Math.sin(q * Math.PI) * 1.2;
@@ -1726,7 +1778,7 @@ export class Scene {
       case "baby":
         m.bob = Math.sin(t * 2.6) * 1.6;
         m.dx = Math.sin(t * 6) * 0.5; // a delighted wiggle
-        if ((q = quirk(t, 6.6, 1.2)) >= 0) {
+        if ((q = quirk(t, 12.5, 1.2)) >= 0) {
           // Sheer joy arrives and must be bounced out.
           m.bob = -Math.abs(Math.sin(t * 11)) * 3.2 * Math.sin(q * Math.PI);
         }
@@ -1744,7 +1796,7 @@ export class Scene {
       case "teen":
         m.bob = Math.sin(t * 1.2) * 0.8;
         m.rot = 0.04; // a practiced slouch
-        if ((q = quirk(t, 13.4, 1.3)) >= 0) {
+        if ((q = quirk(t, 25.5, 1.3)) >= 0) {
           // The hair flip: up, back, and returned to the slouch, unbothered.
           m.rot -= Math.sin(q * Math.PI) * 0.13;
           m.bob -= Math.sin(q * Math.PI) * 2;

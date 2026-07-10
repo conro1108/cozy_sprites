@@ -195,6 +195,10 @@ body {
   object-fit: cover;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+  /* Patting is a press-and-hold / rub. Without this the browser claims the
+     gesture for scrolling or a long-press menu and the pet never feels it. */
+  touch-action: none;
+  -webkit-touch-callout: none;
   cursor: pointer;
   display: block;
 }

@@ -10,6 +10,8 @@ export type Category =
   | "idle"
   | "tap"
   | "annoyed"
+  | "pat" // held/rubbed, not poked — always welcome
+  | "pat_enough" // patted past the point of diminishing returns
   | "feed"
   | "feed_favorite"
   | "feed_disliked"
@@ -118,6 +120,25 @@ const TEEN: Bank = {
 
 // --- General fallback bank (used when a form/stage lacks a category) ---------
 const GENERAL: Bank = {
+  // A pat is not a poke. Nobody has to be talked into it.
+  pat: [
+    "*leans in*",
+    "Oh. That's nice.",
+    "Continue.",
+    "*closes eyes*",
+    "You have good hands. Structurally.",
+    "This is acceptable forever.",
+    "*small contented noise*",
+    "I will allow this to happen to me.",
+    "Yes. There. That exact spot.",
+  ],
+  pat_enough: [
+    "*has been thoroughly patted*",
+    "I'm full. Of pats.",
+    "That's the pats. That's all of them.",
+    "You've reached the end of the pats.",
+    "*already maximally content*",
+  ],
   idle: [
     "Took you long enough.",
     "You again.",
@@ -290,6 +311,19 @@ const GENERAL: Bank = {
 // --- Per-adult voices. Only distinctive categories overridden.
 const ADULT: Record<AdultForm, Bank> = {
   dog: {
+    // The dog was built for this.
+    pat: [
+      "THE HAND. THE HAND IS HERE.",
+      "*entire body wags*",
+      "Best thing. Best thing that has ever happened.",
+      "Again again again again.",
+      "I have never been happier and I say that every time.",
+      "*thumps tail so hard the grass moves*",
+    ],
+    pat_enough: [
+      "*still going* *will never stop* *is a little tired*",
+      "I could do this forever. I am doing this forever.",
+    ],
     idle: [
       "You came back!",
       "Throw it.",
@@ -610,8 +644,15 @@ const CALL_SPOILED_LINES = [
   "*smug beyond description*",
 ];
 
-// Poked when the call wants something a poke isn't.
-const CALL_WRONG_LINES: Record<Exclude<AttentionWant, "pat">, string[]> = {
+// Poked when the call wants something a poke isn't. A pat now belongs here too:
+// it asked to be held, and got jabbed. The distinction is the point.
+const CALL_WRONG_LINES: Record<AttentionWant, string[]> = {
+  pat: [
+    "That was a poke. I asked for a PAT.",
+    "Close. Now do it slower, and mean it.",
+    "A pat has a duration. Look it up.",
+    "Wrong verb. Try again with your whole hand.",
+  ],
   play: [
     "A poke is not a game. A GAME is a game.",
     "Nice tap. Now entertain me properly.",
@@ -645,7 +686,7 @@ export function attentionSpoiledLine(rng: () => number = Math.random): string {
 }
 
 export function attentionWrongLine(
-  want: Exclude<AttentionWant, "pat">,
+  want: AttentionWant,
   rng: () => number = Math.random,
 ): string {
   const bank = CALL_WRONG_LINES[want];

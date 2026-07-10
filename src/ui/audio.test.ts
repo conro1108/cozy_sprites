@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { SFX, isMuted, setMuted } from "./audio";
+import { SFX, isMuted, setMuted, playTone, playCubeClear } from "./audio";
 import type { SfxName } from "./audio";
 
 const NAMES = Object.keys(SFX) as SfxName[];
@@ -48,6 +48,20 @@ describe("sfx table", () => {
     for (const name of NAMES) {
       for (const tone of SFX[name]) expect(tone.dur).toBeGreaterThan(0.008);
     }
+  });
+
+  it("carries the sounds main.ts wires by exact name", () => {
+    // main.ts calls playSfx("pat"); a rename here would silently break it.
+    expect(SFX).toHaveProperty("pat");
+  });
+});
+
+describe("pitched cube tones", () => {
+  it("play without a WebAudio context and never throw", () => {
+    // Headless node has no AudioContext — these must no-op, not explode, so a
+    // silent test env still exercises the call sites.
+    for (const step of [0, 1, 3, 7, 12]) expect(() => playTone(step)).not.toThrow();
+    for (const streak of [0, 1, 4, 20]) expect(() => playCubeClear(streak)).not.toThrow();
   });
 });
 
