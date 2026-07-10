@@ -58,14 +58,18 @@ describe("dog muzzle", () => {
     expect(isEye(px(dog, 9, 9))).toBe(false);
   });
   it("gives happy an upturned smile clearly distinct from the neutral bar", () => {
-    // Corners lift a row above the bar (cols 5/9 on row 9), mirroring the wide
-    // FACE_HAPPY, with the 3px bar one row lower (cols 6-8 on row 10).
+    // Corners lift a row above the bar (cols 6/8 on row 9) — inset one column
+    // from the eyes (cols 5/9), or they'd line up under the eyes and read as
+    // a second pair instead of a smile. The 3px bar sits one row lower.
     const happy = renderPixels("dog", "happy");
-    expect(rgb(px(happy, 5, 9))).toEqual(EYE);
-    expect(rgb(px(happy, 9, 9))).toEqual(EYE);
+    expect(rgb(px(happy, 6, 9))).toEqual(EYE);
+    expect(rgb(px(happy, 8, 9))).toEqual(EYE);
     expect(rgb(px(happy, 6, 10))).toEqual(EYE);
     expect(rgb(px(happy, 7, 10))).toEqual(EYE);
     expect(rgb(px(happy, 8, 10))).toEqual(EYE);
+    // The lifted corners never sit under the eyes' own columns.
+    expect(isEye(px(happy, 5, 9))).toBe(false);
+    expect(isEye(px(happy, 9, 9))).toBe(false);
     // Neutral has no lifted corners, so the two moods can't be confused.
     expect(isEye(px(dog, 5, 9))).toBe(false);
     expect(isEye(px(dog, 9, 9))).toBe(false);

@@ -83,9 +83,11 @@ const FACE_SLEEP = [
 // The mouth centres on col 2 to match the eyes (cols 0/4) — a 2px bar could
 // never centre in an odd-width grid, so neutral rides a 3px bar. Happy lifts
 // its corners a row above the bar (mirroring the wide FACE_HAPPY) so the two
-// resting moods stay unmistakable.
+// resting moods stay unmistakable — inset one column from the eyes (cols 1/3,
+// not 0/4), or the corners line up right under the eyes and read as a second
+// pair of them instead of a smile.
 const SMALL_NEUTRAL = ["e...e", ".....", ".eee."];
-const SMALL_HAPPY = ["e...e", ".....", "e...e", ".eee."];
+const SMALL_HAPPY = ["e...e", ".....", ".e.e.", ".eee."];
 const SMALL_SAD = ["e...e", ".....", ".e.e.", "..e.."];
 const SMALL_SLEEP = ["ee.ee", ".....", "..e.."];
 
