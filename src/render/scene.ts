@@ -370,7 +370,15 @@ export class Scene {
       .sort((a, b) => a.x - b.x); // sweep left → right
     // Longer floors take longer: a beat of lead-in plus time per mess.
     const dur = spots.length > 0 ? 500 + spots.length * 450 : 900;
-    this.startAct("clean", dur, { spots, cleanedAt: spots.map(() => -1) }, onDone);
+    const dx = this.wanderX;
+    const dy = this.wanderY;
+    this.startAct("clean", dur, { spots, cleanedAt: spots.map(() => -1), dx, dy }, onDone);
+    // The broom sweeps the floor; the pet just watches from where it stands —
+    // don't let startAct snap it to center (mirrors playPoop).
+    this.wanderX = dx;
+    this.wanderY = dy;
+    this.wanderTargetX = dx;
+    this.wanderTargetY = dy;
   }
 
   /** Ball arcs out (power 0..1); the variant decides how it (doesn't) come back. */
@@ -1159,7 +1167,9 @@ export class Scene {
 
     switch (act.type) {
       case "clean": {
-        if (!this.hidden) this.drawCreature(t, 0, 1, null);
+        const cdx = act.data.dx as number;
+        const cdy = act.data.dy as number;
+        if (!this.hidden) this.drawCreature(t, cdx, 1, null, undefined, undefined, cdy);
         const spots = act.data.spots as { x: number; yOffset: number }[];
         const cleanedAt = act.data.cleanedAt as number[];
         const n = spots.length;
