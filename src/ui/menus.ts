@@ -1467,20 +1467,29 @@ export function openCollection(ctx: MenuCtx): void {
   }
   p.body.appendChild(grid);
 
-  const farm = ctx.farm();
-  const h = document.createElement("h2");
-  h.innerHTML = `${iconHTML("tractor", 18)} The Farm`;
-  h.style.fontSize = "1.1rem";
-  h.style.marginTop = "18px";
-  p.body.appendChild(h);
+  const farmSection = document.createElement("div");
+  p.body.appendChild(farmSection);
 
-  // Always render the yard, even with nobody in it yet — the barn out on the
-  // horizon is the (undocumented) way in to resetFarm(), so it has to exist
-  // whether or not you've retired anyone.
-  p.body.appendChild(farmYard(farm, () => confirmResetFarm(ctx, p)));
+  // Rebuilt in place after a reset so the reveal stays on this screen instead
+  // of dumping the player back out to the sprite scene.
+  const renderFarm = () => {
+    farmSection.replaceChildren();
+    const h = document.createElement("h2");
+    h.innerHTML = `${iconHTML("tractor", 18)} The Farm`;
+    h.style.fontSize = "1.1rem";
+    h.style.marginTop = "18px";
+    farmSection.appendChild(h);
+    // Always render the yard, even with nobody in it yet — the barn out on
+    // the horizon is the (undocumented) way in to resetFarm(), so it has to
+    // exist whether or not you've retired anyone.
+    farmSection.appendChild(
+      farmYard(ctx.farm(), () => confirmResetFarm(ctx, renderFarm)),
+    );
+  };
+  renderFarm();
 }
 
-function confirmResetFarm(ctx: MenuCtx, parent: Panel): void {
+function confirmResetFarm(ctx: MenuCtx, onReset: () => void): void {
   const p = openPanel(
     "Reset the farm?",
     "This is permanent. Every retiree and gravestone is gone for good.",
@@ -1495,7 +1504,7 @@ function confirmResetFarm(ctx: MenuCtx, parent: Panel): void {
   confirm.addEventListener("click", () => {
     ctx.resetFarm();
     p.close();
-    parent.close();
+    onReset();
   });
   const cancel = document.createElement("button");
   cancel.className = "btn secondary";
