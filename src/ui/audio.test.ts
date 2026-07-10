@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SFX, isMuted, setMuted, playTone, playCubeClear } from "./audio";
+import { SFX, isMuted, setMuted, playTone, playCubeClear, playSong } from "./audio";
 import type { SfxName } from "./audio";
 
 const NAMES = Object.keys(SFX) as SfxName[];
@@ -62,6 +62,13 @@ describe("pitched cube tones", () => {
     // silent test env still exercises the call sites.
     for (const step of [0, 1, 3, 7, 12]) expect(() => playTone(step)).not.toThrow();
     for (const streak of [0, 1, 4, 20]) expect(() => playCubeClear(streak)).not.toThrow();
+  });
+});
+
+describe("idle song", () => {
+  it("plays without a WebAudio context and never throws", () => {
+    // Picks a phrase at random, so exercise it enough times to hit each one.
+    for (let i = 0; i < 25; i++) expect(() => playSong()).not.toThrow();
   });
 });
 

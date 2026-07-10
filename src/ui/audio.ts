@@ -219,6 +219,34 @@ export function playTone(step: number): void {
   playTones([{ freq: pentatonic(step), dur: 0.16, at: 0, type: "triangle", gain: 0.5 }]);
 }
 
+// A handful of short, cheerful phrases the buddy hums to itself while idling.
+// Each entry is a list of pentatonic scale steps, so however they're ordered
+// the notes stay consonant; picking one at random keeps the song from wearing
+// out its welcome the way a single fixed jingle would.
+const SONGS: number[][] = [
+  [0, 2, 4, 2, 4, 5],
+  [4, 2, 0, 2, 4, 4],
+  [0, 4, 2, 4, 5, 4],
+  [2, 4, 5, 4, 2, 0],
+];
+
+/** Play one of the idle songs — a soft, skipping pentatonic phrase. Gentle
+ *  triangle tone so it sits under the scene rather than over it. The last note
+ *  rings a touch longer to land the phrase. */
+export function playSong(): void {
+  const song = SONGS[Math.floor(Math.random() * SONGS.length)];
+  const step = 0.19; // seconds per note — an easy, skipping tempo
+  playTones(
+    song.map((n, i) => ({
+      freq: pentatonic(n),
+      dur: i === song.length - 1 ? 0.3 : 0.17,
+      at: i * step,
+      type: "triangle" as OscillatorType,
+      gain: 0.42,
+    })),
+  );
+}
+
 /** A short rising flourish for clearing a hum. The whole run steps up with the
  *  streak, so longer runs literally sound higher and prouder. */
 export function playCubeClear(streak: number): void {

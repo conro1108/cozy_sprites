@@ -50,7 +50,7 @@ import { creatureKey } from "./render/sprites";
 import type { Mood } from "./render/sprites";
 import { iconHTML, iconUrl } from "./render/icons";
 import { notify } from "./ui/notifications";
-import { playSfx, unlockAudio } from "./ui/audio";
+import { playSfx, playSong, unlockAudio } from "./ui/audio";
 import { initMenus, openCare, openCollection, openFood, openPlay, openStatus } from "./ui/menus";
 import { randomName } from "./pet/names";
 
@@ -258,6 +258,7 @@ function mountGame(): void {
 
   const canvas = app.querySelector<HTMLCanvasElement>("#scene")!;
   scene = new Scene(canvas);
+  scene.onIdleSong(() => playSong());
   scene.start();
   bindPetGestures(canvas);
 

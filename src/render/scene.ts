@@ -140,6 +140,20 @@ function quirk(t: number, period: number, dur: number, offset = 0): number {
   return c < dur ? c / dur : -1;
 }
 
+// Idle song cadence. On its own slow schedule (not tied to any one quirk), but
+// on the same order as the quirk periods so a song lands near a quirky move
+// often enough to feel like the buddy hums around its little trick.
+const SONG_PERIOD = 23; // seconds between idle songs
+const SONG_DUR = 2.8; // how long the notes drift up
+
+/** A stable phase offset in [0, period) derived from the creature key, so no
+ *  two forms sing in unison (and a given form always sings on the same beat). */
+function keyPhase(key: string, period: number): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) % 997;
+  return (h / 997) * period;
+}
+
 /** The trot: the bounce every creature uses when it's actually going
  *  somewhere — shared so carried objects can ride the same rhythm. */
 export function trotBob(t: number): number {
@@ -223,6 +237,13 @@ export class Scene {
   // When the pet last fell asleep — eases the settle-down and times the Zzz.
   private sleepStart = -Infinity;
 
+  // Idle singing: music notes float up like the Zzz, and a callback fires the
+  // sound once as the window opens. songOffset phases it per creature; the
+  // cycle guard turns the once-per-frame check into a once-per-song sound.
+  private singHandler: (() => void) | null = null;
+  private songOffset = 0;
+  private lastSongCycle = -1;
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
@@ -250,6 +271,7 @@ export class Scene {
 
   update(view: SceneView): void {
     if (view.asleep && !this.view.asleep) this.sleepStart = performance.now();
+    if (view.key !== this.view.key) this.songOffset = keyPhase(view.key, SONG_PERIOD);
     this.view = view;
     const cacheKey = `${view.key}:${view.mood}:${view.variant ?? ""}`;
     if (cacheKey !== this.creatureCacheKey) {
@@ -263,6 +285,12 @@ export class Scene {
   triggerPulse(p: Pulse): void {
     this.pulse = p;
     this.pulseStart = performance.now();
+  }
+
+  /** Register the sound to play when the pet strikes up an idle song. Kept as
+   *  a callback so the render layer never has to import the audio module. */
+  onIdleSong(handler: () => void): void {
+    this.singHandler = handler;
   }
 
   /** A rare celebratory flourish (main fires this roughly once an hour). */
@@ -633,6 +661,45 @@ export class Scene {
       }
       ctx.globalAlpha = 1;
     }
+
+    // The idle song: now and then the buddy hums a little tune — music notes
+    // drift up like the Zzz, and (via the sing handler) a soft pentatonic
+    // phrase plays once as the window opens. Suppressed whenever it wouldn't
+    // ring true: asleep, hiding, still an egg, mid-act/flourish/age-up, having
+    // a tantrum, or plainly sad.
+    if (
+      !v.asleep &&
+      !this.hidden &&
+      v.key !== "egg" &&
+      !v.tantrum &&
+      v.mood !== "sad" &&
+      !this.busy() &&
+      !this.flourishing() &&
+      !this.evolving()
+    ) {
+      const qs = quirk(t, SONG_PERIOD, SONG_DUR, this.songOffset);
+      if (qs >= 0) {
+        // Fire the sound once per window — the cycle index only ticks over
+        // between songs, so re-entering the same window never retriggers it.
+        const cycle = Math.floor((t + this.songOffset) / SONG_PERIOD);
+        if (cycle !== this.lastSongCycle) {
+          this.lastSongCycle = cycle;
+          this.singHandler?.();
+        }
+        const cx = CREATURE_X + this.curDx;
+        const headY = FLOOR_Y + this.curDy - 20;
+        for (let i = 0; i < 3; i++) {
+          const q = qs - i * 0.2; // each note trails the one before it
+          if (q < 0 || q > 1) continue;
+          const nx = cx + 6 + i * 6 + Math.sin(q * Math.PI * 3 + i * 1.7) * 3;
+          const ny = headY - q * 22;
+          const fadeIn = Math.min(1, q / 0.12);
+          ctx.globalAlpha = fadeIn * Math.max(0, 1 - Math.max(0, q - 0.55) * 2.2);
+          this.drawNote(Math.round(nx), Math.round(ny), i % 2 === 1);
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
   }
 
   /** A pixel Z at unit size `s` (1 = 4×4) — kept small so it sits in the same
@@ -654,6 +721,25 @@ export class Scene {
     ctx.fillRect(x + 2, y, 1, 1);
     ctx.fillRect(x, y + 1, 3, 1);
     ctx.fillRect(x + 1, y + 2, 1, 1);
+  }
+
+  /** A little music note in warm gold — the sung counterpart to the Zzz. A
+   *  single eighth note (♪) or a beamed pair (♫) for variety across the trail. */
+  private drawNote(x: number, y: number, beamed: boolean): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = "#ffdf7a";
+    if (beamed) {
+      ctx.fillRect(x, y, 6, 1); // beam across the top
+      ctx.fillRect(x, y + 1, 1, 4); // left stem
+      ctx.fillRect(x + 5, y + 1, 1, 4); // right stem
+      ctx.fillRect(x - 1, y + 4, 2, 2); // left notehead
+      ctx.fillRect(x + 4, y + 4, 2, 2); // right notehead
+    } else {
+      ctx.fillRect(x + 3, y, 1, 5); // stem
+      ctx.fillRect(x + 4, y, 2, 1); // flag
+      ctx.fillRect(x + 4, y + 1, 1, 1); // flag curl
+      ctx.fillRect(x + 1, y + 4, 3, 2); // notehead
+    }
   }
 
   private drawFence(dark: boolean, night: boolean): void {
