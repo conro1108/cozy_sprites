@@ -162,10 +162,19 @@ function audio(): AudioContext | null {
 }
 
 /** Call from a real user gesture. iOS in particular will only let an
- *  AudioContext start from inside one, so the first tap buys every later beep. */
+ *  AudioContext start from inside one, so the first tap buys every later beep.
+ *
+ *  Also the fix for going quiet after the PWA is backgrounded and returns:
+ *  iOS suspends (or non-standardly marks "interrupted") the context while
+ *  hidden, and can tear it down to "closed" entirely, so this both resumes
+ *  and — if closed — throws it away so `audio()` builds a fresh one. */
 export function unlockAudio(): void {
+  if (ctx && ctx.state === "closed") {
+    ctx = null;
+    master = null;
+  }
   const c = audio();
-  if (c && c.state === "suspended") void c.resume();
+  if (c && c.state !== "running") void c.resume();
 }
 
 export function playSfx(name: SfxName): void {

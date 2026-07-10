@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SFX, isMuted, setMuted, playTone, playCubeClear } from "./audio";
 import type { SfxName } from "./audio";
 
@@ -62,6 +62,61 @@ describe("pitched cube tones", () => {
     // silent test env still exercises the call sites.
     for (const step of [0, 1, 3, 7, 12]) expect(() => playTone(step)).not.toThrow();
     for (const streak of [0, 1, 4, 20]) expect(() => playCubeClear(streak)).not.toThrow();
+  });
+});
+
+describe("unlockAudio surviving a backgrounded PWA", () => {
+  // A minimal stand-in for the bits of AudioContext unlockAudio touches.
+  // Instances self-register so a test can inspect the one `audio()` built.
+  class FakeAudioContext {
+    static instances: FakeAudioContext[] = [];
+    state: AudioContextState = "suspended";
+    resumeCalls = 0;
+    constructor() {
+      FakeAudioContext.instances.push(this);
+    }
+    createGain() {
+      return { gain: { value: 0 }, connect: () => {} };
+    }
+    resume() {
+      this.resumeCalls++;
+      this.state = "running";
+      return Promise.resolve();
+    }
+  }
+
+  beforeEach(() => {
+    FakeAudioContext.instances = [];
+    (globalThis as { window?: unknown }).window = { AudioContext: FakeAudioContext };
+  });
+
+  afterEach(() => {
+    delete (globalThis as { window?: unknown }).window;
+  });
+
+  it("resumes the existing context in place, e.g. after Safari marks it interrupted", async () => {
+    vi.resetModules();
+    const mod = await import("./audio");
+    mod.unlockAudio();
+    expect(FakeAudioContext.instances).toHaveLength(1);
+    expect(FakeAudioContext.instances[0].resumeCalls).toBe(1);
+
+    // Non-standard WebKit state used when the audio session is interrupted
+    // (backgrounding a PWA, a phone call) — not in the DOM lib's type, hence the cast.
+    FakeAudioContext.instances[0].state = "interrupted" as AudioContextState;
+    mod.unlockAudio();
+    expect(FakeAudioContext.instances).toHaveLength(1); // same instance, just resumed again
+    expect(FakeAudioContext.instances[0].resumeCalls).toBe(2);
+  });
+
+  it("builds a fresh context when the old one was torn down to closed", async () => {
+    vi.resetModules();
+    const mod = await import("./audio");
+    mod.unlockAudio();
+    FakeAudioContext.instances[0].state = "closed";
+
+    mod.unlockAudio();
+    expect(FakeAudioContext.instances).toHaveLength(2);
   });
 });
 

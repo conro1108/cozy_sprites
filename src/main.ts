@@ -102,9 +102,10 @@ initMenus(app);
 boot();
 
 function boot(): void {
-  // Audio can only start from inside a real gesture, so spend the first one on
-  // waking the context. Everything after it is free.
-  document.addEventListener("pointerdown", unlockAudio, { once: true });
+  // Audio can only start from inside a real gesture, so every tap nudges the
+  // context awake. Cheap once it's already running — not just-once, because a
+  // backgrounded PWA can suspend or tear down the context before the next tap.
+  document.addEventListener("pointerdown", unlockAudio);
   pet = loadPet();
   if (!pet) {
     mountHatch();
@@ -956,9 +957,12 @@ function pick<T>(arr: readonly T[]): T {
 
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") commit();
-  else if (pet && !dying) {
-    stepPet(Date.now(), true);
-    commit();
+  else {
+    unlockAudio();
+    if (pet && !dying) {
+      stepPet(Date.now(), true);
+      commit();
+    }
   }
 });
 
