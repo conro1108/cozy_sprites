@@ -569,9 +569,15 @@ describe("fiber-driven pooping", () => {
     // Poops cap at 4, but pressure kept climbing with every meal. A player who
     // fed a messy pet banked an invisible queue that dumped a poop per tick the
     // moment they cleaned up.
+    //
+    // Cake, not carrot: a proper meal is refused once hunger is full and never
+    // reaches the pressure line, so it can't actually drive pressure up. Treats
+    // are always accepted — which is exactly how a player banks a backlog.
     let pet = asStage({ ...createPet("Milo", T0), poops: 4 }, "baby");
-    for (let i = 0; i < 20; i++) pet = feed(pet, "carrot", T0).state;
-    expect(pet.poopPressure).toBeLessThanOrEqual(2);
+    for (let i = 0; i < 20; i++) pet = feed(pet, "cake", T0).state;
+    // Uncapped this would be 20 × 0.15 fiber × 2.2 baby digestion = 6.6.
+    expect(pet.poopPressure).toBeGreaterThan(1); // the backlog is real…
+    expect(pet.poopPressure).toBeLessThanOrEqual(2); // …but bounded
 
     // Sweep, then run several quiet ticks: the backlog must run dry, not refill.
     pet = { ...pet, poops: 0 };
