@@ -80,8 +80,12 @@ const FACE_SLEEP = [
 ];
 
 // Small faces for narrow bodies (5 wide). Blitted at each body's face offset.
-const SMALL_NEUTRAL = ["e...e", ".....", "..ee."];
-const SMALL_HAPPY = ["e...e", ".....", ".eee."];
+// The mouth centres on col 2 to match the eyes (cols 0/4) — a 2px bar could
+// never centre in an odd-width grid, so neutral rides a 3px bar. Happy lifts
+// its corners a row above the bar (mirroring the wide FACE_HAPPY) so the two
+// resting moods stay unmistakable.
+const SMALL_NEUTRAL = ["e...e", ".....", ".eee."];
+const SMALL_HAPPY = ["e...e", ".....", "e...e", ".eee."];
 const SMALL_SAD = ["e...e", ".....", ".e.e.", "..e.."];
 const SMALL_SLEEP = ["ee.ee", ".....", "..e.."];
 
@@ -241,8 +245,9 @@ const DOG: BodyDef = {
   faceDx: 5,
   faceDy: 7,
   overlay: {
-    // A proper puppy muzzle: nose up between the eyes, a 1px philtrum running
-    // down to the mood mouth — reads like 工, not two stacked dashes.
+    // A proper puppy muzzle: a 3px nose between the eyes over a 1px philtrum,
+    // centred so the stem runs true down to the mood mouth — reads like 工, not
+    // two stacked dashes.
     rows: [
       "................",
       "................",
@@ -251,7 +256,7 @@ const DOG: BodyDef = {
       "................",
       "................",
       "................",
-      ".......nn.......",
+      "......nnn.......",
       ".......n........",
     ],
     palette: { n: "#6b4a2a" },
@@ -826,8 +831,28 @@ export function renderPixels(
   if (shift === 0) {
     blit(buf, rows, facePalette, body.faceDx, body.faceDy);
   } else {
-    // Gaze rows slide sideways; the mouth stays anchored to the body.
-    blit(buf, rows.slice(0, split), facePalette, body.faceDx + shift, body.faceDy);
+    // Slide the gaze in the glance direction — but the 5-wide face puts an eye at
+    // each extreme column, so on a narrow body an eye can be flush to the edge.
+    // Eye colour and outline are near-identical: a gaze pixel landing on the
+    // outline vanishes into the edge and eats the k. So each eye moves only if
+    // its target is clear; a blocked eye holds while its partner slides. The
+    // pair bunches, and even a gaze that can't travel still reads as a glance
+    // because the spacing shifts — no eye ever overwrites an outline.
+    const shifted = rows.slice(0, split).map((r, gy) => {
+      const brow = body.rows[body.faceDy + gy] ?? "";
+      const cells = Array.from({ length: CELL }, () => ".");
+      for (let x = 0; x < r.length; x++) {
+        const ch = r[x];
+        if (ch === "." || ch === " ") continue;
+        const from = body.faceDx + x;
+        const to = from + shift;
+        const col = brow[to] === "k" ? from : to;
+        if (col >= 0 && col < CELL) cells[col] = ch;
+      }
+      return cells.join("");
+    });
+    blit(buf, shifted, facePalette, 0, body.faceDy);
+    // The mouth stays anchored to the body.
     blit(buf, rows.slice(split), facePalette, body.faceDx, body.faceDy + split);
   }
   return buf;

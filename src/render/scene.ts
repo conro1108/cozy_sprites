@@ -80,11 +80,14 @@ const WANDER_TARGETS: WanderTarget[] = [
 ];
 const WALK_SPEED = 16; // px / second
 const FLOURISH_DUR = 1.7; // seconds
+const EVOLVE_DUR = 1.4; // seconds — the shared age-up transformation
 
-// The stump doubles as a seat. Perching lifts the sprite so its bottom rests
-// on the sawn top (which sits just above the floor line at the stump's x).
+// The stump doubles as a seat. Perching lifts the sprite so its *real* feet
+// rest on the sawn top (which sits just above the floor line at the stump's x).
+// The lift is derived per-sprite in seatBob() from each body's empty bottom
+// rows — a fixed constant floated the shorter bodies above the wood.
 const STUMP_SEAT_DX = 15 - CREATURE_X; // stump centre, relative to rest
-const STUMP_SEAT_LIFT = 11; // px up from standing to sitting on the cut
+const STUMP_SEAT_TOP_DY = 3; // sawn cut, floor-relative (mirrors drawStump)
 
 /** The plop: a deep squash on contact, a small rebound past true, settle.
  *  q runs 0..1 over the plop; ≥1 means it's over. */
@@ -178,6 +181,17 @@ export class Scene {
   // Flourish (rare easter-egg animation).
   private flourishStart = -Infinity;
 
+  // Age-up: a shared evolve burst that plays over every stage boundary.
+  private evolveStart = -Infinity;
+  // White-silhouette cache for the evolve flash, keyed by source frame so a
+  // rebuilt sprite drops its stale whitened copy for free.
+  private whiteCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
+
+  // Fraction of the sprite grid empty *below* its lowest opaque row — the seat
+  // lift reads this so each body's feet land on the wood (see seatBob). Cached
+  // on sprite swap, like creatureCacheKey; scanning pixels every frame is silly.
+  private seatBottomFrac = 0;
+
   // When the pet last fell asleep — eases the settle-down and times the Zzz.
   private sleepStart = -Infinity;
 
@@ -214,6 +228,7 @@ export class Scene {
       this.frames = buildCreatureFrames(view.key, view.mood, view.variant);
       this.creatureCanvas = this.frames.base;
       this.creatureCacheKey = cacheKey;
+      this.seatBottomFrac = spriteBottomFraction(this.creatureCanvas);
     }
   }
 
@@ -236,6 +251,26 @@ export class Scene {
 
   private flourishing(): boolean {
     return (performance.now() - this.flourishStart) / 1000 < FLOURISH_DUR;
+  }
+
+  /** The age-up: anticipation, a white-silhouette flash that hides the sprite
+   *  swap, a sparkle burst, and a settle. main fires this on every stage
+   *  boundary; safe to call mid-wander or mid-perch — it takes over the body. */
+  triggerEvolve(): void {
+    if (this.hidden) return;
+    this.evolveStart = performance.now();
+    // Drop any wander/perch and hold it centred-in-place through the transform.
+    this.wanderPhase = "dwell";
+    this.wanderUntil = performance.now() + EVOLVE_DUR * 1000 + 400;
+  }
+
+  private evolving(): boolean {
+    return (performance.now() - this.evolveStart) / 1000 < EVOLVE_DUR;
+  }
+
+  /** 0..1 over the evolve. */
+  private evolveP(): number {
+    return Math.min(1, (performance.now() - this.evolveStart) / (EVOLVE_DUR * 1000));
   }
 
   // --- Acts ------------------------------------------------------------------
@@ -465,11 +500,27 @@ export class Scene {
       ctx.fillRect(gx, gy, 2, 1);
       ctx.fillRect(gx + 1, gy - 1, 1, 1);
     }
-    // worn dirt patch where the creature stands
+    // Worn dirt patch where the creature stands. Built from integer rows (no
+    // ellipse) so it matches the meadow's hard-edged pixels — but its rim is
+    // stippled, dirt fading to grass in a checkerboard, so it reads as trodden
+    // ground rather than a drawn oval competing with the props.
     ctx.fillStyle = dark ? "#3a3228" : v.night ? "#5c4c38" : "#c9a96a";
-    ctx.beginPath();
-    ctx.ellipse(CREATURE_X, FLOOR_Y + 12, 26, 7, 0, 0, Math.PI * 2);
-    ctx.fill();
+    const dcx = CREATURE_X;
+    const dcy = FLOOR_Y + 12;
+    const dirtRim: [number, number][] = [
+      [-6, 10], [-5, 15], [-4, 19], [-3, 21], [-2, 23], [-1, 25],
+      [0, 26], [1, 25], [2, 23], [3, 21], [4, 18], [5, 15], [6, 10],
+    ];
+    for (const [dy, hw] of dirtRim) {
+      const y = dcy + dy;
+      const core = hw - 3;
+      ctx.fillRect(dcx - core, y, core * 2 + 1, 1); // solid trodden centre
+      for (let k = core + 1; k <= hw; k++) {
+        // stipple the outer few px so the edge wears into the grass
+        if (((dcx - k) ^ y) & 1) ctx.fillRect(dcx - k, y, 1, 1);
+        if (((dcx + k) ^ y) & 1) ctx.fillRect(dcx + k, y, 1, 1);
+      }
+    }
 
     // --- The ground plane: depth-sorted, drawn back-to-front --------------------
     // Everything standing on the grass sorts by where it meets the ground, so
@@ -592,42 +643,71 @@ export class Scene {
 
   private drawStump(dark: boolean, night: boolean): void {
     const ctx = this.ctx;
-    const cx = 15; // centre of the old stump's footprint
-    const top = this.floorY + 3;
+    const cx = 15; // footprint centre — drives STUMP_SEAT_DX
+    const top = this.floorY + 3; // the sawn cut; perched feet land here (STUMP_SEAT_TOP_DY)
     const bark = dark ? "#3f3128" : night ? "#5e4634" : "#8a5a3c";
     const barkDark = dark ? "#33281f" : night ? "#4e3a2c" : "#75482e";
     const wood = dark ? "#4f3e32" : night ? "#77593e" : "#c99a64";
     const ring = dark ? "#3f3126" : night ? "#5e4630" : "#a5764a";
-    // Trunk: bark sides with grooves, flaring into roots at the grass. Full
-    // ellipse width all the way down — a narrower trunk pinches into a waist.
+    // Everything here is hand-placed on integer rows — fillRect only, no
+    // ellipse — so the stump stays hard-edged pixel art like the rest of the
+    // meadow. `oval` paints a run-length table of [dy, x, width] rows measured
+    // from the cut, which is how the round shapes keep their crisp outline.
+    const oval = (rows: [number, number, number][]) => {
+      for (const [dy, x, w] of rows) ctx.fillRect(x, top + dy, w, 1);
+    };
+
+    // Trunk: a chunky bark barrel flaring into roots that grip the grass.
     ctx.fillStyle = bark;
-    ctx.fillRect(6, top, 18, 9);
-    ctx.fillRect(4, top + 7, 22, 3); // root flare
+    ctx.fillRect(6, top + 1, 19, 9); // barrel
+    ctx.fillRect(4, top + 8, 23, 3); // root flare
     ctx.fillStyle = barkDark;
-    ctx.fillRect(9, top + 2, 1, 7);
-    ctx.fillRect(14, top + 3, 1, 7);
-    ctx.fillRect(19, top + 2, 1, 6);
-    ctx.fillRect(6, top + 5, 1, 5); // shaded edges
-    ctx.fillRect(23, top + 5, 1, 5);
-    // The sawn top: an ellipse of pale wood with concentric growth rings.
-    ctx.fillStyle = bark; // rim of bark around the cut
-    ctx.beginPath();
-    ctx.ellipse(cx, top, 9, 4.5, 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.fillRect(10, top + 5, 1, 6); // grooves down the bark
+    ctx.fillRect(15, top + 5, 1, 6);
+    ctx.fillRect(20, top + 5, 1, 6);
+    ctx.fillRect(6, top + 5, 1, 6); // shaded barrel edges
+    ctx.fillRect(24, top + 5, 1, 6);
+
+    // The sawn top: a fat bark-rimmed oval of pale wood. A shadow row under the
+    // front lip lifts the seat proud of the barrel; a single growth ring and a
+    // heartwood pith give it the classic cut-log read.
+    ctx.fillStyle = bark;
+    oval([
+      [-4, 11, 9],
+      [-3, 9, 13],
+      [-2, 8, 15],
+      [-1, 6, 19],
+      [0, 6, 19],
+      [1, 6, 19],
+      [2, 7, 17],
+      [3, 9, 13],
+      [4, 11, 9],
+    ]);
+    ctx.fillStyle = barkDark;
+    oval([[3, 9, 13]]); // the overhang's shadow
     ctx.fillStyle = wood;
-    ctx.beginPath();
-    ctx.ellipse(cx, top, 8, 3.5, 0, 0, Math.PI * 2);
-    ctx.fill();
+    oval([
+      [-3, 10, 11],
+      [-2, 8, 15],
+      [-1, 7, 17],
+      [0, 7, 17],
+      [1, 8, 15],
+      [2, 10, 11],
+    ]);
     ctx.fillStyle = ring;
-    ctx.beginPath();
-    ctx.ellipse(cx, top, 5, 2, 0, 0, Math.PI * 2);
-    ctx.fill();
+    oval([
+      [-2, 11, 9],
+      [-1, 10, 11],
+      [0, 11, 9],
+    ]);
     ctx.fillStyle = wood;
-    ctx.beginPath();
-    ctx.ellipse(cx, top, 3, 1, 0, 0, Math.PI * 2);
-    ctx.fill();
+    oval([
+      [-2, 13, 5],
+      [-1, 12, 7],
+      [0, 13, 5],
+    ]);
     ctx.fillStyle = ring;
-    ctx.fillRect(cx - 1, top, 2, 1); // heartwood dot
+    ctx.fillRect(cx - 1, top - 1, 2, 1); // heartwood pith
   }
 
   private drawLantern(t: number, dark: boolean, v: SceneView): void {
@@ -842,6 +922,7 @@ export class Scene {
       if (!this.hidden) {
         this.updateWander(now);
         this.drawCreature(t, this.wanderX, 1, null, undefined, undefined, this.wanderY);
+        if (this.evolving()) this.drawEvolveBurst(t);
         // The humming cube's pulse throws a little light around.
         if (this.view.key === "humcube" && quirk(t, 8.2, 1.8) >= 0) {
           const hx = Math.round(CREATURE_X + this.curDx);
@@ -1298,8 +1379,8 @@ export class Scene {
     const dt = this.lastFrame ? Math.min(0.05, (now - this.lastFrame) / 1000) : 0;
     this.lastFrame = now;
     const v = this.view;
-    // Egg stays put; sleep, tantrum and flourish all suspend wandering.
-    if (v.key === "egg" || v.asleep || v.tantrum || this.flourishing()) {
+    // Egg stays put; sleep, tantrum, flourish and the age-up suspend wandering.
+    if (v.key === "egg" || v.asleep || v.tantrum || this.flourishing() || this.evolving()) {
       if (v.key === "egg") {
         this.wanderX = 0;
         this.wanderY = 0;
@@ -1418,6 +1499,17 @@ export class Scene {
     }
   }
 
+  /** The bob (negative = up) that rests the creature's *real* feet on the
+   *  stump's sawn top. Feet sit `12 - squashY·cw·bottomFrac` px below the
+   *  ground line (bottomFrac = empty rows under the sprite); we want them at
+   *  the cut, `STUMP_SEAT_TOP_DY` px below it. Squash is folded in so the plop
+   *  keeps the feet planted instead of sinking through the wood. Pure math on
+   *  cached inputs — could be unit-tested. */
+  private seatBob(squashY: number, cw: number): number {
+    const footBelowGround = 12 - squashY * cw * this.seatBottomFrac;
+    return STUMP_SEAT_TOP_DY - footBelowGround;
+  }
+
   /**
    * The ambient (non-act) motion of the creature: tantrum, flourish, walking,
    * prop reaction, or a per-personality idle. Returns bob + deformations.
@@ -1429,6 +1521,8 @@ export class Scene {
     const v = this.view;
     const m = { bob: 0, dx: 0, sx: 1, sy: 1, rot: 0 };
 
+    // The age-up owns the body outright — nothing else gets a say while it runs.
+    if (this.evolving()) return this.evolveMotion();
     if (v.asleep) {
       // Settle down into the grass like a little loaf, breathing slowly —
       // unmistakably asleep, not just standing there with its eyes shut.
@@ -1483,27 +1577,30 @@ export class Scene {
       m.sy = 1 + Math.sin(t * 8) * 0.02;
       return m;
     }
+    // The perch lift is per-sprite (seatBob); wanderY is 0 while seated, so cw
+    // matches the fixed-y stump exactly and the feet don't desync from it.
+    const seatCw = CELL * 3 * this.depthScale(this.wanderY);
     if (this.wanderPhase === "sitdown") {
       // Hop up onto the stump, then the mushy settle onto the cut.
       const q = Math.min(1, (performance.now() - this.phaseStart) / 560);
       if (q < 0.45) {
         const a = q / 0.45; // airborne: an eager little arc up
-        m.bob = -a * STUMP_SEAT_LIFT - Math.sin(a * Math.PI) * 7;
         m.sy = 1.06;
         m.sx = 0.96;
+        m.bob = this.seatBob(m.sy, seatCw) * a - Math.sin(a * Math.PI) * 7;
       } else {
         const p = plopSquash((q - 0.45) / 0.55); // contact: the mush
-        m.bob = -STUMP_SEAT_LIFT;
         m.sy = p.sy;
         m.sx = p.sx;
+        m.bob = this.seatBob(m.sy, seatCw);
       }
       return m;
     }
     if (this.wanderPhase === "sit") {
       // Perched: settled into a soft loaf, breathing, tail going if it has one.
-      m.bob = -STUMP_SEAT_LIFT + 1;
       m.sy = 0.86 + Math.sin(t * 1.4) * 0.018;
       m.sx = 1.1;
+      m.bob = this.seatBob(m.sy, seatCw);
       if (key === "dog" && quirk(t, 6.2, 1.6, 1.3) >= 0) {
         this.altFrame = Math.sin(t * 16) > 0; // a lazy seated wag
       }
@@ -1512,9 +1609,9 @@ export class Scene {
     if (this.wanderPhase === "situp") {
       // Hop down off the stump; the landing plop happens back in dwell.
       const q = Math.min(1, (performance.now() - this.phaseStart) / 480);
-      m.bob = -(1 - q) * STUMP_SEAT_LIFT - Math.sin(q * Math.PI) * 6;
       m.sy = 1.05;
       m.sx = 0.97;
+      m.bob = this.seatBob(m.sy, seatCw) * (1 - q) - Math.sin(q * Math.PI) * 6;
       return m;
     }
     const idle = this.idleMotion(t, key);
@@ -1636,10 +1733,12 @@ export class Scene {
         break;
       case "child":
         m.bob = -Math.abs(Math.sin(t * 2.2)) * 1.6; // can't stop hopping
-        if ((q = quirk(t, 8.9, 1.0)) >= 0) {
-          // An unprompted twirl, because standing still is for adults.
-          m.rot = q * Math.PI * 2;
-          m.bob -= Math.sin(q * Math.PI) * 4;
+        if ((q = quirk(t, 19.5, 1.2)) >= 0) {
+          // A hop with a cheeky half-twirl out and back — the full 360 stays
+          // reserved for the happy pulse, so a spin still means something.
+          const env = Math.sin(q * Math.PI);
+          m.rot = env * Math.PI; // out to a half-turn, then unwound
+          m.bob -= env * 5;
         }
         break;
       case "teen":
@@ -1690,6 +1789,31 @@ export class Scene {
         break;
       default:
         m.rot = p * Math.PI * 2;
+    }
+    return m;
+  }
+
+  /** The age-up body shape: coil down (anticipation), spring up tall through
+   *  the flash, then plop back to itself. The white flash + burst are drawn
+   *  separately; this just deforms the body so the swap doesn't pop. */
+  private evolveMotion(): { bob: number; dx: number; sx: number; sy: number; rot: number } {
+    const p = this.evolveP();
+    const m = { bob: 0, dx: 0, sx: 1, sy: 1, rot: 0 };
+    if (p < 0.35) {
+      const a = p / 0.35; // gather: squash down and widen
+      m.sy = 1 - a * 0.24;
+      m.sx = 1 + a * 0.18;
+      m.bob = a * 3;
+      m.rot = Math.sin(a * Math.PI * 3) * 0.04; // a held shiver
+    } else if (p < 0.6) {
+      const env = Math.sin(((p - 0.35) / 0.25) * Math.PI); // launch up and back
+      m.sy = 1 + env * 0.3;
+      m.sx = 1 - env * 0.16;
+      m.bob = -env * 10;
+    } else {
+      const s = plopSquash((p - 0.6) / 0.4); // arrive: the new form settles in
+      m.sy = s.sy;
+      m.sx = s.sx;
     }
     return m;
   }
@@ -1767,7 +1891,7 @@ export class Scene {
     }
 
     const pdt = (performance.now() - this.pulseStart) / 1000;
-    if (this.pulse !== "none" && pdt < 0.6) {
+    if (this.pulse !== "none" && pdt < 0.6 && !this.evolving()) {
       const p = pdt / 0.6;
       if (this.pulse === "happy" || this.pulse === "eat" || this.pulse === "love") {
         bob -= Math.abs(Math.sin(p * Math.PI * 3)) * 6;
@@ -1816,15 +1940,45 @@ export class Scene {
       }
     }
 
-    // Soft shadow (fainter under a hovering ghost)
-    ctx.fillStyle = isGhost ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.15)";
+    // Soft shadow (fainter under a hovering ghost). While perched, the ground
+    // shadow would fall through the stump's trunk — so blend it into a small
+    // contact shadow on the sawn top, following the feet up off the grass
+    // (sitdown/situp) and settling onto the wood (sit). `s` runs 0 = on the
+    // grass → 1 = resting on the cut, read straight off how far the seat lift
+    // has carried the feet.
     const shW = cw * (isGhost ? 0.5 : 0.7);
-    ctx.fillRect(
-      Math.round(CREATURE_X + dx - shW / 2),
-      Math.round(groundY + 6),
-      Math.round(shW),
-      3,
-    );
+    const seated =
+      ambient &&
+      (this.wanderPhase === "sitdown" ||
+        this.wanderPhase === "sit" ||
+        this.wanderPhase === "situp");
+    if (seated) {
+      const sb = this.seatBob(squashY, cw);
+      const s = sb !== 0 ? Math.max(0, Math.min(1, bob / sb)) : 1;
+      if (s < 1) {
+        // still near the grass: a ground shadow that shrinks and fades away
+        ctx.fillStyle = `rgba(0,0,0,${0.15 * (1 - s)})`;
+        const w = shW * (1 - s * 0.45);
+        ctx.fillRect(Math.round(CREATURE_X + dx - w / 2), Math.round(groundY + 6), Math.round(w), 3);
+      }
+      if (s > 0) {
+        // landed on the cut: a small contact shadow, hard-edged like the wood
+        // it sits on and tucked inside the rim, right under the feet
+        ctx.fillStyle = `rgba(0,0,0,${0.22 * s})`;
+        const scx = Math.round(CREATURE_X + dx);
+        const sy = this.floorY + STUMP_SEAT_TOP_DY;
+        ctx.fillRect(scx - 4, sy - 1, 9, 1);
+        ctx.fillRect(scx - 5, sy, 11, 1);
+      }
+    } else {
+      ctx.fillStyle = isGhost ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.15)";
+      ctx.fillRect(
+        Math.round(CREATURE_X + dx - shW / 2),
+        Math.round(groundY + 6),
+        Math.round(shW),
+        3,
+      );
+    }
 
     const baseY = groundY - cw + 12;
     // The egg never travels, so it never flips.
@@ -1845,7 +1999,62 @@ export class Scene {
     ctx.scale(squashX * flip, squashY);
     if (this.extraAlpha < 1) ctx.globalAlpha *= this.extraAlpha; // ghost flicker
     ctx.drawImage(sprite, -cw / 2, -cw / 2, cw, cw);
+    // The evolve flash: a pure-white silhouette bloomed over the sprite at the
+    // peak of the transform — whatever the frame, old or new, it's just white,
+    // so the stage swap underneath never shows.
+    const flash = this.evolveFlash();
+    if (flash > 0) {
+      const a = ctx.globalAlpha;
+      ctx.globalAlpha = a * flash;
+      ctx.drawImage(this.whiteFrame(sprite), -cw / 2, -cw / 2, cw, cw);
+      ctx.globalAlpha = a;
+    }
     ctx.restore();
+  }
+
+  /** Whitness of the evolve flash, 0..1, peaking as the new form springs up. */
+  private evolveFlash(): number {
+    if (!this.evolving()) return 0;
+    const p = this.evolveP();
+    if (p < 0.2 || p > 0.72) return 0;
+    return Math.sin(((p - 0.2) / 0.52) * Math.PI); // 0→1→0 across the peak
+  }
+
+  /** A pure-white copy of a sprite frame (its silhouette), cached per source. */
+  private whiteFrame(src: HTMLCanvasElement): HTMLCanvasElement {
+    let w = this.whiteCache.get(src);
+    if (!w) {
+      w = document.createElement("canvas");
+      w.width = src.width;
+      w.height = src.height;
+      const c = w.getContext("2d")!;
+      c.drawImage(src, 0, 0);
+      c.globalCompositeOperation = "source-atop"; // paint only where opaque
+      c.fillStyle = "#ffffff";
+      c.fillRect(0, 0, w.width, w.height);
+      this.whiteCache.set(src, w);
+    }
+    return w;
+  }
+
+  /** The evolve sparkle burst: a ring of sparks that blooms outward and up as
+   *  the new form settles, drawn over the creature. */
+  private drawEvolveBurst(t: number): void {
+    const p = this.evolveP();
+    if (p < 0.4) return;
+    const q = (p - 0.4) / 0.6; // 0→1 through the settle
+    const cx = CREATURE_X + this.curDx;
+    const cy = this.floorY + this.curDy - 14;
+    const n = 7;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + p * 1.5;
+      const r = 4 + q * 16;
+      this.drawSparkle(
+        Math.round(cx + Math.cos(a) * r),
+        Math.round(cy + Math.sin(a) * r * 0.7 - q * 4),
+        t * 6 + i,
+      );
+    }
   }
 }
 
@@ -1857,6 +2066,20 @@ function spriteTopFraction(c: HTMLCanvasElement): number {
   for (let y = 0; y < c.height; y++) {
     for (let x = 0; x < c.width; x++) {
       if (data[(y * c.width + x) * 4 + 3] > 0) return y / c.height;
+    }
+  }
+  return 0;
+}
+
+/** Fraction of a sprite canvas *below* its lowest opaque pixel row — the mirror
+ *  of spriteTopFraction, scanning up from the bottom. Bodies leave a different
+ *  number of empty rows under their feet (baby: one), so the perch lift reads
+ *  this to plant each on the stump's cut instead of floating a fixed amount. */
+function spriteBottomFraction(c: HTMLCanvasElement): number {
+  const data = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
+  for (let y = c.height - 1; y >= 0; y--) {
+    for (let x = 0; x < c.width; x++) {
+      if (data[(y * c.width + x) * 4 + 3] > 0) return (c.height - 1 - y) / c.height;
     }
   }
   return 0;

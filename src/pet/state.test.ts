@@ -17,6 +17,7 @@ import {
   stepEvents,
   tap,
 } from "./state";
+import { migratePet } from "./persistence";
 import type { PetState } from "./types";
 
 const T0 = 1_700_000_000_000;
@@ -542,5 +543,97 @@ describe("stepEvents", () => {
     const pet = createPet("Milo", T0);
     const { events } = stepEvents(pet, 60_000, () => 0);
     expect(events).toEqual([]);
+  });
+});
+
+describe("fiber-driven pooping", () => {
+  // rng high enough that nothing stochastic (ambient poop, sickness, calls)
+  // fires — isolates the deterministic digestion path.
+  const quiet = () => 0.999;
+
+  it("accumulates poop pressure when fed, scaled by fiber", () => {
+    const child = asStage(createPet("Milo", T0), "child");
+    const carrot = feed(child, "carrot", T0).state; // high fiber
+    const cube = feed(child, "cube", T0).state; // weird/low fiber
+    expect(carrot.poopPressure).toBeGreaterThan(0);
+    expect(carrot.poopPressure).toBeGreaterThan(cube.poopPressure);
+  });
+
+  it("digests faster as a baby than as an adult", () => {
+    const babyFed = feed(asStage(createPet("Milo", T0), "baby"), "carrot", T0).state;
+    const adultFed = feed(asStage(createPet("Milo", T0), "adult"), "carrot", T0).state;
+    expect(babyFed.poopPressure).toBeGreaterThan(adultFed.poopPressure);
+  });
+
+  it("caps pressure so a backlog can't re-cover a swept meadow", () => {
+    // Poops cap at 4, but pressure kept climbing with every meal. A player who
+    // fed a messy pet banked an invisible queue that dumped a poop per tick the
+    // moment they cleaned up.
+    let pet = asStage({ ...createPet("Milo", T0), poops: 4 }, "baby");
+    for (let i = 0; i < 20; i++) pet = feed(pet, "carrot", T0).state;
+    expect(pet.poopPressure).toBeLessThanOrEqual(2);
+
+    // Sweep, then run several quiet ticks: the backlog must run dry, not refill.
+    pet = { ...pet, poops: 0 };
+    for (let i = 0; i < 6; i++) pet = stepEvents(pet, 60_000, quiet).state;
+    expect(pet.poops).toBeLessThanOrEqual(2);
+  });
+
+  it("fires exactly one poop when pressure crosses 1.0", () => {
+    const pet = asStage({ ...createPet("Milo", T0), poopPressure: 1.2 }, "child");
+    const { state, events } = stepEvents(pet, 60_000, quiet);
+    expect(events.filter((e) => e === "poop")).toHaveLength(1);
+    expect(state.poops).toBe(1);
+  });
+
+  it("keeps the remainder so a big meal queues the next poop", () => {
+    const pet = asStage({ ...createPet("Milo", T0), poopPressure: 1.2 }, "child");
+    const once = stepEvents(pet, 60_000, quiet).state;
+    expect(once.poopPressure).toBeCloseTo(0.2);
+
+    // A binge worth two-plus poops discharges one per tick, not all at once.
+    const glutton = asStage({ ...createPet("Milo", T0), poopPressure: 2.5 }, "child");
+    const t1 = stepEvents(glutton, 60_000, quiet);
+    const t2 = stepEvents(t1.state, 60_000, quiet);
+    expect(t1.events).toContain("poop");
+    expect(t2.events).toContain("poop");
+    expect(t2.state.poops).toBe(2);
+    expect(t2.state.poopPressure).toBeCloseTo(0.5);
+  });
+
+  it("still honours the poops<4 cap even when pressure is high", () => {
+    const pet = asStage({ ...createPet("Milo", T0), poops: 4, poopPressure: 5 }, "child");
+    const { state, events } = stepEvents(pet, 60_000, quiet);
+    expect(events).not.toContain("poop");
+    expect(state.poops).toBe(4);
+  });
+
+  it("still poops ambiently on a pet that hasn't eaten", () => {
+    // No pressure at all — only the baseline chance can fire it.
+    const pet = asStage(createPet("Milo", T0), "child");
+    expect(pet.poopPressure).toBe(0);
+    const { events } = stepEvents(pet, 60_000, () => 0);
+    expect(events).toContain("poop");
+  });
+
+  it("does not poop with no pressure and an unfavourable roll", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    const { events } = stepEvents(pet, 60_000, quiet);
+    expect(events).not.toContain("poop");
+  });
+});
+
+describe("save migration", () => {
+  it("backfills poopPressure on a save that predates the field", () => {
+    // Strip the field the way an older save wouldn't have it at all.
+    const { poopPressure: _drop, ...legacy } = createPet("Ancient", T0);
+    const migrated = migratePet(legacy as unknown as PetState);
+    expect(migrated.poopPressure).toBe(0);
+
+    // And the backfilled value survives arithmetic — no silent NaN jamming
+    // pooping shut forever.
+    const fed = feed(asStage(migrated, "child"), "carrot", T0).state;
+    expect(Number.isNaN(fed.poopPressure)).toBe(false);
+    expect(fed.poopPressure).toBeGreaterThan(0);
   });
 });

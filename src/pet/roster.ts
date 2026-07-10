@@ -9,14 +9,18 @@ export interface FoodDef {
   hunger: number; // hearts restored
   happiness: number; // hearts restored
   weight: number; // weight delta
+  fiber: number; // roughage → poop pressure. What goes in must come out.
 }
 
+// Fiber drives digestion (see stepEvents). Carrot is basically a plumbing
+// service; noodles/burger are middling; cake is dessert, not roughage; the
+// cube passes through mostly unbothered by biology.
 export const FOODS: Record<FoodId, FoodDef> = {
-  burger: { id: "burger", name: "Burger", icon: "🍔", hunger: 2, happiness: 0.2, weight: 2 },
-  cake: { id: "cake", name: "Cake", icon: "🍰", hunger: 1, happiness: 1, weight: 3 },
-  carrot: { id: "carrot", name: "Carrot", icon: "🥕", hunger: 1, happiness: 0, weight: 0.5 },
-  noodles: { id: "noodles", name: "Noodles", icon: "🍜", hunger: 2, happiness: 0.3, weight: 2.5 },
-  cube: { id: "cube", name: "Cube", icon: "🧊", hunger: 1, happiness: 0.5, weight: 1 },
+  burger: { id: "burger", name: "Burger", icon: "🍔", hunger: 2, happiness: 0.2, weight: 2, fiber: 0.35 },
+  cake: { id: "cake", name: "Cake", icon: "🍰", hunger: 1, happiness: 1, weight: 3, fiber: 0.15 },
+  carrot: { id: "carrot", name: "Carrot", icon: "🥕", hunger: 1, happiness: 0, weight: 0.5, fiber: 0.6 },
+  noodles: { id: "noodles", name: "Noodles", icon: "🍜", hunger: 2, happiness: 0.3, weight: 2.5, fiber: 0.4 },
+  cube: { id: "cube", name: "Cube", icon: "🧊", hunger: 1, happiness: 0.5, weight: 1, fiber: 0.12 },
 };
 
 export const FOOD_ORDER: FoodId[] = ["burger", "cake", "carrot", "noodles", "cube"];

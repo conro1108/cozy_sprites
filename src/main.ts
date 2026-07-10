@@ -47,6 +47,7 @@ import { creatureKey } from "./render/sprites";
 import type { Mood } from "./render/sprites";
 import { iconHTML, iconUrl } from "./render/icons";
 import { notify } from "./ui/notifications";
+import { playSfx, unlockAudio } from "./ui/audio";
 import { initMenus, openCare, openCollection, openFood, openPlay, openStatus } from "./ui/menus";
 import { randomName } from "./pet/names";
 
@@ -100,6 +101,9 @@ initMenus(app);
 boot();
 
 function boot(): void {
+  // Audio can only start from inside a real gesture, so spend the first one on
+  // waking the context. Everything after it is free.
+  document.addEventListener("pointerdown", unlockAudio, { once: true });
   pet = loadPet();
   if (!pet) {
     mountHatch();
@@ -443,6 +447,7 @@ function onTapPet(): void {
     // one suspenseful line the first time you've clearly pestered it.
     eggTapCount++;
     scene?.triggerPulse(r.reaction === "annoyed" ? "shake" : "nudge");
+    playSfx(r.reaction === "annoyed" ? "annoyed" : "tap");
     if (!eggTapShown && eggTapCount >= EGG_TAP_POPUP_THRESHOLD) {
       eggTapShown = true;
       say(pickLine(pet, "tap"));
@@ -455,28 +460,34 @@ function onTapPet(): void {
       // The cute payoff: it asked for a pat and got one.
       say(attentionSatisfiedLine("pat"));
       scene?.triggerPulse("love");
+      playSfx("love");
       break;
     case "spoiled":
       // You comforted a tantrum. It's ecstatic. The ledger weeps.
       say(attentionSpoiledLine());
       scene?.triggerPulse("happy");
+      playSfx("happy");
       break;
     case "hint":
       if (r.want && r.want !== "pat") say(attentionWrongLine(r.want));
       scene?.triggerPulse("nudge");
+      playSfx("tap");
       break;
     case "annoyed":
       sayCat("annoyed");
       scene?.triggerPulse("shake");
+      playSfx("annoyed");
       break;
     case "react":
       // The first poke in a while always earns a line.
       say(pickLine(pet, "tap"));
       scene?.triggerPulse("nudge");
+      playSfx("tap");
       break;
     case "ignore":
       // Pokes between "hello" and "enough" get body language only.
       scene?.triggerPulse("nudge");
+      playSfx("tap");
       break;
   }
   commit();
@@ -491,18 +502,22 @@ function doFeed(food: FoodId): void {
   } else if (note === "full") {
     sayCat("full");
     scene?.triggerPulse("shake");
+    playSfx("refuse");
   } else if (call === "satisfied") {
     // It called for a snack and the snack arrived. Peak service.
     say(attentionSatisfiedLine("snack"));
     scene?.triggerPulse("love");
+    playSfx("love");
   } else if (call === "spoiled") {
     say(attentionSpoiledLine());
     scene?.triggerPulse("happy");
+    playSfx("happy");
   } else {
     if (pet && shouldSpeak(pet, feedCategory(food, note))) {
       say(pickLine(pet, feedCategory(food, note)));
     }
     scene?.triggerPulse("eat");
+    playSfx(note === "disliked" ? "refuse" : "eat");
   }
   commit();
 }
@@ -523,6 +538,7 @@ function doClean(): void {
   pet = state;
   if (note === "cleaned") {
     // Sweep first, then the pet reacts to the newly-legal floor.
+    playSfx("clean");
     scene?.playClean(() => sayCat("clean"));
   } else if (note === "nothing" && !pet.asleep && pet.stage !== "egg") {
     // Sweeping an already-clean meadow gets commentary.
@@ -538,11 +554,14 @@ function doMedicine(): void {
   if (note === "cured") {
     sayCat("medicine");
     scene?.triggerPulse("happy");
+    playSfx("medicine");
   } else if (note === "dose") {
     // Plague: one shot down, one to go.
     sayCat("dose");
+    playSfx("medicine");
   } else if (note === "notneeded") {
     say("I'm not sick. But thank you, I guess.");
+    playSfx("refuse");
   }
   commit();
 }
@@ -551,10 +570,13 @@ function doDiscipline(): void {
   if (!pet || dying) return;
   const { state, note } = discipline(pet, Date.now());
   pet = state;
-  if (note === "correct") sayCat("discipline_correct");
-  else if (note === "incorrect") {
+  if (note === "correct") {
+    sayCat("discipline_correct");
+    playSfx("refuse");
+  } else if (note === "incorrect") {
     sayCat("discipline_incorrect");
     scene?.triggerPulse("shake");
+    playSfx("annoyed");
   } else say("*too little to scold*");
   commit();
 }
@@ -595,13 +617,17 @@ function doFinishGame(game: GameId, won: boolean, line?: string, reach = 0): voi
     // It called for a game and a game was played. Delight, then the verdict.
     say(line ?? attentionSatisfiedLine("play"));
     scene?.triggerPulse("love");
+    playSfx("love");
   } else if (r.call === "spoiled") {
     say(attentionSpoiledLine());
     scene?.triggerPulse("happy");
+    playSfx("happy");
   } else {
     if (line) say(line);
     else sayCat(won ? "win" : "lose");
     if (won || game === "wouldyou") scene?.triggerPulse("happy");
+    // Would You Rather has no verdict to sound out — it's all opinion.
+    if (game !== "wouldyou") playSfx(won ? "win" : "lose");
   }
   commit();
 }
@@ -697,6 +723,7 @@ function beginDeath(): void {
   dying = true;
   savePet(pet);
   render(); // sad/sleep face, no attention mark
+  playSfx("death");
   notify("dire", "Cozy Sprites", memorialLine(pet.name, pet.causeOfDeath));
   clearTimeout(bubbleTimer);
   els?.bubble.classList.remove("visible");
@@ -726,19 +753,27 @@ function maybeFlourish(now: number): void {
   nextFlourishAt = now + rand(FLOURISH_MIN_MS, FLOURISH_MAX_MS);
 }
 
+/** How long scene.triggerEvolve() runs. Lines wait for the flash to clear. */
+const EVOLVE_MS = 1_400;
+
+/**
+ * Every stage boundary is a moment. Growing up used to be silent for two of
+ * the four transitions (baby→child, child→teen) — the sprite just swapped
+ * mid-idle and you'd miss it if you blinked. Now they all get the same
+ * flash-and-settle; only the sound and the line change.
+ */
 function handleStageChange(from: PetState["stage"], to: PetState["stage"]): void {
   if (!pet) return;
+  void from;
+  scene?.triggerEvolve();
+  playSfx(to === "baby" ? "hatch" : "evolve");
   if (to === "baby") {
     say(pickLine(pet, "hatch"));
-    scene?.triggerPulse("happy");
   } else if (to === "adult") {
-    scene?.triggerPulse("evolve");
-    // The adult's first-ever line (the evolution payoff).
+    // The adult's first-ever line (the evolution payoff), once it's landed.
     setTimeout(() => {
-      if (pet) say(pickLine(pet, "idle"));
-    }, 700);
-  } else {
-    void from;
+      if (pet && !dying) say(pickLine(pet, "idle"));
+    }, EVOLVE_MS);
   }
 }
 

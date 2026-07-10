@@ -227,6 +227,13 @@ body {
   transform: translate(-50%, calc(-100% - 10px)) scale(1);
 }
 
+/* The in-scene game controls now own the top strip, and they out-rank the
+ * bubble on z. Drop the bubble to mid-stage so the pet's commentary during a
+ * game still lands somewhere you can read it. */
+.stage:has(.stage-controls) .speech-bubble {
+  top: 52%;
+}
+
 .speech-bubble::after {
   content: "";
   position: absolute;
@@ -1095,12 +1102,15 @@ body {
   font-size: 0.85rem;
 }
 
-/* --- In-scene game controls (overlaid on the stage) ----------------------- */
+/* --- In-scene game controls (overlaid on the stage) -----------------------
+ * Pinned to the sky, not the grass: every in-scene game (fetch, hide & seek,
+ * rock-paper-scissors) is worth watching, and the pet plays them down on the
+ * floor. Controls at the bottom sat right on top of the performance. */
 .stage-controls {
   position: absolute;
   left: 10px;
   right: 10px;
-  bottom: 10px;
+  top: 10px;
   background: rgba(247, 236, 216, 0.94);
   border: 2px solid var(--wood);
   border-radius: 14px;

@@ -36,6 +36,7 @@ import type { Scene } from "../render/scene";
 import { festivalTonight } from "./festival";
 import { getNotifyPref, setNotifyPref } from "./notifications";
 import type { NotifyPref } from "./notifications";
+import { isMuted, setMuted, playSfx, unlockAudio } from "./audio";
 
 export interface MenuCtx {
   pet(): PetState;
@@ -703,6 +704,7 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   });
   p.body.append(coll, backup);
 
+  p.body.appendChild(soundSettings());
   p.body.appendChild(notifySettings());
 
   // The manual, such as it is, hides in the margin. (Design note: obscure.)
@@ -715,6 +717,46 @@ export function openStatus(ctx: MenuCtx, now: number): void {
     openHelp();
   });
   p.body.appendChild(help);
+}
+
+/** Sound on/off. Borrows the notification toggle's chrome — same shape of
+ *  decision, no reason to invent a second one. */
+function soundSettings(): HTMLElement {
+  const wrap = document.createElement("div");
+  wrap.className = "notify-settings";
+  const label = document.createElement("p");
+  label.className = "muted";
+  label.textContent = "Sound";
+  const row = document.createElement("div");
+  row.className = "notify-row";
+  const paint = () => {
+    row.querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("active", (b.dataset.on === "1") === !isMuted());
+    });
+  };
+  for (const opt of [
+    { on: false, text: "Off" },
+    { on: true, text: "On" },
+  ]) {
+    const b = document.createElement("button");
+    b.className = "notify-opt";
+    b.dataset.on = opt.on ? "1" : "0";
+    b.textContent = opt.text;
+    b.addEventListener("click", () => {
+      setMuted(!opt.on);
+      paint();
+      // Turning it on plays the proof. This click is a gesture, so it's also
+      // the moment the audio context is allowed to wake up.
+      if (opt.on) {
+        unlockAudio();
+        playSfx("happy");
+      }
+    });
+    row.appendChild(b);
+  }
+  wrap.append(label, row);
+  paint();
+  return wrap;
 }
 
 function notifySettings(): HTMLElement {

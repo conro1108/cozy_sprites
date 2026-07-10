@@ -46,6 +46,19 @@ const STAGE_DECAY_MULT: Record<Stage, number> = {
   adult: 1,
 };
 
+// Babies digest faster (and mess more), adults are sedate. Scales how much a
+// meal's fiber adds to poopPressure — mirrors the stage decay tempo.
+const STAGE_DIGEST_MULT: Record<Stage, number> = {
+  egg: 0,
+  baby: 2.2,
+  child: 1.3,
+  teen: 1.1,
+  adult: 1,
+};
+
+/** Most poops a pet can have queued up in its gut, waiting on the floor to clear. */
+const MAX_POOP_PRESSURE = 2;
+
 const MISTAKE_INTERVAL_MS = 60_000; // one care mistake per minute of neglect
 
 /** How long a pet survives at zero health before dying (demo-paced). */
@@ -74,6 +87,7 @@ export function createPet(name: string, now: number): PetState {
     illness: null,
     dosesGiven: 0,
     poops: 0,
+    poopPressure: 0,
     zeroHealthMs: 0,
     deadAt: null,
     causeOfDeath: null,
@@ -321,6 +335,14 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   s.hunger = clampHearts(s.hunger + def.hunger);
   s.happiness = clampHearts(s.happiness + def.happiness + happyBonus);
   s.weight = s.weight + def.weight;
+  // What goes in must come out. Fiber builds digestive pressure that stepEvents
+  // later turns into a poop; babies process it faster than adults. Capped: a
+  // pet fed through a full meadow would otherwise bank an invisible backlog and
+  // re-cover the floor the instant you swept it.
+  s.poopPressure = Math.min(
+    MAX_POOP_PRESSURE,
+    s.poopPressure + def.fiber * STAGE_DIGEST_MULT[s.stage],
+  );
 
   s.hidden.mealsEaten++;
   if (food === "cake") {
@@ -523,11 +545,23 @@ export function stepEvents(
   let s: PetState = { ...state, hidden: { ...state.hidden } };
   const perMin = elapsed / 60_000;
 
-  // Pooping — babies poop a lot.
-  const poopRate = s.stage === "baby" ? 0.9 : 0.35;
-  if (s.poops < 4 && rng() < poopRate * perMin) {
-    s.poops++;
-    events.push("poop");
+  // Pooping. Two paths, but at most one mess per tick.
+  //  1) Digestion: fiber eaten crossed the threshold. Deterministic — that's
+  //     the whole point of the mechanic. Subtract 1.0 and keep the remainder so
+  //     a fibrous binge queues the next poop instead of losing it.
+  //  2) Ambient: even a pet that hasn't eaten eventually goes; babies sooner.
+  if (s.poops < 4) {
+    if (s.poopPressure >= 1) {
+      s.poopPressure -= 1;
+      s.poops++;
+      events.push("poop");
+    } else {
+      const ambientRate = s.stage === "baby" ? 0.2 : 0.06;
+      if (rng() < ambientRate * perMin) {
+        s.poops++;
+        events.push("poop");
+      }
+    }
   }
 
   // Falling ill — pressure from low health, junk food, and lingering mess.

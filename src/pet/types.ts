@@ -94,6 +94,9 @@ export interface PetState {
   /** Medicine doses already given toward the current illness. */
   dosesGiven: number;
   poops: number; // count of uncleaned messes on the floor
+  /** Digestive backlog from fiber eaten. Crosses 1.0 → a poop fires (see
+   *  stepEvents). Deterministic, not a dice roll — that's the mechanic. */
+  poopPressure: number;
 
   /** Sustained time (ms) spent at zero health — the road to death. */
   zeroHealthMs: number;

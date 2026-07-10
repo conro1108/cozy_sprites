@@ -44,13 +44,17 @@ export function loadPet(): PetState | null {
   }
 }
 
-/** Backfill fields added after a save was written so old saves keep working. */
-function migratePet(p: PetState): PetState {
+/** Backfill fields added after a save was written so old saves keep working.
+ *  Exported for unit tests (loadPet needs localStorage; this doesn't). */
+export function migratePet(p: PetState): PetState {
   const defaults = emptyHidden();
   return {
     ...p,
     illness: p.illness ?? (p.sick ? "sniffles" : null),
     dosesGiven: p.dosesGiven ?? 0,
+    // Pre-fiber saves have no poopPressure; without this it'd be undefined and
+    // every `+=` would go NaN, jamming pooping shut forever.
+    poopPressure: p.poopPressure ?? 0,
     zeroHealthMs: p.zeroHealthMs ?? 0,
     deadAt: p.deadAt ?? null,
     causeOfDeath: p.causeOfDeath ?? null,
