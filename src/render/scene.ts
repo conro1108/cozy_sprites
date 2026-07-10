@@ -20,19 +20,17 @@ export const SCENE_W = 112; // fixed content width; height adapts to the stage
 const GRASS_DEPTH = 42; // grass below the horizon (floor sits this far up)
 const CREATURE_X = 56; // resting center
 
-// Distant hill ridge: a gently rolling line of evenly spaced, symmetric
-// mounds. A primary cosine sets the rhythm; a half-frequency term nudges
-// alternate mounds a touch taller so the roll feels natural rather than a
-// flat, uniform sine. Rendered as solid columns down to the floor (see draw),
-// so it reads as one continuous silhouette at the meadow's pixel density.
-// HILL_MIN_H is the lowest point of that silhouette; the sky's horizon band is
-// sized to match so the hills always mask it fully and no lighter seam shows
-// through in the valleys.
+// Distant hill ridge: a gently rolling line of evenly spaced, identical
+// mounds — one soft cosine, so every peak has the same low, smooth crown.
+// Rendered as solid columns down to the floor (see draw), so it reads as one
+// continuous silhouette at the meadow's pixel density. HILL_MIN_H is the
+// lowest point of that silhouette; the sky's horizon band is sized to match so
+// the hills always mask it fully and no lighter seam shows in the valleys.
 const HILL_PERIOD = 34; // px between mound peaks (four across the 112px scene)
 const HILL_PEAK_X = 8; // x of the first peak
 function hillHeightAt(x: number): number {
   const p = (2 * Math.PI * (x - HILL_PEAK_X)) / HILL_PERIOD;
-  return 15 + 4.5 * Math.cos(p) + 1.2 * Math.cos(p / 2);
+  return 14 + 4 * Math.cos(p);
 }
 const HILL_MIN_H = (() => {
   let min = Infinity;
