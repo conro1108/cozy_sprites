@@ -100,8 +100,29 @@ let els: {
   nav: Record<string, HTMLButtonElement>;
 } | null = null;
 
+syncViewportHeight();
 initMenus(app);
 boot();
+
+/** Pin the app to the real viewport height. iOS standalone (black-translucent
+ *  status bar) reports the wrong height for the first frame(s) and only settles
+ *  once a reflow is forced — which is why the layout used to need a stray tap
+ *  or two to snap into place. We write the true height to `--app-h` up front,
+ *  re-apply it after the first paint(s), and keep it in step with rotations and
+ *  any later viewport changes. CSS falls back to `100dvh` before this runs. */
+function syncViewportHeight(): void {
+  const apply = () => {
+    const h = window.visualViewport?.height ?? window.innerHeight;
+    document.documentElement.style.setProperty("--app-h", `${h}px`);
+  };
+  apply();
+  // The first value can be stale; re-read after paint and again once settled.
+  requestAnimationFrame(apply);
+  setTimeout(apply, 300);
+  window.addEventListener("resize", apply);
+  window.addEventListener("orientationchange", apply);
+  window.visualViewport?.addEventListener("resize", apply);
+}
 
 function boot(): void {
   // Audio can only start from inside a real gesture, so every tap nudges the
