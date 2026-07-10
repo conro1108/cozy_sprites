@@ -63,13 +63,12 @@ export function scoreForms(
   if (hasTopGame && topGame === "higherlower") s.blob += 1;
   if (mistakes >= 2 && mistakes < 6) s.blob += 2;
 
-  // Gremlin — chaos: care mistakes and low discipline, with a little cube.
-  // The cube used to dominate this score, which made it read as a "bad" food.
-  // It's meant to be neutral/mysterious: fed chaotically it still nudges the
-  // gremlin, but its *devoted* path is the Humming Cube (below), not this one.
-  s.gremlin += hidden.cubeEaten * 0.5;
-  s.gremlin += mistakes * 0.9;
-  if ((hidden.cubeEaten > 0 || mistakes > 0) && hidden.discipline < 10) {
+  // Gremlin — genuine chaos: a real pile of care mistakes with no discipline to
+  // rein it in. The cube plays no part here — it's a neutral food, not a bad
+  // one, and its devoted path is the Humming Cube (below). Light neglect stays
+  // the office default; only sustained mistakes tip a pet over into gremlin.
+  s.gremlin += mistakes * 0.6;
+  if (mistakes >= 4 && hidden.discipline < 10) {
     s.gremlin += 2;
   }
 
@@ -93,13 +92,13 @@ export function scoreForms(
   s.ghost += hidden.nightCare * 0.9;
   if (hidden.nightCare >= 8) s.ghost += 3;
 
-  // The Humming Cube (secret) — devotion to the cube, done calmly. A real cube
-  // diet, and especially a habit of its humming game, without the gremlin's
-  // chaos. Steep like the ghost: a casual cube taste won't summon it, but feed
-  // the cube deliberately (and hum along) and something patient answers.
-  s.humcube += hidden.cubeEaten * 0.5;
+  // The Humming Cube (secret) — devotion to the cube, done calmly: a habit of
+  // its humming game, reinforced by an actual cube diet. Cube eaten on its own
+  // is neutral — it only counts here once the game proves the devotion is real,
+  // so a casual (or heavy) cube taste alone never summons it.
   if (hasTopGame && topGame === "cubehum") {
     s.humcube += 4;
+    s.humcube += hidden.cubeEaten * 0.5;
     if (hidden.cubeEaten >= 3) s.humcube += 3; // the diet and the game together
   }
 

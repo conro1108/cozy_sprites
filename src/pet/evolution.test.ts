@@ -25,9 +25,24 @@ describe("determineAdultForm", () => {
     expect(determineAdultForm(h, 70)).toBe("blob");
   });
 
-  it("produces a gremlin from cube abuse and chaos", () => {
-    const h = hidden({ cubeEaten: 15, careMistakes: 8, discipline: 0 });
+  it("produces a gremlin from sustained care mistakes and no discipline", () => {
+    const h = hidden({ careMistakes: 8, discipline: 0 });
     expect(determineAdultForm(h, 50)).toBe("gremlin");
+  });
+
+  it("treats the cube as neutral: a cube habit alone lands the office default", () => {
+    const h = hidden({ cubeEaten: 6 });
+    expect(determineAdultForm(h, 90, () => 0)).toBe("office");
+  });
+
+  it("keeps the office default under a light slip or two, cube and all", () => {
+    const h = hidden({ cubeEaten: 3, careMistakes: 1, discipline: 0 });
+    expect(determineAdultForm(h, 85, () => 0)).toBe("office");
+  });
+
+  it("does not push a cube-fed pet to gremlin without real neglect", () => {
+    const h = hidden({ cubeEaten: 5, careMistakes: 2, discipline: 0 });
+    expect(determineAdultForm(h, 80, () => 0)).not.toBe("gremlin");
   });
 
   it("produces a scholar from high discipline and no cake", () => {
