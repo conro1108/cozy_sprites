@@ -52,10 +52,12 @@ body {
 }
 
 body {
-  /* --app-h is the true viewport height set from JS (see syncViewportHeight);
-     100dvh is the pre-script fallback. Fixes iOS standalone's wrong-until-you-
-     tap first-frame height. */
-  height: var(--app-h, 100dvh);
+  /* lvh (large viewport height) is static and equals the full screen from the
+     first frame — unlike dvh, which iOS standalone recomputes lazily and leaves
+     short until an interaction forces it to settle (the old "tap a couple times
+     to snap into place" bug). 100vh is the fallback for browsers without lvh. */
+  height: 100vh;
+  height: 100lvh;
   background:
     radial-gradient(circle at 50% 0%, #8a5f3f 0%, #6b4630 60%, #4a2f20 100%);
   font-family: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono",
@@ -76,7 +78,8 @@ body {
 #app {
   width: 100%;
   max-width: 460px;
-  height: var(--app-h, 100dvh);
+  height: 100vh;
+  height: 100lvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
