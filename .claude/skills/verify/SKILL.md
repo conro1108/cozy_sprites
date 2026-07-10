@@ -8,6 +8,10 @@ description: Build, launch, and drive Cozy Sprites in a real browser to verify c
 1. `npx vite --port 5199` (background). App at http://localhost:5199/.
 2. Drive with playwright-core (already a devDependency, no browser download needed):
    `chromium.launch({ channel: "chrome", headless: true })`, viewport ~400×780.
+   Node resolves `import "playwright-core"` from the *script's own directory*
+   upward, not the shell's cwd — write/run the driver script from inside this
+   project (e.g. a temp `.mjs` file here, deleted after), not from a scratchpad
+   path elsewhere.
 3. Seed game state directly — write a full `PetState` JSON to localStorage key
    `cozy-sprites-pet`, then `page.reload()`. See `src/pet/types.ts` for the shape
    and `src/pet/state.ts` `createPet()` for defaults. Farm: `cozy-sprites-farm`.
