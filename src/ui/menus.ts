@@ -227,15 +227,17 @@ function startGame(ctx: MenuCtx, p: Panel, game: GameId): void {
 }
 
 // Panel-input game: cards in the panel, verdict spoken by the sprite.
+// Loops: after a best-of-5 wraps, the panel offers another round in place
+// instead of dropping you back to the scene.
 function higherLower(ctx: MenuCtx, p: Panel): void {
   const wrap = document.createElement("div");
   wrap.className = "game-body";
   p.body.appendChild(wrap);
 
+  const total = 5;
   let current = rollCard();
   let round = 0;
   let wins = 0;
-  const total = 5;
 
   const numEl = document.createElement("div");
   numEl.className = "big-number";
@@ -253,6 +255,31 @@ function higherLower(ctx: MenuCtx, p: Panel): void {
   lower.textContent = "▼ Lower";
   choices.append(higher, lower);
 
+  // The between-rounds beat: another best-of-5, or call it. Hidden until the
+  // current game wraps.
+  const againRow = document.createElement("div");
+  againRow.className = "game-choices";
+  againRow.style.display = "none";
+  const again = document.createElement("button");
+  again.className = "btn";
+  again.textContent = "Play again";
+  again.addEventListener("click", () => start());
+  againRow.append(again, doneButton(() => p.close()));
+
+  // Reset the board for a fresh best-of-5.
+  function start(): void {
+    current = rollCard();
+    round = 0;
+    wins = 0;
+    higher.disabled = false;
+    lower.disabled = false;
+    choices.style.display = "";
+    againRow.style.display = "none";
+    result.textContent = "";
+    numEl.textContent = String(current);
+    info.textContent = `Round 1 of ${total}`;
+  }
+
   const guess = (isHigher: boolean) => {
     if (round >= total) return; // game over — ignore stray taps during the wrap-up
     let next = rollCard();
@@ -266,8 +293,9 @@ function higherLower(ctx: MenuCtx, p: Panel): void {
     numEl.textContent = String(next);
     if (round >= total) {
       // A closing beat: tally on screen, buttons dead, then an explicit
-      // win/lose banner (with its own chime) before the panel hands the
-      // verdict to the pet — so the game ends on a beat, not a vanish.
+      // win/lose banner (with its own chime) before the pet gets the verdict —
+      // so the game ends on a beat, not a vanish. Then the panel stays put and
+      // offers another round.
       const won = wins >= 3;
       higher.disabled = true;
       lower.disabled = true;
@@ -278,8 +306,9 @@ function higherLower(ctx: MenuCtx, p: Panel): void {
         playSfx(won ? "win" : "lose");
       }, 700);
       setTimeout(() => {
-        p.close();
         ctx.finishGame("higherlower", won);
+        choices.style.display = "none";
+        againRow.style.display = "";
       }, 1400);
     } else {
       info.textContent = `Round ${round + 1} of ${total} · ${wins} correct`;
@@ -290,7 +319,7 @@ function higherLower(ctx: MenuCtx, p: Panel): void {
   lower.addEventListener("click", () => guess(false));
   numEl.textContent = String(current);
   info.textContent = `Round 1 of ${total}`;
-  wrap.append(numEl, info, result, choices);
+  wrap.append(numEl, info, result, choices, againRow);
 }
 
 // Panel-input game: the cube hums a growing sequence of its four faces; you hum
