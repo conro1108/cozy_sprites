@@ -43,7 +43,14 @@ function hillHeightAt(x: number): number {
   for (let i = 0; i < HILL_PTS.length - 1; i++) {
     const [x0, h0] = HILL_PTS[i];
     const [x1, h1] = HILL_PTS[i + 1];
-    if (x >= x0 && x <= x1) return h0 + ((h1 - h0) * (x - x0)) / (x1 - x0);
+    if (x >= x0 && x <= x1) {
+      // Smoothstep instead of straight lerp: the slope eases to ~flat at
+      // every control point, so peaks and valleys round off gently instead
+      // of meeting in a hard angular corner.
+      const frac = (x - x0) / (x1 - x0);
+      const eased = frac * frac * (3 - 2 * frac);
+      return h0 + (h1 - h0) * eased;
+    }
   }
   return HILL_PTS[HILL_PTS.length - 1][1];
 }
