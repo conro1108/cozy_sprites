@@ -26,8 +26,8 @@ const CREATURE_X = 56; // resting center
 // continuous silhouette at the meadow's pixel density. HILL_MIN_H is the
 // lowest point of that silhouette; the sky's horizon band is sized to match so
 // the hills always mask it fully and no lighter seam shows in the valleys.
-const HILL_PERIOD = 34; // px between mound peaks (four across the 112px scene)
-const HILL_PEAK_X = 8; // x of the first peak
+const HILL_PERIOD = 38; // px between mound peaks (three across the 112px scene)
+const HILL_PEAK_X = 18; // x of the first peak (peaks at 18/56/94, edges in valleys)
 function hillHeightAt(x: number): number {
   const p = (2 * Math.PI * (x - HILL_PEAK_X)) / HILL_PERIOD;
   return 14 + 4 * Math.cos(p);
