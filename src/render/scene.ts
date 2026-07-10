@@ -20,40 +20,25 @@ export const SCENE_W = 112; // fixed content width; height adapts to the stage
 const GRASS_DEPTH = 42; // grass below the horizon (floor sits this far up)
 const CREATURE_X = 56; // resting center
 
-// Distant hill ridge: hand-contoured control points (x, height above the
-// floor line), linearly interpolated into a single irregular skyline —
-// varied slopes and a flat-ish valley or two, rather than a row of identical
-// symmetric bumps (which reads as a sine wave). HILL_MIN_H is its lowest
-// point; the sky's horizon band is sized to match so the hills always mask
-// it fully and no lighter seam shows through in the valleys.
-const HILL_PTS: [number, number][] = [
-  [0, 10],
-  [16, 16],
-  [34, 9],
-  [42, 9],
-  [58, 19],
-  [66, 14],
-  [80, 22],
-  [90, 11],
-  [104, 15],
-  [112, 9],
-];
-const HILL_MIN_H = Math.min(...HILL_PTS.map(([, h]) => h));
+// Distant hill ridge: a gently rolling line of evenly spaced, symmetric
+// mounds. A primary cosine sets the rhythm; a half-frequency term nudges
+// alternate mounds a touch taller so the roll feels natural rather than a
+// flat, uniform sine. Rendered as solid columns down to the floor (see draw),
+// so it reads as one continuous silhouette at the meadow's pixel density.
+// HILL_MIN_H is the lowest point of that silhouette; the sky's horizon band is
+// sized to match so the hills always mask it fully and no lighter seam shows
+// through in the valleys.
+const HILL_PERIOD = 34; // px between mound peaks (four across the 112px scene)
+const HILL_PEAK_X = 8; // x of the first peak
 function hillHeightAt(x: number): number {
-  for (let i = 0; i < HILL_PTS.length - 1; i++) {
-    const [x0, h0] = HILL_PTS[i];
-    const [x1, h1] = HILL_PTS[i + 1];
-    if (x >= x0 && x <= x1) {
-      // Smoothstep instead of straight lerp: the slope eases to ~flat at
-      // every control point, so peaks and valleys round off gently instead
-      // of meeting in a hard angular corner.
-      const frac = (x - x0) / (x1 - x0);
-      const eased = frac * frac * (3 - 2 * frac);
-      return h0 + (h1 - h0) * eased;
-    }
-  }
-  return HILL_PTS[HILL_PTS.length - 1][1];
+  const p = (2 * Math.PI * (x - HILL_PEAK_X)) / HILL_PERIOD;
+  return 15 + 4.5 * Math.cos(p) + 1.2 * Math.cos(p / 2);
 }
+const HILL_MIN_H = (() => {
+  let min = Infinity;
+  for (let x = 0; x < SCENE_W; x++) min = Math.min(min, hillHeightAt(x));
+  return Math.floor(min);
+})();
 
 export interface SceneView {
   key: string; // creature key
@@ -539,9 +524,9 @@ export class Scene {
     }
 
     // --- Distant hills ----------------------------------------------------------
-    // A single continuous ridge line (see HILL_PTS) drawn as solid 1px-wide
-    // columns down to the floor — single-toned so it stays quiet background
-    // rather than reading as a hard-edged prop.
+    // A rolling ridge of soft, symmetric mounds (see hillHeightAt) drawn as
+    // solid 1px-wide columns down to the floor — single-toned so it stays quiet
+    // background rather than reading as a hard-edged prop.
     ctx.fillStyle = dark ? "#22303a" : v.night ? "#33484a" : "#7ab35e";
     for (let x = 0; x < SCENE_W; x++) {
       const h = Math.round(hillHeightAt(x));
