@@ -49,6 +49,23 @@ const MOON_ROWS: [number, number][] = [
   [-3, 2], [-2, 3], [-1, 3], [0, 3], [1, 3], [2, 3], [3, 2],
 ];
 
+// Cloud variants — each a set of [dx, dy, w, h] puffs riding on a base, so none
+// read flat. A drifting cloud re-rolls which variant (and how high it floats)
+// every time it wraps the sky, so it's never the same two clouds twice.
+const CLOUD_SHAPES: [number, number, number, number][][] = [
+  [[0, 2, 16, 3], [3, 0, 7, 3], [10, 1, 5, 2]], // broad, three soft humps
+  [[0, 2, 12, 3], [2, 0, 6, 3], [7, 0, 5, 3]], // compact double puff
+  [[1, 2, 9, 2], [2, 0, 6, 3], [4, -1, 3, 2]], // tall little tuft
+  [[0, 3, 17, 2], [1, 1, 5, 2], [6, 0, 6, 3], [12, 1, 5, 2]], // long, rolling humps
+];
+
+/** Cheap deterministic 0..1 hash of an integer — picks a cloud's look/height
+ *  per drift cycle without any stored state. */
+function cloudHash(n: number): number {
+  const s = Math.sin(n * 12.9898) * 43758.5453;
+  return s - Math.floor(s);
+}
+
 export interface SceneView {
   key: string; // creature key
   mood: Mood;
@@ -525,10 +542,7 @@ export class Scene {
       ctx.fillRect(91, 9, 3, 1);
       ctx.fillRect(92, 8, 2, 1);
       ctx.fillStyle = "#ffffff";
-      // Integer-snapped x so the pixel edges stay crisp instead of blurring at
-      // sub-pixel drift positions like the old fractional rects.
-      this.drawCloud(Math.round(((t * 3) % (SCENE_W + 30)) - 20), 16, false);
-      this.drawCloud(Math.round(((t * 2 + 60) % (SCENE_W + 30)) - 20), 32, true);
+      this.drawClouds(t);
     }
 
     // --- Distant hills ----------------------------------------------------------
@@ -898,18 +912,24 @@ export class Scene {
     for (const [dy, hw] of rows) ctx.fillRect(rx - hw, ry + dy, hw * 2 + 1, 1);
   }
 
-  /** A little puffed cloud: a flat base with one or two humps riding on it.
-   *  x is integer-snapped by the caller so the drift stays crisp. */
-  private drawCloud(x: number, y: number, small: boolean): void {
-    const ctx = this.ctx;
-    if (small) {
-      ctx.fillRect(x, y + 2, 12, 2);
-      ctx.fillRect(x + 3, y, 6, 2);
-    } else {
-      ctx.fillRect(x, y + 2, 16, 3);
-      ctx.fillRect(x + 3, y, 7, 3);
-      ctx.fillRect(x + 10, y + 1, 5, 2);
-    }
+  /** Two clouds drifting at different speeds. Each wrap of the sky re-rolls the
+   *  cloud's shape and height (keyed off the wrap count), so the sky keeps
+   *  changing instead of looping the same pair. x is integer-snapped for crisp
+   *  pixels; the two tracks keep to an upper and lower band so they don't stack. */
+  private drawClouds(t: number): void {
+    const span = SCENE_W + 30;
+    const tracks = [
+      { speed: 3, phase: 0, yMin: 10, yRange: 10 }, // faster, high
+      { speed: 2, phase: 60, yMin: 24, yRange: 12 }, // slower, low
+    ];
+    tracks.forEach((tr, k) => {
+      const travel = t * tr.speed + tr.phase;
+      const cycle = Math.floor(travel / span);
+      const x = Math.round((travel % span) - 20);
+      const shape = CLOUD_SHAPES[Math.floor(cloudHash(cycle * 2 + k * 101) * CLOUD_SHAPES.length)];
+      const y = tr.yMin + Math.floor(cloudHash(cycle * 7 + k * 13) * tr.yRange);
+      for (const [dx, dy, w, h] of shape) this.ctx.fillRect(x + dx, y + dy, w, h);
+    });
   }
 
   private drawMushroom(dark: boolean, night: boolean): void {
