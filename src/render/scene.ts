@@ -488,10 +488,11 @@ export class Scene {
     ];
     for (const [mx, h] of mounds) {
       // Stack centred spans that narrow as they climb: wide at the ridge, a
-      // small cap at the peak — a stepped hump, two pixels per step.
-      for (let dy = 0; dy < h; dy += 2) {
+      // small cap at the peak — a stepped hump, one pixel per step (matches
+      // the stump/dirt patch's finer row density).
+      for (let dy = 0; dy < h; dy++) {
         const halfW = Math.round(22 * (1 - dy / h));
-        ctx.fillRect(mx - halfW, hillY - dy - 2, halfW * 2 + 1, 2);
+        ctx.fillRect(mx - halfW, hillY - dy - 1, halfW * 2 + 1, 1);
       }
     }
 
@@ -637,7 +638,7 @@ export class Scene {
     const ctx = this.ctx;
     const FLOOR_Y = this.floorY;
     ctx.fillStyle = dark ? "#3a2f28" : night ? "#5c4a38" : "#a97b50";
-    for (let x = 88; x <= 108; x += 7) {
+    for (let x = 88; x <= 109; x += 7) {
       ctx.fillRect(x, FLOOR_Y - 8, 3, 14);
       ctx.fillStyle = dark ? "#332a24" : night ? "#524234" : "#96683f";
       ctx.fillRect(x, FLOOR_Y - 8, 3, 2); // post cap
@@ -788,17 +789,29 @@ export class Scene {
     const ctx = this.ctx;
     const mx = 78;
     const my = this.floorY + 10;
+    const cx = mx + 5; // cap centre
     // stem
     ctx.fillStyle = dark ? "#8a8478" : "#f0e6d0";
     ctx.fillRect(mx + 3, my, 4, 6);
-    // cap
+    // cap: a smooth dome built from single-pixel rows (the stump's oval
+    // technique) so it reads at the same density as the stump/dirt patch,
+    // instead of the old two flat blocks.
     ctx.fillStyle = dark ? "#7a3a34" : night ? "#a04a40" : "#d95848";
-    ctx.fillRect(mx, my - 4, 10, 5);
-    ctx.fillRect(mx + 2, my - 6, 6, 2);
+    const capRows: [number, number][] = [
+      [-7, 1],
+      [-6, 2],
+      [-5, 4],
+      [-4, 5],
+      [-3, 6],
+      [-2, 6],
+    ];
+    for (const [dy, hw] of capRows) ctx.fillRect(cx - hw, my + dy, hw * 2 + 1, 1);
+    ctx.fillStyle = dark ? "#5e2c28" : night ? "#853c34" : "#b8432f";
+    ctx.fillRect(cx - 6, my - 1, 13, 1); // shadow where the rim overhangs the stem
     // spots
     ctx.fillStyle = dark ? "#b0a89a" : "#fdf3e0";
-    ctx.fillRect(mx + 2, my - 3, 2, 2);
-    ctx.fillRect(mx + 7, my - 4, 2, 2);
+    ctx.fillRect(cx - 4, my - 5, 2, 2);
+    ctx.fillRect(cx + 2, my - 6, 2, 2);
   }
 
   /** Flower positions — returned so each can be depth-sorted individually. */
