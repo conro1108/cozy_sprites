@@ -38,6 +38,17 @@ const HILL_MIN_H = (() => {
   return Math.floor(min);
 })();
 
+// Sun and moon as round pixel discs — half-widths per 1px row, same technique
+// as the mushroom cap so the sky bodies read at the meadow's density instead of
+// the old hard squares. The moon draws this disc twice: once lit, once in the
+// sky colour offset sideways to carve the crescent.
+const SUN_ROWS: [number, number][] = [
+  [-4, 2], [-3, 3], [-2, 4], [-1, 4], [0, 4], [1, 4], [2, 4], [3, 3], [4, 2],
+];
+const MOON_ROWS: [number, number][] = [
+  [-3, 2], [-2, 3], [-1, 3], [0, 3], [1, 3], [2, 3], [3, 2],
+];
+
 export interface SceneView {
   key: string; // creature key
   mood: Mood;
@@ -489,9 +500,10 @@ export class Scene {
     if (v.night) {
       // moon + twinkling stars
       ctx.fillStyle = "#f3edd0";
-      ctx.fillRect(88, 10, 7, 7);
+      this.fillDisc(92, 13, MOON_ROWS);
+      // Carve the crescent: the same disc in the sky colour, nudged right.
       ctx.fillStyle = dark ? "#141232" : "#2b2552";
-      ctx.fillRect(86, 9, 4, 4);
+      this.fillDisc(95, 13, MOON_ROWS);
       ctx.fillStyle = "#fff";
       const stars = [
         [10, 12],
@@ -508,17 +520,15 @@ export class Scene {
     } else {
       // sun + drifting clouds
       ctx.fillStyle = "#ffe9a3";
-      ctx.fillRect(90, 8, 9, 9);
-      ctx.fillStyle = "#fff2c8";
-      ctx.fillRect(92, 6, 5, 2);
-      ctx.fillRect(92, 19, 5, 2);
+      this.fillDisc(94, 12, SUN_ROWS);
+      ctx.fillStyle = "#fff2c8"; // top-left glint
+      ctx.fillRect(91, 9, 3, 1);
+      ctx.fillRect(92, 8, 2, 1);
       ctx.fillStyle = "#ffffff";
-      const cx1 = ((t * 3) % (SCENE_W + 30)) - 20;
-      ctx.fillRect(cx1, 18, 16, 5);
-      ctx.fillRect(cx1 + 4, 14, 9, 4);
-      const cx2 = ((t * 2 + 60) % (SCENE_W + 30)) - 20;
-      ctx.fillRect(cx2, 34, 12, 4);
-      ctx.fillRect(cx2 + 3, 31, 7, 3);
+      // Integer-snapped x so the pixel edges stay crisp instead of blurring at
+      // sub-pixel drift positions like the old fractional rects.
+      this.drawCloud(Math.round(((t * 3) % (SCENE_W + 30)) - 20), 16, false);
+      this.drawCloud(Math.round(((t * 2 + 60) % (SCENE_W + 30)) - 20), 32, true);
     }
 
     // --- Distant hills ----------------------------------------------------------
@@ -876,6 +886,30 @@ export class Scene {
     ctx.fillStyle = dark ? "#241f1a" : "#4a3527";
     ctx.fillRect(lx - 4, top - 2, 11, 2);
     ctx.fillRect(lx, top - 4, 3, 2);
+  }
+
+  /** Fill a round pixel disc from 1px rows (half-width per row). The current
+   *  fill style is used, so the moon can paint one disc lit and another in the
+   *  sky colour to carve its crescent. */
+  private fillDisc(cx: number, cy: number, rows: [number, number][]): void {
+    const ctx = this.ctx;
+    const rx = Math.round(cx);
+    const ry = Math.round(cy);
+    for (const [dy, hw] of rows) ctx.fillRect(rx - hw, ry + dy, hw * 2 + 1, 1);
+  }
+
+  /** A little puffed cloud: a flat base with one or two humps riding on it.
+   *  x is integer-snapped by the caller so the drift stays crisp. */
+  private drawCloud(x: number, y: number, small: boolean): void {
+    const ctx = this.ctx;
+    if (small) {
+      ctx.fillRect(x, y + 2, 12, 2);
+      ctx.fillRect(x + 3, y, 6, 2);
+    } else {
+      ctx.fillRect(x, y + 2, 16, 3);
+      ctx.fillRect(x + 3, y, 7, 3);
+      ctx.fillRect(x + 10, y + 1, 5, 2);
+    }
   }
 
   private drawMushroom(dark: boolean, night: boolean): void {
