@@ -37,11 +37,13 @@ import { determineAdultForm } from "./pet/evolution";
 import {
   exportSave,
   importSave,
+  loadDiscoveredForms,
   loadFarm,
   loadPet,
   retireToFarm,
   savePet,
   getDeviceId,
+  wipeFarm,
 } from "./pet/persistence";
 import { Scene } from "./render/scene";
 import { creatureKey } from "./render/sprites";
@@ -918,18 +920,23 @@ function maybeIdleLine(now: number): void {
   nextIdleAt = now + rand(IDLE_MIN_MS, IDLE_MAX_MS);
 }
 
+// Discovered forms are normally just derived from the farm archive, but
+// resetFarm() below wipes that archive — so union in the persisted snapshot
+// too, or discoveries would vanish along with the retirees.
+function computeDiscovered(): Set<AdultForm> {
+  const set = new Set<AdultForm>(loadDiscoveredForms());
+  for (const e of farm) if (e.form) set.add(e.form);
+  if (pet?.form) set.add(pet.form);
+  return set;
+}
+
 // --- Context for menus ------------------------------------------------------
 const ctx = {
   pet: () => pet!,
   farm: () => farm,
   scene: () => scene!,
   stageEl: () => els!.stage,
-  discovered: (): Set<AdultForm> => {
-    const set = new Set<AdultForm>();
-    for (const e of farm) if (e.form) set.add(e.form);
-    if (pet?.form) set.add(pet.form);
-    return set;
-  },
+  discovered: computeDiscovered,
   feed: doFeed,
   clean: doClean,
   medicine: doMedicine,
@@ -943,6 +950,10 @@ const ctx = {
     scene?.stop();
     farm = loadFarm();
     boot();
+  },
+  resetFarm: (): void => {
+    wipeFarm(Array.from(computeDiscovered()));
+    farm = [];
   },
 };
 

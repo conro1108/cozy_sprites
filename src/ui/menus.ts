@@ -55,6 +55,7 @@ export interface MenuCtx {
   exportSave(): string;
   importSave(code: string): boolean;
   reload(): void;
+  resetFarm(): void;
 }
 
 let root: HTMLElement;
@@ -1314,7 +1315,7 @@ function farmInfoStrip(formName: (e: FarmEntry) => string): FarmInfo {
  *  depth-sorted with the same 1000 − bottom rule the walkers use. On festival
  *  nights the sky turns to dusk: moon and stars instead of sun and clouds,
  *  paper lanterns instead of bunting, and fireflies over the grass. */
-function decoratePasture(pasture: HTMLElement, festival: boolean): void {
+function decoratePasture(pasture: HTMLElement, festival: boolean, onBarnTap?: () => void): void {
   const add = (
     name: PropName,
     cls: string,
@@ -1385,8 +1386,16 @@ function decoratePasture(pasture: HTMLElement, festival: boolean): void {
     strip("bunting", "bunting");
   }
 
-  // The horizon: a barn, a fence line, a far tree.
-  add("barn", "far", "14%", "57%", 3, 2);
+  // The horizon: a barn, a fence line, a far tree. The barn doubles as a
+  // hidden "reset progress" switch — no visible affordance, you just have to
+  // know to tap it.
+  const barn = add("barn", "far", "14%", "57%", 3, 2);
+  if (onBarnTap) {
+    barn.addEventListener("click", (e) => {
+      e.stopPropagation(); // don't let the pasture click-to-dismiss swallow it
+      onBarnTap();
+    });
+  }
   strip("fence", "fence-line");
   add("tree", "far", "92%", "53%", 3, 3);
 
@@ -1462,20 +1471,40 @@ export function openCollection(ctx: MenuCtx): void {
   h.style.marginTop = "18px";
   p.body.appendChild(h);
 
-  if (farm.length === 0) {
-    const none = document.createElement("p");
-    none.className = "muted";
-    none.textContent = "No retirees yet. Your sprites are still with you.";
-    p.body.appendChild(none);
-  } else {
-    p.body.appendChild(farmYard(farm));
-  }
+  // Always render the yard, even with nobody in it yet — the barn out on the
+  // horizon is the (undocumented) way in to resetFarm(), so it has to exist
+  // whether or not you've retired anyone.
+  p.body.appendChild(farmYard(farm, () => confirmResetFarm(ctx, p)));
+}
+
+function confirmResetFarm(ctx: MenuCtx, parent: Panel): void {
+  const p = openPanel(
+    "Reset the farm?",
+    "This is permanent. Every retiree and gravestone is gone for good.",
+  );
+  const line = document.createElement("p");
+  line.textContent =
+    "Your Collection of discovered adults is kept — only the farm archive and graveyard are cleared.";
+  line.style.fontStyle = "italic";
+  const confirm = document.createElement("button");
+  confirm.className = "btn danger";
+  confirm.textContent = "Wipe the farm";
+  confirm.addEventListener("click", () => {
+    ctx.resetFarm();
+    p.close();
+    parent.close();
+  });
+  const cancel = document.createElement("button");
+  cancel.className = "btn secondary";
+  cancel.textContent = "Never mind";
+  cancel.addEventListener("click", p.close);
+  p.body.append(line, confirm, cancel);
 }
 
 /** The farm as a little diorama: retirees loafing among the scenery, an info
  *  strip that fills in whoever you tap, and a fenced graveyard plot below with
  *  every headstone bearing its keeper's full name. */
-function farmYard(farm: FarmEntry[]): HTMLElement {
+function farmYard(farm: FarmEntry[], onBarnTap?: () => void): HTMLElement {
   const yard = document.createElement("div");
   yard.className = "farm-yard";
 
@@ -1486,7 +1515,7 @@ function farmYard(farm: FarmEntry[]): HTMLElement {
   const festival = festivalTonight();
   const pasture = document.createElement("div");
   pasture.className = "pasture";
-  decoratePasture(pasture, festival);
+  decoratePasture(pasture, festival, onBarnTap);
   pasture.addEventListener("click", () => info.hide()); // tap the grass to dismiss
 
   const living = farm.filter((e) => !e.passedAway);

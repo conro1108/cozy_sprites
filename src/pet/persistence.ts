@@ -2,13 +2,16 @@
 // localStorage is sufficient for v1; the export string provides a backup/export
 // option even in v1.
 
-import type { FarmEntry, PetState } from "./types";
+import type { AdultForm, FarmEntry, PetState } from "./types";
 import { emptyHidden } from "./types";
 import { ageMs } from "./state";
 
 const PET_KEY = "cozy-sprites-pet";
 const FARM_KEY = "cozy-sprites-farm";
 const DEVICE_KEY = "cozy-sprites-device";
+// Discovered adult forms are normally derived from the farm archive, but a
+// farm wipe must not erase them — this snapshot survives that wipe.
+const DISCOVERED_KEY = "cozy-sprites-discovered";
 const SAVE_VERSION = 1;
 
 export function getDeviceId(): string {
@@ -93,6 +96,28 @@ export function loadFarm(): FarmEntry[] {
 
 export function saveFarm(entries: FarmEntry[]): void {
   localStorage.setItem(FARM_KEY, JSON.stringify(entries));
+}
+
+export function loadDiscoveredForms(): AdultForm[] {
+  const raw = localStorage.getItem(DISCOVERED_KEY);
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as AdultForm[];
+  } catch {
+    return [];
+  }
+}
+
+export function saveDiscoveredForms(forms: AdultForm[]): void {
+  localStorage.setItem(DISCOVERED_KEY, JSON.stringify(forms));
+}
+
+/** The hidden "reset progress" option: wipe every retiree and gravestone.
+ *  Snapshots the given discovered-forms set first, since discovery is
+ *  normally derived from the farm archive this is about to erase. */
+export function wipeFarm(discovered: AdultForm[]): void {
+  saveDiscoveredForms(discovered);
+  saveFarm([]);
 }
 
 /** Retire the active pet into the farm archive and return the new archive.
