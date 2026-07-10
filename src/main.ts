@@ -157,14 +157,15 @@ function mountHatch(): void {
   reroll.addEventListener("click", () => {
     input.value = randomName();
     // Tumble the die: restart the CSS roll and flash through faces mid-air.
-    const faces = ["dice2", "dice6", "dice"] as const;
-    const finalFace = faces[Math.floor(Math.random() * faces.length)];
+    const allFaces = ["dice1", "dice2", "dice3", "dice4", "dice", "dice6"] as const;
+    const animFaces = ["dice2", "dice6", "dice"] as const;
+    const finalFace = allFaces[Math.floor(Math.random() * allFaces.length)];
     reroll.classList.remove("rolling");
     void reroll.offsetWidth; // reflow so the animation retriggers
     reroll.classList.add("rolling");
-    faces.forEach((face, i) => {
+    animFaces.forEach((face, i) => {
       setTimeout(() => {
-        die.src = iconUrl(i === faces.length - 1 ? finalFace : face);
+        die.src = iconUrl(i === animFaces.length - 1 ? finalFace : face);
       }, 130 * (i + 1));
     });
   });

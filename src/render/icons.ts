@@ -17,7 +17,10 @@ export type IconName =
   | "noodles"
   | "cube"
   | "dice"
+  | "dice1"
   | "dice2"
+  | "dice3"
+  | "dice4"
   | "dice6"
   | "ball"
   | "eyes"
@@ -319,6 +322,57 @@ const ICONS: Record<IconName, IconDef> = {
       ".kwwwwwwwwk.",
       ".kwpwwwwpwk.",
       ".kwwwwwwwwk.",
+      ".kwwwwwwwwk.",
+      "..kkkkkkkk..",
+      "............",
+    ],
+    palette: { k: K, w: "#fdf3e0", p: "#402e3a" },
+  },
+  dice1: {
+    rows: [
+      "............",
+      "..kkkkkkkk..",
+      ".kwwwwwwwwk.",
+      ".kwwwwwwwwk.",
+      ".kwwwwwwwwk.",
+      ".kwwwppwwwk.",
+      ".kwwwppwwwk.",
+      ".kwwwwwwwwk.",
+      ".kwwwwwwwwk.",
+      ".kwwwwwwwwk.",
+      "..kkkkkkkk..",
+      "............",
+    ],
+    palette: { k: K, w: "#fdf3e0", p: "#402e3a" },
+  },
+  dice3: {
+    rows: [
+      "............",
+      "..kkkkkkkk..",
+      ".kwwwwwwwwk.",
+      ".kwppwwwwwk.",
+      ".kwppwwwwwk.",
+      ".kwwwppwwwk.",
+      ".kwwwppwwwk.",
+      ".kwwwwwppwk.",
+      ".kwwwwwppwk.",
+      ".kwwwwwwwwk.",
+      "..kkkkkkkk..",
+      "............",
+    ],
+    palette: { k: K, w: "#fdf3e0", p: "#402e3a" },
+  },
+  dice4: {
+    rows: [
+      "............",
+      "..kkkkkkkk..",
+      ".kwwwwwwwwk.",
+      ".kwppwwppwk.",
+      ".kwppwwppwk.",
+      ".kwwwwwwwwk.",
+      ".kwwwwwwwwk.",
+      ".kwppwwppwk.",
+      ".kwppwwppwk.",
       ".kwwwwwwwwk.",
       "..kkkkkkkk..",
       "............",
