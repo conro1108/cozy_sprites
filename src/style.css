@@ -35,11 +35,12 @@ body {
 }
 
 /* iOS standalone leaves a strip below the layout viewport that only the root
- * background can paint (boxes can't reach it). Match the app shell's tan so
- * the strip reads as the app continuing, not a band. Invisible on desktop —
- * the body's gradient covers everything there. */
+ * background can paint (boxes can't reach it). The app's bottom edge is the
+ * cream nav bar, so paint the strip cream — it reads as the nav continuing to
+ * the screen edge, not a band. Invisible on desktop — the body's gradient
+ * covers everything there. */
 html {
-  background: #caa980;
+  background: var(--cream);
 }
 
 body {
@@ -70,7 +71,11 @@ body {
   overflow: hidden;
   position: relative;
   background: #caa980;
-  padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  /* No bottom safe-area padding here — the nav owns the bottom inset (its
+     buttons pad by env(safe-area-inset-bottom)) so its cream background paints
+     right down to the screen edge. Reserving it here too would strand a tan
+     band of shell background below the nav. */
+  padding: env(safe-area-inset-top) 0 0;
 }
 
 /* --- Top HUD ------------------------------------------------------------- */
