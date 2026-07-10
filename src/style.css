@@ -536,12 +536,28 @@ body {
   margin: 8px 0;
 }
 
-/* Higher / Lower: a cute card that shows the current draw, tumbles on a guess,
-   then flashes green (won) or red (lost). Lives in the stage-controls strip. */
+/* Higher / Lower: two cards over the stage — the pet lays down theirs, then
+   yours tumbles and flips to reveal, flashing green (won) or red (lost). Lives
+   in the stage-controls strip, RPS-style. */
+.hl-cards {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 6px 0 8px;
+}
+
+.hl-vs {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .hl-card {
-  width: 76px;
-  height: 92px;
-  margin: 6px auto 8px;
+  width: 68px;
+  height: 84px;
   border: 3px solid var(--wood);
   border-radius: 14px;
   background: var(--cream);
@@ -557,8 +573,18 @@ body {
     background 0.14s ease;
 }
 
+/* Yours starts face-down: a muted card with a soft "?" until you call it. */
+.hl-card.facedown {
+  background: var(--cream-2);
+}
+
+.hl-card.facedown .hl-num {
+  color: var(--ink-soft);
+  opacity: 0.6;
+}
+
 .hl-num {
-  font-size: 3rem;
+  font-size: 2.6rem;
   font-weight: 900;
   color: var(--wood-dark);
   line-height: 1;
