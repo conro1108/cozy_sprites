@@ -132,13 +132,6 @@ export class Scene {
   private frames: Record<SpriteFrame, HTMLCanvasElement>;
   private creatureCacheKey = "";
 
-  // Micro-animation state: blinks and glances run on their own clocks so the
-  // creature's face is alive no matter what the body is doing.
-  private nextBlinkAt = 0;
-  private blinkUntil = 0;
-  private glanceDir: -1 | 1 = 1;
-  private glanceUntil = 0;
-  private nextGlanceAt = 0;
   private altFrame = false; // per-frame: use the alt pose (dog's tail up)
   private forceGlance: -1 | 0 | 1 = 0; // per-frame: a quirk overrides the gaze
   private extraAlpha = 1; // per-frame: ghost flicker translucency
@@ -1967,28 +1960,13 @@ export class Scene {
     this.curDy = dy;
     const groundY = this.floorY + dy;
 
-    // --- Face life: blinks on a clock, idle glances, quirk overrides -------
-    const pn = performance.now();
+    // --- Face life: quirk-driven glances only (no idle blink/glance jitter) -
     let sprite = this.creatureCanvas;
     if (!v.asleep && v.key !== "egg") {
-      if (pn >= this.nextBlinkAt) {
-        this.blinkUntil = pn + 140;
-        this.nextBlinkAt = pn + 2200 + Math.random() * 4200;
-      }
-      if (ambient && pn >= this.nextGlanceAt) {
-        // Something rustles, somewhere. Worth a look.
-        this.glanceDir = Math.random() < 0.5 ? -1 : 1;
-        this.glanceUntil = pn + 650 + Math.random() * 900;
-        this.nextGlanceAt = pn + 5000 + Math.random() * 9000;
-      }
-      if (pn < this.blinkUntil) {
-        sprite = this.frames.blink;
-      } else if (this.altFrame) {
+      if (this.altFrame) {
         sprite = this.frames.alt;
-      } else {
-        const g = this.forceGlance !== 0 ? this.forceGlance : ambient && pn < this.glanceUntil ? this.glanceDir : 0;
-        if (g === -1) sprite = this.frames.glanceL;
-        else if (g === 1) sprite = this.frames.glanceR;
+      } else if (this.forceGlance !== 0) {
+        sprite = this.forceGlance === -1 ? this.frames.glanceL : this.frames.glanceR;
       }
     }
 
