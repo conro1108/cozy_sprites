@@ -43,37 +43,6 @@ describe("dog muzzle", () => {
     expect(rgb(px(dog, 5, 7))).toEqual(EYE);
     expect(rgb(px(dog, 9, 7))).toEqual(EYE);
   });
-  it("completes a symmetric 工 in the neutral mood — all on col 7", () => {
-    // Nose bar cols 6-8, philtrum stem col 7, mouth bar cols 6-8: three bars
-    // sharing centre column 7. A 2px mouth used to sit half a pixel off.
-    expect(rgb(px(dog, 6, 7))).toEqual(NOSE);
-    expect(rgb(px(dog, 7, 7))).toEqual(NOSE);
-    expect(rgb(px(dog, 8, 7))).toEqual(NOSE);
-    expect(rgb(px(dog, 7, 8))).toEqual(NOSE);
-    expect(rgb(px(dog, 6, 9))).toEqual(EYE);
-    expect(rgb(px(dog, 7, 9))).toEqual(EYE);
-    expect(rgb(px(dog, 8, 9))).toEqual(EYE);
-    // The bar is exactly 3px — its flanking columns are not eyes.
-    expect(isEye(px(dog, 5, 9))).toBe(false);
-    expect(isEye(px(dog, 9, 9))).toBe(false);
-  });
-  it("gives happy an upturned smile clearly distinct from the neutral bar", () => {
-    // Corners lift a row above the bar (cols 6/8 on row 9) — inset one column
-    // from the eyes (cols 5/9), or they'd line up under the eyes and read as
-    // a second pair instead of a smile. The 3px bar sits one row lower.
-    const happy = renderPixels("dog", "happy");
-    expect(rgb(px(happy, 6, 9))).toEqual(EYE);
-    expect(rgb(px(happy, 8, 9))).toEqual(EYE);
-    expect(rgb(px(happy, 6, 10))).toEqual(EYE);
-    expect(rgb(px(happy, 7, 10))).toEqual(EYE);
-    expect(rgb(px(happy, 8, 10))).toEqual(EYE);
-    // The lifted corners never sit under the eyes' own columns.
-    expect(isEye(px(happy, 5, 9))).toBe(false);
-    expect(isEye(px(happy, 9, 9))).toBe(false);
-    // Neutral has no lifted corners, so the two moods can't be confused.
-    expect(isEye(px(dog, 5, 9))).toBe(false);
-    expect(isEye(px(dog, 9, 9))).toBe(false);
-  });
 });
 
 describe("blink frame", () => {

@@ -80,14 +80,10 @@ const FACE_SLEEP = [
 ];
 
 // Small faces for narrow bodies (5 wide). Blitted at each body's face offset.
-// The mouth centres on col 2 to match the eyes (cols 0/4) — a 2px bar could
-// never centre in an odd-width grid, so neutral rides a 3px bar. Happy lifts
-// its corners a row above the bar (mirroring the wide FACE_HAPPY) so the two
-// resting moods stay unmistakable — inset one column from the eyes (cols 1/3,
-// not 0/4), or the corners line up right under the eyes and read as a second
-// pair of them instead of a smile.
+// Neutral and happy share the same centred 3px mouth — a 2px bar can't centre
+// in an odd-width grid, so it used to read half a pixel off.
 const SMALL_NEUTRAL = ["e...e", ".....", ".eee."];
-const SMALL_HAPPY = ["e...e", ".....", ".e.e.", ".eee."];
+const SMALL_HAPPY = SMALL_NEUTRAL;
 const SMALL_SAD = ["e...e", ".....", ".e.e.", "..e.."];
 const SMALL_SLEEP = ["ee.ee", ".....", "..e.."];
 
