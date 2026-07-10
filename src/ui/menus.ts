@@ -534,7 +534,8 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
 // In-scene game: throw meter over the stage, animation in the scene.
 // Loops: after each throw plays out, the meter comes right back.
 function fetchGame(ctx: MenuCtx): void {
-  const { el, close } = stageOverlay(ctx);
+  // Slider up top over the pet; the Throw button sits down at the bottom.
+  const { top, bottom, close } = splitOverlay(ctx);
   const track = document.createElement("div");
   track.className = "throw-track";
   const sweet = document.createElement("div");
@@ -558,7 +559,7 @@ function fetchGame(ctx: MenuCtx): void {
   const animate = () => {
     // The overlay can be torn out from under us (death act, save restore) —
     // don't keep a zombie rAF loop mutating a detached node.
-    if (!el.isConnected) return;
+    if (!top.isConnected) return;
     pos += dir * 0.018;
     if (pos >= 1) {
       pos = 1;
@@ -594,7 +595,8 @@ function fetchGame(ctx: MenuCtx): void {
   const hint = document.createElement("p");
   hint.className = "stage-hint";
   hint.textContent = "Stop the marker in the green.";
-  el.append(hint, track, btn, doneButton(dismiss));
+  top.append(hint, track);
+  bottom.append(btn, doneButton(dismiss));
 }
 
 // In-scene game: pick a move, watch the countdown play out at the sprite.
