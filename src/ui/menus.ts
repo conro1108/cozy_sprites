@@ -264,12 +264,18 @@ function higherLower(ctx: MenuCtx, p: Panel): void {
     result.style.color = outcome === "win" ? "#2f8f2f" : "#c0492f";
     numEl.textContent = String(next);
     if (round >= total) {
-      // A closing beat: tally on screen, buttons dead, then hand the verdict
-      // to the pet (it speaks via finishGame) instead of vanishing mid-look.
+      // A closing beat: tally on screen, buttons dead, then an explicit
+      // win/lose banner (with its own chime) before the panel hands the
+      // verdict to the pet — so the game ends on a beat, not a vanish.
       const won = wins >= 3;
       higher.disabled = true;
       lower.disabled = true;
       info.textContent = `That's ${total} — ${wins} of ${total} correct.`;
+      setTimeout(() => {
+        result.textContent = won ? "You win!" : "You lose.";
+        result.style.color = won ? "#2f8f2f" : "#c0492f";
+        playSfx(won ? "win" : "lose");
+      }, 700);
       setTimeout(() => {
         p.close();
         ctx.finishGame("higherlower", won);
@@ -378,9 +384,13 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
       // until you miss, and every round cleared is worth a little more.
       cleared = seq.length;
       accepting = false;
-      playCubeClear(cleared); // a rising flourish that climbs with the streak
+      playTone(face); // echo the last note, same as every other tap
       status.textContent = "Yes. Again, longer.";
       seq = extendHum(seq);
+      setTimeout(() => {
+        // Let the echoed note finish before the round-complete flourish.
+        if (wrap.isConnected && !resolved) playCubeClear(cleared);
+      }, 180);
       setTimeout(() => {
         if (wrap.isConnected && !resolved) playSeq();
       }, 720);
