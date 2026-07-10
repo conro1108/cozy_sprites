@@ -1600,7 +1600,7 @@ export function openCollection(ctx: MenuCtx): void {
         el.classList.add("secret");
         const badge = document.createElement("span");
         badge.className = "secret-badge";
-        badge.textContent = "★";
+        badge.appendChild(iconEl("star", 16));
         el.appendChild(badge);
       }
       // Built with createElement — innerHTML += would re-serialize the canvas

@@ -32,6 +32,7 @@ export type IconName =
   | "disk"
   | "egg"
   | "grave"
+  | "star"
   | "sparkle"
   | "alert"
   | "thermometer"
@@ -552,6 +553,25 @@ const ICONS: Record<IconName, IconDef> = {
       "............",
     ],
     palette: { k: K, s: "#b0b4c4", c: "#7c8094", g: "#5aa85a" },
+  },
+  star: {
+    // a solid five-point star for the rare/secret badge — gold fill with a
+    // single lighter glint, no black outline so it stays clean at badge size
+    rows: [
+      "............",
+      ".....yy.....",
+      ".....yy.....",
+      "....ywyy....",
+      ".yyyyyyyyyy.",
+      "..yyyyyyyy..",
+      "...yyyyyy...",
+      "..yyyyyyyy..",
+      "..yyy..yyy..",
+      ".yy......yy.",
+      "............",
+      "............",
+    ],
+    palette: { y: "#f0b840", w: "#ffe9b0" },
   },
   sparkle: {
     // a clean four-point star with two glints
