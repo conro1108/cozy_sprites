@@ -166,6 +166,15 @@ function doneButton(onClick: () => void): HTMLButtonElement {
   return b;
 }
 
+/** A compact "Done" tucked in a strip corner, out of the play area. */
+function cornerDone(onClick: () => void): HTMLButtonElement {
+  const b = document.createElement("button");
+  b.className = "corner-done";
+  b.textContent = "Done";
+  b.addEventListener("click", onClick);
+  return b;
+}
+
 /** Whether an in-scene game can immediately offer another round. */
 function canReplay(ctx: MenuCtx): boolean {
   const p = ctx.pet();
@@ -534,8 +543,9 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
 // In-scene game: throw meter over the stage, animation in the scene.
 // Loops: after each throw plays out, the meter comes right back.
 function fetchGame(ctx: MenuCtx): void {
-  // Slider up top over the pet; the Throw button sits down at the bottom.
-  const { top, bottom, close } = splitOverlay(ctx);
+  // Just the slider up top; the throw is a little ball you tap down low, so
+  // nothing but a small ball ever sits over the pet.
+  const { el: top, close: closeTop } = stageOverlay(ctx);
   const track = document.createElement("div");
   track.className = "throw-track";
   const sweet = document.createElement("div");
@@ -549,9 +559,17 @@ function fetchGame(ctx: MenuCtx): void {
   const marker = document.createElement("div");
   marker.className = "marker";
   track.append(sweet, marker);
-  const btn = document.createElement("button");
-  btn.className = "btn";
-  btn.textContent = "Throw!";
+
+  // The throw itself: a cute bobbing ball floating near the bottom.
+  const ball = document.createElement("button");
+  ball.className = "fetch-ball";
+  ball.setAttribute("aria-label", "Throw the ball");
+  ball.appendChild(iconEl("ball", 48));
+  ctx.stageEl().appendChild(ball);
+  const close = () => {
+    closeTop();
+    ball.remove();
+  };
 
   let pos = 0;
   let dir = 1;
@@ -577,7 +595,7 @@ function fetchGame(ctx: MenuCtx): void {
     close();
   };
 
-  btn.addEventListener("click", () => {
+  ball.addEventListener("click", () => {
     const res = resolveFetch(pos, undefined, ctx.pet().stage, spot);
     dismiss();
     playSfx("throw"); // the ball leaves your hand
@@ -594,9 +612,8 @@ function fetchGame(ctx: MenuCtx): void {
 
   const hint = document.createElement("p");
   hint.className = "stage-hint";
-  hint.textContent = "Stop the marker in the green.";
-  top.append(hint, track);
-  bottom.append(btn, doneButton(dismiss));
+  hint.textContent = "Tap the ball on the green.";
+  top.append(cornerDone(dismiss), hint, track);
 }
 
 // In-scene game: pick a move, watch the countdown play out at the sprite.
