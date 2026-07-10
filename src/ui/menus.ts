@@ -135,6 +135,28 @@ function stageOverlay(ctx: MenuCtx): { el: HTMLDivElement; close: () => void } {
   return { el, close: () => el.remove() };
 }
 
+/** Two strips: a display strip up top and a selector strip down at the bottom,
+ *  within thumb reach. For games where the choices want to sit low. */
+function splitOverlay(ctx: MenuCtx): {
+  top: HTMLDivElement;
+  bottom: HTMLDivElement;
+  close: () => void;
+} {
+  const top = document.createElement("div");
+  top.className = "stage-controls";
+  const bottom = document.createElement("div");
+  bottom.className = "stage-controls stage-controls-bottom";
+  ctx.stageEl().append(top, bottom);
+  return {
+    top,
+    bottom,
+    close: () => {
+      top.remove();
+      bottom.remove();
+    },
+  };
+}
+
 /** Small dismiss button for in-scene game loops ("that's enough for now"). */
 function doneButton(onClick: () => void): HTMLButtonElement {
   const b = document.createElement("button");
@@ -234,7 +256,9 @@ function startGame(ctx: MenuCtx, p: Panel, game: GameId): void {
 const HL_ROUNDS = 5;
 
 function higherLower(ctx: MenuCtx): void {
-  const { el, close } = stageOverlay(ctx);
+  // Display (cards, pips) up top over the pet; the selector sits down at the
+  // bottom within thumb reach.
+  const { top, bottom, close } = splitOverlay(ctx);
   // A small corner close, not a full-width bar — you can bail mid-match, but the
   // match's own end screen is the usual way out.
   const closeBtn = document.createElement("button");
@@ -337,7 +361,7 @@ function higherLower(ctx: MenuCtx): void {
   };
 
   const guess = (isHigher: boolean) => {
-    if (rolling || !el.isConnected) return;
+    if (rolling || !top.isConnected) return;
     rolling = true;
     higher.disabled = true;
     lower.disabled = true;
@@ -357,7 +381,7 @@ function higherLower(ctx: MenuCtx): void {
 
     setTimeout(() => {
       clearInterval(tumble);
-      if (!el.isConnected) return; // torn out mid-roll (sleep, death, restore)
+      if (!top.isConnected) return; // torn out mid-roll (sleep, death, restore)
       yours.set(mine);
       yours.card.classList.remove("rolling");
       yours.card.classList.add(won ? "won" : "lost");
@@ -369,7 +393,7 @@ function higherLower(ctx: MenuCtx): void {
       round++;
 
       setTimeout(() => {
-        if (!el.isConnected) return;
+        if (!top.isConnected) return;
         if (round >= HL_ROUNDS) finishMatch();
         else newRound();
       }, 900);
@@ -379,7 +403,8 @@ function higherLower(ctx: MenuCtx): void {
   higher.addEventListener("click", () => guess(true));
   lower.addEventListener("click", () => guess(false));
   startMatch();
-  el.append(closeBtn, hint, pipRow, cards, choices, result);
+  top.append(closeBtn, hint, pipRow, cards);
+  bottom.append(choices, result);
 }
 
 /** A single Higher/Lower card. `set` swaps the pixel digit shown (or "?"). */
@@ -669,7 +694,8 @@ function hideSeekAgain(ctx: MenuCtx): void {
 // In-scene game: the question floats over the stage so the pet's judgement is
 // visible the moment you answer — and the next question is one tap away.
 function wouldYou(ctx: MenuCtx): void {
-  const { el, close } = stageOverlay(ctx);
+  // Prompt up top over the pet; the two answers sit down at the bottom, in reach.
+  const { top, bottom, close } = splitOverlay(ctx);
   const q = randomWouldYou();
   const hint = document.createElement("p");
   hint.className = "stage-hint";
@@ -692,7 +718,8 @@ function wouldYou(ctx: MenuCtx): void {
     b.addEventListener("click", () => answer(judge));
     choices.appendChild(b);
   }
-  el.append(hint, choices, doneButton(close));
+  top.append(hint);
+  bottom.append(choices, doneButton(close));
 }
 
 // --- Care -------------------------------------------------------------------

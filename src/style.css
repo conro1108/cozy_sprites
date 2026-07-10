@@ -1302,6 +1302,13 @@ body {
   box-shadow: var(--panel-shadow);
 }
 
+/* The selector strip for split games: anchored to the bottom of the stage,
+   within thumb reach, while the display strip stays up top. */
+.stage-controls-bottom {
+  top: auto;
+  bottom: 10px;
+}
+
 .stage-controls .btn {
   margin-top: 8px;
 }
