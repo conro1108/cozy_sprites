@@ -198,9 +198,8 @@ export function openPlay(ctx: MenuCtx): void {
 function startGame(ctx: MenuCtx, p: Panel, game: GameId): void {
   switch (game) {
     case "higherlower":
-      p.body.innerHTML = "";
-      p.setTitle("Higher or Lower", "Best of 5 rounds.");
-      higherLower(ctx, p);
+      p.close();
+      higherLower(ctx);
       break;
     case "fetch":
       p.close();
@@ -226,100 +225,90 @@ function startGame(ctx: MenuCtx, p: Panel, game: GameId): void {
   }
 }
 
-// Panel-input game: cards in the panel, verdict spoken by the sprite.
-// Loops: after a best-of-5 wraps, the panel offers another round in place
-// instead of dropping you back to the scene.
-function higherLower(ctx: MenuCtx, p: Panel): void {
-  const wrap = document.createElement("div");
-  wrap.className = "game-body";
-  p.body.appendChild(wrap);
+// In-scene game: a little card sits over the stage; call the next draw higher
+// or lower and watch the die tumble to it, with the pet reacting to each call.
+// Loops: one tap per guess, a fresh number every time — no rounds, no tally,
+// just keep going until you're Done.
+function higherLower(ctx: MenuCtx): void {
+  const { el, close } = stageOverlay(ctx);
+  const hint = document.createElement("p");
+  hint.className = "stage-hint";
+  hint.textContent = "Higher or lower than…";
 
-  const total = 5;
-  let current = rollCard();
-  let round = 0;
-  let wins = 0;
+  const card = document.createElement("div");
+  card.className = "hl-card";
+  const numEl = document.createElement("span");
+  numEl.className = "hl-num";
+  card.appendChild(numEl);
 
-  const numEl = document.createElement("div");
-  numEl.className = "big-number";
-  const info = document.createElement("p");
-  const result = document.createElement("div");
-  result.className = "game-result";
+  const streakEl = document.createElement("p");
+  streakEl.className = "hl-streak";
+
   const choices = document.createElement("div");
   choices.className = "game-choices";
-
   const higher = document.createElement("button");
-  higher.className = "btn";
+  higher.className = "btn btn-small";
   higher.textContent = "▲ Higher";
   const lower = document.createElement("button");
-  lower.className = "btn secondary";
+  lower.className = "btn secondary btn-small";
   lower.textContent = "▼ Lower";
   choices.append(higher, lower);
 
-  // The between-rounds beat: another best-of-5, or call it. Hidden until the
-  // current game wraps.
-  const againRow = document.createElement("div");
-  againRow.className = "game-choices";
-  againRow.style.display = "none";
-  const again = document.createElement("button");
-  again.className = "btn";
-  again.textContent = "Play again";
-  again.addEventListener("click", () => start());
-  againRow.append(again, doneButton(() => p.close()));
+  let current = rollCard();
+  let streak = 0;
+  let rolling = false;
+  numEl.textContent = String(current);
 
-  // Reset the board for a fresh best-of-5.
-  function start(): void {
-    current = rollCard();
-    round = 0;
-    wins = 0;
-    higher.disabled = false;
-    lower.disabled = false;
-    choices.style.display = "";
-    againRow.style.display = "none";
-    result.textContent = "";
-    numEl.textContent = String(current);
-    info.textContent = `Round 1 of ${total}`;
-  }
+  const setStreak = () => {
+    // Only brag once you've got something going — a cute running tally.
+    streakEl.textContent = streak >= 2 ? `🔥 ${streak} in a row` : "";
+  };
 
   const guess = (isHigher: boolean) => {
-    if (round >= total) return; // game over — ignore stray taps during the wrap-up
+    if (rolling || !el.isConnected) return;
+    rolling = true;
+    higher.disabled = true;
+    lower.disabled = true;
+    hint.textContent = isHigher ? "Higher…" : "Lower…";
+
     let next = rollCard();
     while (next === current) next = rollCard();
-    const outcome = judgeHigherLower(current, isHigher, next);
-    current = next;
-    round++;
-    if (outcome === "win") wins++;
-    result.textContent = outcome === "win" ? `${next} — yes` : `${next} — no`;
-    result.style.color = outcome === "win" ? "#2f8f2f" : "#c0492f";
-    numEl.textContent = String(next);
-    if (round >= total) {
-      // A closing beat: tally on screen, buttons dead, then an explicit
-      // win/lose banner (with its own chime) before the pet gets the verdict —
-      // so the game ends on a beat, not a vanish. Then the panel stays put and
-      // offers another round.
-      const won = wins >= 3;
-      higher.disabled = true;
-      lower.disabled = true;
-      info.textContent = `That's ${total} — ${wins} of ${total} correct.`;
+    const won = judgeHigherLower(current, isHigher, next) === "win";
+
+    // A slot-machine tumble: flip through faces, then settle on the draw.
+    playSfx("roll");
+    card.classList.add("rolling");
+    const tumble = setInterval(() => {
+      numEl.textContent = String(rollCard());
+    }, 70);
+
+    setTimeout(() => {
+      clearInterval(tumble);
+      if (!el.isConnected) return; // torn out mid-roll (sleep, death, restore)
+      numEl.textContent = String(next);
+      card.classList.remove("rolling");
+      card.classList.add(won ? "won" : "lost");
+      streak = won ? streak + 1 : 0;
+      setStreak();
+      // The pet owns the verdict — voice, chime, and reward — same as every
+      // other game's finishGame handoff.
+      ctx.finishGame("higherlower", won);
+      current = next;
+
       setTimeout(() => {
-        result.textContent = won ? "You win!" : "You lose.";
-        result.style.color = won ? "#2f8f2f" : "#c0492f";
-        playSfx(won ? "win" : "lose");
-      }, 700);
-      setTimeout(() => {
-        ctx.finishGame("higherlower", won);
-        choices.style.display = "none";
-        againRow.style.display = "";
-      }, 1400);
-    } else {
-      info.textContent = `Round ${round + 1} of ${total} · ${wins} correct`;
-    }
+        if (!el.isConnected) return;
+        card.classList.remove("won", "lost");
+        higher.disabled = false;
+        lower.disabled = false;
+        rolling = false;
+        hint.textContent = "Higher or lower than…";
+      }, 850);
+    }, 620);
   };
 
   higher.addEventListener("click", () => guess(true));
   lower.addEventListener("click", () => guess(false));
-  numEl.textContent = String(current);
-  info.textContent = `Round 1 of ${total}`;
-  wrap.append(numEl, info, result, choices, againRow);
+  el.append(hint, card, streakEl, choices, doneButton(close));
 }
 
 // Panel-input game: the cube hums a growing sequence of its four faces; you hum

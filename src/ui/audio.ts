@@ -26,6 +26,7 @@ export type SfxName =
   | "hide" // hide & seek: scurries off to hide
   | "found" // hide & seek: there you are
   | "empty" // hide & seek: nothing here…
+  | "roll" // higher/lower: the die tumbles
   | "cubewrong"; // the cube's hum: a broken chain
 
 /** One oscillator beep. `at` is seconds from the start of the effect; `to`
@@ -106,6 +107,12 @@ export const SFX: Record<SfxName, Tone[]> = {
   ],
   // Hide & seek: a hollow little "nothing here" sink.
   empty: [{ freq: 392, to: 262, dur: 0.2, at: 0, type: "sine", gain: 0.45 }],
+  // Higher/lower: a light wooden tumble as the die settles.
+  roll: [
+    { freq: 420, dur: 0.04, at: 0, type: "triangle", gain: 0.35 },
+    { freq: 360, dur: 0.04, at: 0.05, type: "triangle", gain: 0.32 },
+    { freq: 300, dur: 0.05, at: 0.1, type: "triangle", gain: 0.3 },
+  ],
   // The cube's hum: a sour descending buzz — you broke the chain.
   cubewrong: [{ freq: 300, to: 150, dur: 0.3, at: 0, type: "sawtooth", gain: 0.5 }],
 };
