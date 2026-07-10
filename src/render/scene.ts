@@ -890,9 +890,11 @@ export class Scene {
     // technique) so it reads at the same density as the stump/dirt patch,
     // instead of the old two flat blocks.
     ctx.fillStyle = dark ? "#7a3a34" : night ? "#a04a40" : "#d95848";
+    // Half-widths ease up gently (2,3,4,5,6,6) so the crown rounds off instead
+    // of coming to the old near-point.
     const capRows: [number, number][] = [
-      [-7, 1],
-      [-6, 2],
+      [-7, 2],
+      [-6, 3],
       [-5, 4],
       [-4, 5],
       [-3, 6],
@@ -901,10 +903,11 @@ export class Scene {
     for (const [dy, hw] of capRows) ctx.fillRect(cx - hw, my + dy, hw * 2 + 1, 1);
     ctx.fillStyle = dark ? "#5e2c28" : night ? "#853c34" : "#b8432f";
     ctx.fillRect(cx - 6, my - 1, 13, 1); // shadow where the rim overhangs the stem
-    // spots — mirrored at the same row so both sit safely inside the dome
+    // spots — two rows apart so the cap doesn't read as mirror-symmetric, both
+    // tucked inside the dome's red.
     ctx.fillStyle = dark ? "#b0a89a" : "#fdf3e0";
     ctx.fillRect(cx - 4, my - 5, 2, 2);
-    ctx.fillRect(cx + 3, my - 5, 2, 2);
+    ctx.fillRect(cx + 3, my - 3, 2, 2);
   }
 
   /** Flower positions — returned so each can be depth-sorted individually. */
