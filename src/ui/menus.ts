@@ -1594,6 +1594,15 @@ export function openCollection(ctx: MenuCtx): void {
     const el = document.createElement("div");
     el.className = "tile";
     if (found) {
+      // Discovered secrets wear a golden frame + star so they read as rare
+      // catches, not just another face in the regular crew.
+      if (def.secret) {
+        el.classList.add("secret");
+        const badge = document.createElement("span");
+        badge.className = "secret-badge";
+        badge.textContent = "★";
+        el.appendChild(badge);
+      }
       // Built with createElement — innerHTML += would re-serialize the canvas
       // and silently wipe its drawn bitmap.
       el.appendChild(portrait(form));
