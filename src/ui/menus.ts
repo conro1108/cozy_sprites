@@ -227,25 +227,36 @@ function startGame(ctx: MenuCtx, p: Panel, game: GameId): void {
 
 // In-scene game shaped like rock-paper-scissors: the pet lays down its card
 // first, you call whether yours will come up higher or lower, then a quick
-// tumble flips your card to see if you were right. Every round is a fresh pair
-// of numbers — nothing carries over — with the pet reacting to each verdict.
-// Loops: one call per round, until you're Done.
+// tumble flips your card to see if you were right. Played as a best-of-5: a row
+// of pips tracks each call, and a cute little tally reveals the verdict at the
+// end before the pet weighs in and you can go again.
+const HL_ROUNDS = 5;
+
 function higherLower(ctx: MenuCtx): void {
   const { el, close } = stageOverlay(ctx);
   const hint = document.createElement("p");
   hint.className = "stage-hint";
 
+  // Best-of-5 progress: one pip per round, filled green (won) or red (lost).
+  const pipRow = document.createElement("div");
+  pipRow.className = "hl-pips";
+  const pips: HTMLSpanElement[] = [];
+  for (let i = 0; i < HL_ROUNDS; i++) {
+    const pip = document.createElement("span");
+    pip.className = "hl-pip";
+    pips.push(pip);
+    pipRow.appendChild(pip);
+  }
+
+  // Known card sits on the right; your revealed card on the left.
   const cards = document.createElement("div");
   cards.className = "hl-cards";
-  const theirs = makeCard("hl-theirs");
   const yours = makeCard("hl-yours");
+  const theirs = makeCard("hl-theirs");
   const vs = document.createElement("span");
   vs.className = "hl-vs";
   vs.textContent = "vs";
-  cards.append(theirs.card, vs, yours.card);
-
-  const streakEl = document.createElement("p");
-  streakEl.className = "hl-streak";
+  cards.append(yours.card, vs, theirs.card);
 
   const choices = document.createElement("div");
   choices.className = "game-choices";
@@ -257,26 +268,66 @@ function higherLower(ctx: MenuCtx): void {
   lower.textContent = "▼ Lower";
   choices.append(higher, lower);
 
-  let them = rollCard();
-  let streak = 0;
-  let rolling = false;
+  // The end-of-match tally, hidden until all five rounds are in.
+  const result = document.createElement("div");
+  result.className = "hl-result";
+  result.style.display = "none";
+  const resultEmoji = document.createElement("div");
+  resultEmoji.className = "hl-result-emoji";
+  const resultText = document.createElement("p");
+  resultText.className = "hl-result-text";
+  const againRow = document.createElement("div");
+  againRow.className = "game-choices";
+  const again = document.createElement("button");
+  again.className = "btn btn-small";
+  again.textContent = "Play again";
+  again.addEventListener("click", () => startMatch());
+  againRow.append(again, doneButton(close));
+  result.append(resultEmoji, resultText, againRow);
 
-  const setStreak = () => {
-    // Only brag once you've got something going — a cute running tally.
-    streakEl.textContent = streak >= 2 ? `🔥 ${streak} in a row` : "";
-  };
+  let them = rollCard();
+  let round = 0;
+  let wins = 0;
+  let rolling = false;
 
   const newRound = () => {
     them = rollCard();
     theirs.num.textContent = String(them);
-    theirs.card.classList.remove("won", "lost");
     yours.card.classList.remove("won", "lost");
     yours.num.textContent = "?";
     yours.card.classList.add("facedown");
     higher.disabled = false;
     lower.disabled = false;
     rolling = false;
-    hint.textContent = "Will yours be higher or lower?";
+    hint.textContent = `Round ${round + 1} of ${HL_ROUNDS} — higher or lower?`;
+  };
+
+  const startMatch = () => {
+    round = 0;
+    wins = 0;
+    for (const pip of pips) pip.className = "hl-pip";
+    result.style.display = "none";
+    cards.style.display = "";
+    choices.style.display = "";
+    newRound();
+  };
+
+  const finishMatch = () => {
+    const won = wins >= 3;
+    cards.style.display = "none";
+    choices.style.display = "none";
+    hint.textContent = "";
+    resultEmoji.textContent = won ? "🏆" : "🍂";
+    resultText.textContent = won
+      ? `You win! ${wins} of ${HL_ROUNDS}`
+      : `You lose — ${wins} of ${HL_ROUNDS}`;
+    result.classList.toggle("won", won);
+    result.classList.toggle("lost", !won);
+    result.style.display = "";
+    playSfx(won ? "win" : "lose");
+    // The pet weighs in on the whole match — voice and reward — via the same
+    // finishGame handoff every game uses.
+    ctx.finishGame("higherlower", won);
   };
 
   const guess = (isHigher: boolean) => {
@@ -304,23 +355,25 @@ function higherLower(ctx: MenuCtx): void {
       yours.num.textContent = String(mine);
       yours.card.classList.remove("rolling");
       yours.card.classList.add(won ? "won" : "lost");
-      streak = won ? streak + 1 : 0;
-      setStreak();
-      // The pet owns the verdict — voice, chime, and reward — same as every
-      // other game's finishGame handoff.
-      ctx.finishGame("higherlower", won);
+      // A light per-round cue (not the big win/lose fanfare — that's saved for
+      // the final tally) plus the pip filling in.
+      playSfx(won ? "found" : "empty");
+      pips[round].classList.add(won ? "won" : "lost");
+      if (won) wins++;
+      round++;
 
       setTimeout(() => {
         if (!el.isConnected) return;
-        newRound();
-      }, 950);
+        if (round >= HL_ROUNDS) finishMatch();
+        else newRound();
+      }, 900);
     }, 620);
   };
 
   higher.addEventListener("click", () => guess(true));
   lower.addEventListener("click", () => guess(false));
-  newRound();
-  el.append(hint, cards, streakEl, choices, doneButton(close));
+  startMatch();
+  el.append(hint, pipRow, cards, choices, result, doneButton(close));
 }
 
 /** A single Higher/Lower card: the framed box and its number span. */

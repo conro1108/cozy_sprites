@@ -536,9 +536,36 @@ body {
   margin: 8px 0;
 }
 
-/* Higher / Lower: two cards over the stage — the pet lays down theirs, then
-   yours tumbles and flips to reveal, flashing green (won) or red (lost). Lives
-   in the stage-controls strip, RPS-style. */
+/* Higher / Lower: a best-of-5 over the stage. The known card sits on the right;
+   yours (left) tumbles and flips to reveal, flashing green (won) or red (lost).
+   A row of pips tracks the match, then a little tally reveals the verdict. */
+.hl-pips {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 2px 0 6px;
+}
+
+.hl-pip {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--cream-2);
+  box-shadow: inset 0 0 0 2px rgba(94, 62, 41, 0.35);
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.hl-pip.won {
+  background: #4bb14b;
+  box-shadow: inset 0 0 0 2px #2f8f2f;
+  transform: scale(1.15);
+}
+
+.hl-pip.lost {
+  background: #d66a52;
+  box-shadow: inset 0 0 0 2px #c0492f;
+}
+
 .hl-cards {
   display: flex;
   align-items: center;
@@ -615,12 +642,34 @@ body {
   color: #c0492f;
 }
 
-.hl-streak {
-  margin: 0 0 6px;
-  min-height: 1.1em;
-  font-size: 0.76rem;
+/* The end-of-match tally: a big emoji, the score, and a play-again beat. */
+.hl-result {
+  animation: hl-pop 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+.hl-result-emoji {
+  font-size: 2.4rem;
+  line-height: 1;
+  margin: 2px 0 4px;
+}
+
+.hl-result-text {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
   font-weight: 800;
-  color: var(--accent);
+}
+
+.hl-result.won .hl-result-text {
+  color: #2f8f2f;
+}
+
+.hl-result.lost .hl-result-text {
+  color: #c0492f;
+}
+
+@keyframes hl-pop {
+  0% { transform: scale(0.7); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
 @keyframes hl-tumble {
