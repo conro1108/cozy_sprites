@@ -1391,6 +1391,9 @@ function decoratePasture(pasture: HTMLElement, festival: boolean, onBarnTap?: ()
   // know to tap it.
   const barn = add("barn", "far", "14%", "57%", 3, 2);
   if (onBarnTap) {
+    // .prop normally has pointer-events: none so taps fall through to the
+    // grass — this class opts the barn back in so it can actually be tapped.
+    barn.classList.add("barn-hotspot");
     barn.addEventListener("click", (e) => {
       e.stopPropagation(); // don't let the pasture click-to-dismiss swallow it
       onBarnTap();

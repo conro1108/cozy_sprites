@@ -714,6 +714,12 @@ body {
   pointer-events: none; /* taps fall through to the grass (dismiss) */
 }
 
+/* The barn doubles as a hidden tap target (see decoratePasture's onBarnTap) —
+   it needs pointer-events back on to actually receive the click. */
+.pasture .prop.barn-hotspot {
+  pointer-events: auto;
+}
+
 /* Sun and moon are pixel props like the rest of the diorama; the glow follows
    the sprite's alpha (drop-shadow), not a rectangle around the <img>. */
 .sun {
