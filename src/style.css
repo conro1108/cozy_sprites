@@ -610,11 +610,15 @@ body {
   opacity: 0.6;
 }
 
+/* The number is a pixel glyph: an alpha mask filled with the card's own colour,
+   so state classes (won/lost/facedown) recolour it via `currentColor`. */
 .hl-num {
-  font-size: 2.6rem;
-  font-weight: 900;
+  width: 40px;
+  height: 56px;
   color: var(--wood-dark);
-  line-height: 1;
+  background-color: currentColor;
+  -webkit-mask: var(--m) center / contain no-repeat;
+  mask: var(--m) center / contain no-repeat;
 }
 
 .hl-card.rolling {
@@ -642,21 +646,14 @@ body {
   color: #c0492f;
 }
 
-/* The end-of-match tally: a big emoji, the score, and a play-again beat. */
+/* The end-of-match beat: a short line and a play-again button. The verdict's
+   colour lives in the filled pips above it and the pet's reaction below. */
 .hl-result {
   animation: hl-pop 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
 }
 
-.hl-result-emoji {
-  font-size: 2.4rem;
-  line-height: 1;
-  margin: 2px 0 4px;
-}
-
 .hl-result-text {
-  margin: 0 0 8px;
-  font-size: 0.95rem;
-  font-weight: 800;
+  margin: 2px 0 8px;
 }
 
 .hl-result.won .hl-result-text {
@@ -665,6 +662,28 @@ body {
 
 .hl-result.lost .hl-result-text {
   color: #c0492f;
+}
+
+/* A compact corner close for the game strip — not a full-width Done bar. */
+.hl-close {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--wood-dark);
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 22px;
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.hl-close:active {
+  opacity: 1;
 }
 
 @keyframes hl-pop {

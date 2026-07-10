@@ -29,7 +29,7 @@ import {
 } from "../pet/games";
 import type { RpsMove } from "../pet/games";
 import { buildCreatureCanvas, type Mood } from "../render/sprites";
-import { iconEl, iconHTML, iconUrl } from "../render/icons";
+import { iconEl, iconHTML, iconUrl, digitMaskUrl } from "../render/icons";
 import { propEl, propUrl, propSize, type PropName } from "../render/props";
 import type { IconName } from "../render/icons";
 import type { Scene } from "../render/scene";
@@ -228,12 +228,21 @@ function startGame(ctx: MenuCtx, p: Panel, game: GameId): void {
 // In-scene game shaped like rock-paper-scissors: the pet lays down its card
 // first, you call whether yours will come up higher or lower, then a quick
 // tumble flips your card to see if you were right. Played as a best-of-5: a row
-// of pips tracks each call, and a cute little tally reveals the verdict at the
-// end before the pet weighs in and you can go again.
+// of pips tracks each call, and the final tally shows in the pips before the pet
+// weighs in and you can go again. Numbers are drawn in the pixel digit font so
+// the whole thing sits in the same style as the rest of the game.
 const HL_ROUNDS = 5;
 
 function higherLower(ctx: MenuCtx): void {
   const { el, close } = stageOverlay(ctx);
+  // A small corner close, not a full-width bar — you can bail mid-match, but the
+  // match's own end screen is the usual way out.
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "hl-close";
+  closeBtn.setAttribute("aria-label", "Close");
+  closeBtn.textContent = "✕";
+  closeBtn.addEventListener("click", close);
+
   const hint = document.createElement("p");
   hint.className = "stage-hint";
 
@@ -268,22 +277,19 @@ function higherLower(ctx: MenuCtx): void {
   lower.textContent = "▼ Lower";
   choices.append(higher, lower);
 
-  // The end-of-match tally, hidden until all five rounds are in.
+  // The end-of-match beat: a short line and a play-again button. The verdict's
+  // emotion is carried by the filled pips, the win/lose chime, and the pet —
+  // no bespoke celebration graphic.
   const result = document.createElement("div");
   result.className = "hl-result";
   result.style.display = "none";
-  const resultEmoji = document.createElement("div");
-  resultEmoji.className = "hl-result-emoji";
   const resultText = document.createElement("p");
-  resultText.className = "hl-result-text";
-  const againRow = document.createElement("div");
-  againRow.className = "game-choices";
+  resultText.className = "stage-hint hl-result-text";
   const again = document.createElement("button");
   again.className = "btn btn-small";
   again.textContent = "Play again";
   again.addEventListener("click", () => startMatch());
-  againRow.append(again, doneButton(close));
-  result.append(resultEmoji, resultText, againRow);
+  result.append(resultText, again);
 
   let them = rollCard();
   let round = 0;
@@ -292,10 +298,10 @@ function higherLower(ctx: MenuCtx): void {
 
   const newRound = () => {
     them = rollCard();
-    theirs.num.textContent = String(them);
+    theirs.set(them);
     yours.card.classList.remove("won", "lost");
-    yours.num.textContent = "?";
     yours.card.classList.add("facedown");
+    yours.set("?");
     higher.disabled = false;
     lower.disabled = false;
     rolling = false;
@@ -309,6 +315,7 @@ function higherLower(ctx: MenuCtx): void {
     result.style.display = "none";
     cards.style.display = "";
     choices.style.display = "";
+    pipRow.style.display = "";
     newRound();
   };
 
@@ -317,10 +324,9 @@ function higherLower(ctx: MenuCtx): void {
     cards.style.display = "none";
     choices.style.display = "none";
     hint.textContent = "";
-    resultEmoji.textContent = won ? "🏆" : "🍂";
     resultText.textContent = won
-      ? `You win! ${wins} of ${HL_ROUNDS}`
-      : `You lose — ${wins} of ${HL_ROUNDS}`;
+      ? `You win — ${wins} of ${HL_ROUNDS}`
+      : `Beaten — ${wins} of ${HL_ROUNDS}`;
     result.classList.toggle("won", won);
     result.classList.toggle("lost", !won);
     result.style.display = "";
@@ -346,13 +352,13 @@ function higherLower(ctx: MenuCtx): void {
     yours.card.classList.remove("facedown");
     yours.card.classList.add("rolling");
     const tumble = setInterval(() => {
-      yours.num.textContent = String(rollCard());
+      yours.set(rollCard());
     }, 70);
 
     setTimeout(() => {
       clearInterval(tumble);
       if (!el.isConnected) return; // torn out mid-roll (sleep, death, restore)
-      yours.num.textContent = String(mine);
+      yours.set(mine);
       yours.card.classList.remove("rolling");
       yours.card.classList.add(won ? "won" : "lost");
       // A light per-round cue (not the big win/lose fanfare — that's saved for
@@ -373,17 +379,20 @@ function higherLower(ctx: MenuCtx): void {
   higher.addEventListener("click", () => guess(true));
   lower.addEventListener("click", () => guess(false));
   startMatch();
-  el.append(hint, pipRow, cards, choices, result, doneButton(close));
+  el.append(closeBtn, hint, pipRow, cards, choices, result);
 }
 
-/** A single Higher/Lower card: the framed box and its number span. */
-function makeCard(cls: string): { card: HTMLDivElement; num: HTMLSpanElement } {
+/** A single Higher/Lower card. `set` swaps the pixel digit shown (or "?"). */
+function makeCard(cls: string): { card: HTMLDivElement; set: (ch: string | number) => void } {
   const card = document.createElement("div");
   card.className = `hl-card ${cls}`;
   const num = document.createElement("span");
   num.className = "hl-num";
   card.appendChild(num);
-  return { card, num };
+  const set = (ch: string | number) => {
+    num.style.setProperty("--m", `url("${digitMaskUrl(String(ch))}")`);
+  };
+  return { card, set };
 }
 
 // Panel-input game: the cube hums a growing sequence of its four faces; you hum

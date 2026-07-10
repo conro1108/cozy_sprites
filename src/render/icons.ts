@@ -737,3 +737,48 @@ export function iconEl(name: IconName, size = 20): HTMLImageElement {
   img.alt = "";
   return img;
 }
+
+// --- Pixel digits -----------------------------------------------------------
+// A tiny 5×7 bitmap font, so numbers on screen read in the same hand-placed
+// pixel style as the icons instead of a jarring system typeface. Rendered as an
+// alpha mask (see digitMaskUrl) so the colour is driven by CSS `currentColor` —
+// that lets a card tint its number green/red/muted without re-rendering.
+const DIGIT_GLYPHS: Record<string, string[]> = {
+  "0": ["01110", "10001", "10011", "10101", "11001", "10001", "01110"],
+  "1": ["00100", "01100", "00100", "00100", "00100", "00100", "01110"],
+  "2": ["01110", "10001", "00001", "00110", "01000", "10000", "11111"],
+  "3": ["11111", "00010", "00100", "00010", "00001", "10001", "01110"],
+  "4": ["00010", "00110", "01010", "10010", "11111", "00010", "00010"],
+  "5": ["11111", "10000", "11110", "00001", "00001", "10001", "01110"],
+  "6": ["00110", "01000", "10000", "11110", "10001", "10001", "01110"],
+  "7": ["11111", "00001", "00010", "00100", "00100", "01000", "01000"],
+  "8": ["01110", "10001", "10001", "01110", "10001", "10001", "01110"],
+  "9": ["01110", "10001", "10001", "01111", "00001", "00010", "01100"],
+  "?": ["01110", "10001", "00001", "00110", "00100", "00000", "00100"],
+};
+
+const digitCache = new Map<string, string>();
+
+/** A digit (or "?") as an alpha-mask data URL, drawn in crisp blocks. Consumers
+ *  set it as a CSS mask-image and fill it with `currentColor`. */
+export function digitMaskUrl(ch: string): string {
+  const cached = digitCache.get(ch);
+  if (cached) return cached;
+  const g = DIGIT_GLYPHS[ch] ?? DIGIT_GLYPHS["?"];
+  const S = 8; // block size — big enough that CSS scaling stays crisp
+  const w = g[0].length;
+  const h = g.length;
+  const canvas = document.createElement("canvas");
+  canvas.width = w * S;
+  canvas.height = h * S;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#000"; // opaque where the glyph is on; colour comes from CSS
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (g[y][x] !== "0") ctx.fillRect(x * S, y * S, S, S);
+    }
+  }
+  const url = canvas.toDataURL();
+  digitCache.set(ch, url);
+  return url;
+}
