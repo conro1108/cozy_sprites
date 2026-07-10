@@ -256,7 +256,14 @@ function mountGame(): void {
   bindPetGestures(canvas);
 
   nav.status.addEventListener("click", () => openStatus(ctx, Date.now()));
-  nav.food.addEventListener("click", () => openFood(ctx));
+  nav.food.addEventListener("click", () => {
+    if (pet?.stage === "egg") {
+      // No food in the egg phase — it is busy forming.
+      say("*the egg does not eat. the egg prepares.*");
+      return;
+    }
+    openFood(ctx);
+  });
   nav.play.addEventListener("click", () => {
     if (pet?.stage === "egg") {
       // No games in the egg phase — it is busy forming.
