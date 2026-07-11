@@ -1539,9 +1539,15 @@ body {
   cursor: pointer;
 }
 
+/* A darker tan, not a solid wood block — still ~5.6:1 contrast against
+   the wood-dark text (comfortably passes WCAG AA), but reads as a shade
+   shift rather than an inversion. Border and weight pick up the slack
+   so selection doesn't rely on color alone. */
 .notify-opt.active {
-  background: var(--wood);
-  color: #fff;
+  background: var(--heart-empty);
+  border-color: var(--wood-dark);
+  color: var(--wood-dark);
+  font-weight: 800;
 }
 
 /* --- The deliberately-hard-to-find help ----------------------------------- */
