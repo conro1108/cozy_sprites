@@ -61,14 +61,14 @@ const HAPPINESS_DECAY = MAX_HEARTS / (2.5 * HOUR);
 const STAGE_ENERGY_MULT: Record<Stage, number> = {
   egg: 0,
   baby: 157.5,
-  child: 1.3,
+  child: 2.5,
   teen: 1.1,
   adult: 1,
 };
 const STAGE_HAPPY_MULT: Record<Stage, number> = {
   egg: 0,
   baby: 112.5,
-  child: 1.3,
+  child: 2.5,
   teen: 1.1,
   adult: 1,
 };
@@ -103,7 +103,7 @@ const WEIGHT_DRIFT_PER_HOUR = 0.15; // daytime metabolism
 const STAGE_DIGEST_MULT: Record<Stage, number> = {
   egg: 0,
   baby: 2.2,
-  child: 1.3,
+  child: 2.5,
   teen: 1.1,
   adult: 1,
 };
