@@ -606,7 +606,6 @@ function doPat(): void {
       // It asked to be patted, and was. The whole point of the gesture.
       say(attentionSatisfiedLine("pat"));
       scene?.triggerPulse("love");
-      scene?.patSquint();
       playSfx("love");
       saidEnough = false;
       break;
@@ -626,9 +625,11 @@ function doPat(): void {
       playSfx("pat");
       break;
     case "enjoyed":
+      // Either it says something, or it just shuts its eyes and enjoys it —
+      // shown instead of told, so the two never land on the same pat.
       if (shouldSpeak(pet, "pat")) say(pickLine(pet, "pat"));
+      else scene?.patSquint();
       scene?.triggerPulse("love");
-      scene?.patSquint();
       playSfx("pat");
       saidEnough = false;
       break;
