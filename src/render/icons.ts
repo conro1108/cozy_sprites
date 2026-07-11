@@ -284,20 +284,21 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, y: "#f0b840" },
   },
   // A first-aid cross for the health meter — cream box, dark outline, red plus.
-  // The universal "health" mark; clean and legible at meter size.
+  // Inset with rounded corners so its filled footprint carries the same visual
+  // weight as the burger/smiley beside it (a full square reads too heavy).
   medcross: {
     rows: [
       "............",
-      ".kkkkkkkkkk.",
-      ".kwwwwwwwwk.",
-      ".kwwwrrwwwk.",
-      ".kwwwrrwwwk.",
-      ".kwrrrrrrwk.",
-      ".kwrrrrrrwk.",
-      ".kwwwrrwwwk.",
-      ".kwwwrrwwwk.",
-      ".kwwwwwwwwk.",
-      ".kkkkkkkkkk.",
+      "............",
+      "...kkkkkk...",
+      "..kwwrrwwk..",
+      "..kwwrrwwk..",
+      "..krrrrrrk..",
+      "..krrrrrrk..",
+      "..kwwrrwwk..",
+      "..kwwrrwwk..",
+      "...kkkkkk...",
+      "............",
       "............",
     ],
     palette: { k: K, w: "#fdf3e0", r: "#e05c48" },
