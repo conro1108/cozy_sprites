@@ -1406,7 +1406,7 @@ export class Scene {
     if (p >= 1 && !act.finished) {
       act.finished = true;
       this.act = null;
-      if (act.type === "poop") {
+      if (act.type === "poop" || act.type === "clean") {
         // Stay where it, uh, was. Take a slightly embarrassed beat.
         this.wanderX = act.data.dx as number;
         this.wanderY = act.data.dy as number;
