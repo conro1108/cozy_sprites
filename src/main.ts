@@ -225,7 +225,7 @@ function mountGame(): void {
       <div class="meters">
         <div class="meter-row">${iconHTML("burger", 16)}<div class="hearts" data-hunger></div></div>
         <div class="meter-row">${iconHTML("smiley", 16)}<div class="hearts" data-happy></div></div>
-        <div class="meter-row">${iconHTML("heart", 16)}<div class="health-bar"><div class="fill" data-health></div></div></div>
+        <div class="meter-row">${iconHTML("pulse", 16)}<div class="health-bar"><div class="fill" data-health></div></div></div>
       </div>
       <div class="idcol">
         <div class="pet-name" data-name></div>

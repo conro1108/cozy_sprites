@@ -15,6 +15,7 @@ export type IconName =
   | "hearthalf"
   | "heartempty"
   | "smiley"
+  | "pulse"
   | "cake"
   | "carrot"
   | "noodles"
@@ -281,6 +282,25 @@ const ICONS: Record<IconName, IconDef> = {
       "............",
     ],
     palette: { k: K, y: "#f0b840" },
+  },
+  // A heartbeat trace for the health meter — a flat vitals line with one QRS
+  // spike, in the health green. Reads as "monitoring", not "sick".
+  pulse: {
+    rows: [
+      "............",
+      "............",
+      ".....gg.....",
+      ".....gg.....",
+      ".....gg.....",
+      ".....gg.....",
+      "gggg.ggggggg",
+      "....gggg....",
+      "......gg....",
+      "......gg....",
+      "............",
+      "............",
+    ],
+    palette: { g: "#6bbf59" },
   },
   cake: {
     rows: [
