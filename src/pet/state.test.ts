@@ -956,11 +956,24 @@ describe("stepEvents", () => {
     expect(events).toEqual([]);
   });
 
-  it("night is quiet time — no messes, plots, or demands", () => {
-    // Awake (lights blazing) at midnight, but the world itself is asleep.
-    const pet = asStage(createPet("Milo", new Date(2026, 5, 16, 0).getTime()), "child");
+  it("asleep is quiet time — no messes, plots, or demands", () => {
+    // Lights off at midnight: genuinely asleep, so the world holds still.
+    const pet = {
+      ...asStage(createPet("Milo", new Date(2026, 5, 16, 0).getTime()), "child"),
+      lightsOn: false,
+      asleep: true,
+    };
     const { events } = stepEvents(pet, 1 * HOUR, () => 0);
     expect(events).toEqual([]);
+  });
+
+  it("an awake pet at night still gets messes, calls, and the odd bug", () => {
+    // Lights blazing at midnight: quiet time is about being asleep, not the
+    // hour, so an owl kept up late still needs looking after.
+    const pet = asStage(createPet("Milo", new Date(2026, 5, 16, 0).getTime()), "child");
+    expect(pet.asleep).toBe(false);
+    const { events } = stepEvents(pet, 1 * HOUR, () => 0);
+    expect(events).not.toEqual([]);
   });
 
   it("dysentery floods the floor at an rng a healthy pet wouldn't poop on", () => {

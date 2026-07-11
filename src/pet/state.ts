@@ -921,8 +921,9 @@ const EVENT_CHUNK_MS = 15 * 60_000;
 /**
  * Advance random world events over `elapsed` ms (ending at state.lastUpdated —
  * callers run applyElapsedDecay first). Time is replayed in EVENT_CHUNK_MS
- * slices; slices that fall in the night are skipped (night is quiet time).
- * rng defaults to Math.random.
+ * slices; slices where the pet is asleep are skipped (quiet time is about
+ * being asleep, not the hour — an awake pet with the lights on still gets
+ * messes, calls, and the odd bug at 2am). rng defaults to Math.random.
  */
 export function stepEvents(
   state: PetState,
@@ -946,7 +947,9 @@ export function stepEvents(
     const chunk = Math.min(EVENT_CHUNK_MS, elapsed - offset);
     const chunkStart = start + offset;
     offset += chunk;
-    if (isNight(chunkStart)) continue;
+    // Egg is already excluded above, so this mirrors applyElapsedDecay's own
+    // asleep test exactly: night and lights off.
+    if (isNight(chunkStart) && !s.lightsOn) continue;
     const perHour = chunk / HOUR;
 
     // Pooping. Two paths, but at most one mess per slice.
