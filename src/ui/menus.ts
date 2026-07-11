@@ -154,6 +154,18 @@ export function closeActiveGame(): void {
   activeGameClose?.();
 }
 
+/** Registered by the active in-scene game when it wants first look at a stage
+ *  tap before the default "tap away dismisses the game" behavior — currently
+ *  just hide & seek's guess phase, so tapping the hiding spot itself works.
+ *  Coordinates are canvas-relative CSS px. Return true to consume the tap. */
+let stageTapHandler: ((x: number, y: number) => boolean) | null = null;
+
+/** Offer a stage tap to the active game's handler, if any. Returns whether it
+ *  was consumed — the caller should skip its own tap-away behavior if so. */
+export function handleStageTap(x: number, y: number): boolean {
+  return stageTapHandler?.(x, y) ?? false;
+}
+
 /** Compact control strip overlaid on the stage for in-scene games. */
 function stageOverlay(ctx: MenuCtx): { el: HTMLDivElement; close: () => void } {
   const el = document.createElement("div");
@@ -748,27 +760,42 @@ function hideSeek(ctx: MenuCtx): void {
   playSfx("hide"); // scurries off
   ctx.scene().playHide(peek, () => {
     const { el, close: rawClose } = stageOverlay(ctx);
-    const close = registerActiveGame(rawClose);
+    const close = registerActiveGame(() => {
+      stageTapHandler = null;
+      rawClose();
+    });
     const hint = document.createElement("p");
     hint.className = "stage-hint";
-    hint.textContent = "Where did it go?";
+    hint.textContent = "Where did it go? Tap the spot, or guess below.";
     const row = document.createElement("div");
     row.className = "game-choices";
+
+    const guess = (s: (typeof HIDE_SPOTS)[number]) => {
+      const won = s === spot;
+      close();
+      // Sound the reveal now, at the start of the ~1.4s pop-out — the
+      // win/lose verdict still lands later, at the animation's end.
+      playSfx(won ? "found" : "empty");
+      ctx.scene().playReveal(spot, () => {
+        ctx.finishGame("hideseek", won, hideSeekLine(won, spot));
+        if (canReplay(ctx)) hideSeekAgain(ctx);
+      });
+    };
+
+    // Tapping the actual hiding spot in the scene guesses it directly; the
+    // button row below covers the same ground for anyone who'd rather read.
+    stageTapHandler = (x, y) => {
+      const s = ctx.scene().hideSpotAt(x, y);
+      if (!s) return false;
+      guess(s);
+      return true;
+    };
+
     for (const s of HIDE_SPOTS) {
       const b = document.createElement("button");
       b.className = "btn secondary btn-small";
       b.textContent = s;
-      b.addEventListener("click", () => {
-        const won = s === spot;
-        close();
-        // Sound the reveal now, at the start of the ~1.4s pop-out — the
-        // win/lose verdict still lands later, at the animation's end.
-        playSfx(won ? "found" : "empty");
-        ctx.scene().playReveal(spot, () => {
-          ctx.finishGame("hideseek", won, hideSeekLine(won, spot));
-          if (canReplay(ctx)) hideSeekAgain(ctx);
-        });
-      });
+      b.addEventListener("click", () => guess(s));
       row.appendChild(b);
     }
     el.append(hint, row);

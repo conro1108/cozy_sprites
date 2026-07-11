@@ -63,6 +63,7 @@ import {
   openPlay,
   openStatus,
   closeActiveGame,
+  handleStageTap,
 } from "./ui/menus";
 import { randomName } from "./pet/names";
 
@@ -88,6 +89,7 @@ getDeviceId(); // ensure anonymous device identity exists
 let pet: PetState | null = null;
 let farm = loadFarm();
 let scene: Scene | null = null;
+let petCanvas: HTMLCanvasElement | null = null; // for gesture hit-testing against creatureBounds()
 let bubbleTimer: ReturnType<typeof setTimeout> | undefined;
 let anchorRaf = 0; // rAF loop keeping bubble/attention pinned to the sprite
 let nextIdleAt = 0;
@@ -145,6 +147,7 @@ function mountHatch(): void {
   stopAnchorLoop();
   scene?.stop();
   scene = null;
+  petCanvas = null;
   els = null;
   dying = false;
   const proposed = randomName();
@@ -198,6 +201,7 @@ function mountMemorial(): void {
   stopAnchorLoop();
   scene?.stop();
   scene = null;
+  petCanvas = null;
   els = null;
   dying = false;
   const p = pet;
@@ -274,6 +278,7 @@ function mountGame(): void {
 
   const canvas = app.querySelector<HTMLCanvasElement>("#scene")!;
   scene = new Scene(canvas);
+  petCanvas = canvas;
   scene.onIdleSong(() => playSong());
   scene.start();
   bindPetGestures(canvas);
@@ -493,24 +498,43 @@ function sayCat(cat: Category): void {
 // --- Pet gestures -----------------------------------------------------------
 // A pat and a poke are different things, so they're different gestures. A quick
 // jab is a poke; holding still or rubbing is a pat. You cannot pat something by
-// stabbing it, and the input shouldn't pretend otherwise.
+// stabbing it, and the input shouldn't pretend otherwise. Scratchies also need
+// an actual back-and-forth — a single straight swipe is not rubbing — and both
+// gestures only count when they land on the pet itself, not anywhere on stage.
 const HOLD_MS = 260; // press this long without leaving and it's a pat
-const RUB_PX = 10; // …or move this far while down, and it's a rub
+const RUB_PX = 10; // …or move this far while down (with a reversal) and it's a rub
 
 let gestureMoved = 0;
 let gestureX = 0;
 let gestureY = 0;
 let gestureDown = false;
 let gestureSpent = false; // the pat already fired; don't also poke on release
+let gestureAxis: "x" | "y" | null = null; // dominant movement axis, locked in on first real step
+let gestureDirSign = 0; // sign of the last step along that axis
+let gestureReversed = false; // seen the stroke double back at least once — a rub, not a swipe
 let holdTimer: ReturnType<typeof setTimeout> | undefined;
 /** Suppresses a repeat "that's enough" line for an unbroken run of pats. */
 let saidEnough = false;
+
+/** Is the last-tracked pointer position over the pet's sprite? Gates every
+ *  gesture reaction to the pet itself instead of the whole stage. */
+function pointerOnPet(): boolean {
+  if (!scene || !petCanvas) return false;
+  const rect = petCanvas.getBoundingClientRect();
+  const b = scene.creatureBounds();
+  const px = gestureX - rect.left;
+  const py = gestureY - rect.top;
+  return px >= b.x && px <= b.x + b.width && py >= b.y && py <= b.y + b.height;
+}
 
 function bindPetGestures(canvas: HTMLCanvasElement): void {
   canvas.addEventListener("pointerdown", (e) => {
     gestureDown = true;
     gestureSpent = false;
     gestureMoved = 0;
+    gestureAxis = null;
+    gestureDirSign = 0;
+    gestureReversed = false;
     gestureX = e.clientX;
     gestureY = e.clientY;
     canvas.setPointerCapture(e.pointerId);
@@ -526,10 +550,25 @@ function bindPetGestures(canvas: HTMLCanvasElement): void {
 
   canvas.addEventListener("pointermove", (e) => {
     if (!gestureDown) return;
-    gestureMoved += Math.hypot(e.clientX - gestureX, e.clientY - gestureY);
+    const stepX = e.clientX - gestureX;
+    const stepY = e.clientY - gestureY;
+    gestureMoved += Math.hypot(stepX, stepY);
     gestureX = e.clientX;
     gestureY = e.clientY;
-    if (!gestureSpent && gestureMoved >= RUB_PX) {
+
+    if (gestureAxis === null && (Math.abs(stepX) > 1 || Math.abs(stepY) > 1)) {
+      gestureAxis = Math.abs(stepX) >= Math.abs(stepY) ? "x" : "y";
+    }
+    if (gestureAxis) {
+      const step = gestureAxis === "x" ? stepX : stepY;
+      if (Math.abs(step) > 0.5) {
+        const sign = Math.sign(step);
+        if (gestureDirSign !== 0 && sign !== gestureDirSign) gestureReversed = true;
+        gestureDirSign = sign;
+      }
+    }
+
+    if (!gestureSpent && gestureReversed && gestureMoved >= RUB_PX) {
       gestureSpent = true;
       doPat();
     }
@@ -555,6 +594,8 @@ function doPat(): void {
     closeActiveGame();
     return;
   }
+  // Scratchies only count when they land on the pet, not anywhere on stage.
+  if (!pointerOnPet()) return;
   const { state, reaction } = patPet(pet, Date.now());
   pet = state;
   switch (reaction) {
@@ -597,9 +638,18 @@ function onTapPet(): void {
   if (!pet || dying || pet.deadAt !== null) return;
   if (scene?.busy()) return;
   if (app.querySelector(".stage-controls")) {
+    // A game may want first look at a stage tap — hide & seek's guess phase,
+    // for one, lets you tap the hiding spot directly. Only fall back to
+    // dismissing the game if nothing on stage claims the tap.
+    if (petCanvas) {
+      const rect = petCanvas.getBoundingClientRect();
+      if (handleStageTap(gestureX - rect.left, gestureY - rect.top)) return;
+    }
     closeActiveGame();
     return;
   }
+  // A poke only counts when it lands on the pet, not anywhere on stage.
+  if (!pointerOnPet()) return;
   const r = tap(pet, Date.now());
   pet = r.state;
   if (pet.stage === "egg") {
@@ -941,6 +991,7 @@ function beginDeparture(walked: boolean): void {
   stopAnchorLoop();
   scene?.stop();
   scene = null;
+  petCanvas = null;
   els = null;
   dying = false;
   const lived = (p.departedAt ?? Date.now()) - p.createdAt;

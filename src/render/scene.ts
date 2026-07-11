@@ -13,7 +13,7 @@ import type { Mood } from "./sprites";
 import type { AdultForm } from "../pet/types";
 import { iconCanvas } from "./icons";
 import type { IconName } from "./icons";
-import type { FetchVariant } from "../pet/games";
+import { HIDE_SPOTS, type FetchVariant, type HideSpot } from "../pet/games";
 
 export const SCENE_W = 112; // fixed content width; height adapts to the stage
 
@@ -489,10 +489,56 @@ export class Scene {
     return this.toScreen(sx, sy);
   }
 
+  /** CSS-pixel bounding box (relative to the canvas element) the creature
+   *  currently occupies, padded a little for forgiving touch — lets a pat or
+   *  poke gesture be gated to the pet itself instead of the whole stage. */
+  creatureBounds(): { x: number; y: number; width: number; height: number } {
+    const pad = 10; // scene px of slack around the sprite, each side
+    const cw = CELL * 3 * this.depthScale(this.curDy);
+    const cx = CREATURE_X + this.curDx;
+    const topY = this.floorY + this.curDy + 16 - cw;
+    const topLeft = this.toScreen(cx - cw / 2 - pad, topY - pad);
+    const bottomRight = this.toScreen(cx + cw / 2 + pad, topY + cw + pad);
+    return {
+      x: topLeft.x,
+      y: topLeft.y,
+      width: bottomRight.x - topLeft.x,
+      height: bottomRight.y - topLeft.y,
+    };
+  }
+
+  /** Which hide-and-seek spot (if any) a canvas-relative tap lands nearest —
+   *  lets the player guess by tapping the prop itself, not just a text list.
+   *  Taps out on the open grass, past every spot's radius, match nothing. */
+  hideSpotAt(cx: number, cy: number): HideSpot | null {
+    const { scale } = this.screenTransform();
+    const maxDist = 22 * scale; // scene-px radius, converted to CSS px
+    let best: HideSpot | null = null;
+    let bestDist = Infinity;
+    for (const spot of HIDE_SPOTS) {
+      const pos = this.hideSpotPos(spot);
+      const screen = this.toScreen(pos.x, pos.y);
+      const d = Math.hypot(cx - screen.x, cy - screen.y);
+      if (d < bestDist) {
+        bestDist = d;
+        best = spot;
+      }
+    }
+    return bestDist <= maxDist ? best : null;
+  }
+
   /** CSS-pixel center of where the rps reveal will show the player's icon —
    *  the landing point for the "your choice flies in" UI transition. */
   rpsPlayerAnchor(): { x: number; y: number } {
     return this.toScreen(RPS_PLAYER_X + RPS_ICON_SZ / 2, RPS_ICON_Y + RPS_ICON_SZ / 2);
+  }
+
+  /** Uniform scene→CSS scale factor and origin offset — shared by toScreen and
+   *  anything sizing on-screen hit targets to match the rendered scene. */
+  private screenTransform(): { scale: number; ox: number; oy: number } {
+    const rect = this.canvas.getBoundingClientRect();
+    const scale = Math.max(rect.width / SCENE_W, rect.height / this.sh);
+    return { scale, ox: (rect.width - SCENE_W * scale) / 2, oy: (rect.height - this.sh * scale) / 2 };
   }
 
   /** Internal scene coords → CSS pixels relative to the canvas element.
@@ -500,10 +546,7 @@ export class Scene {
    *  offsets) — contain math drifts whenever the buffer-height clamp in
    *  resize() keeps the aspect from matching exactly. */
   private toScreen(sx: number, sy: number): { x: number; y: number } {
-    const rect = this.canvas.getBoundingClientRect();
-    const scale = Math.max(rect.width / SCENE_W, rect.height / this.sh);
-    const ox = (rect.width - SCENE_W * scale) / 2;
-    const oy = (rect.height - this.sh * scale) / 2;
+    const { scale, ox, oy } = this.screenTransform();
     return { x: ox + sx * scale, y: oy + sy * scale };
   }
 
