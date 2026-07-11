@@ -230,37 +230,18 @@ const DOG: BodyDef = {
     ".kBBBBBBBBBBk...",
     ".kBBBBBBBBBBk...",
     "..kBBBBBBBBk.kk.",
-    "..kBBBBBBBBkkDk.",
-    "..kSBBBBBBSkkk..",
-    "...kSSSSSSk.....",
+    "..kBBWWWWBBkkDk.",
+    "..kSBWWWWBSkkk..",
+    "...kSSWWSSk.....",
     "....kkkkkk......",
     "................",
   ],
-  extra: { D: "#a9702f" }, // pointy triangular ears + tail
-  fill: "#e8ad63",
-  shade: "#cf8a3f",
+  extra: { D: "#4a4a56", W: "#eef0f2" }, // pointy ears + tail; white chest patch
+  fill: "#7a7a8a",
+  shade: "#5a5a68",
   face: "small",
   faceDx: 5,
   faceDy: 7,
-  overlay: {
-    // A proper puppy muzzle: a 3px nose just under the eyes, over a 1px
-    // philtrum, centred so the stem runs true down to the mood mouth — reads
-    // like 工, not two stacked dashes. One row lower than the eye row itself,
-    // or the nose bridge sits flush against the eye pixels.
-    rows: [
-      "................",
-      "................",
-      "................",
-      "................",
-      "................",
-      "................",
-      "................",
-      "................",
-      "......nnn.......",
-      ".......n........",
-    ],
-    palette: { n: "#6b4a2a" },
-  },
   // Tail raised — swapped in while trotting or mid-wag. Erases the resting
   // tail (x) and draws it flicked up over the rump.
   alt: {
@@ -279,7 +260,7 @@ const DOG: BodyDef = {
       "............xxx.",
       "............xx..",
     ],
-    palette: { k: OUTLINE, D: "#a9702f", x: "ERASE" },
+    palette: { k: OUTLINE, D: "#4a4a56", x: "ERASE" },
   },
 };
 
@@ -625,7 +606,7 @@ const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
       "............D...",
       "...........DD...",
     ],
-    palette: { D: "#a9702f" }, // a little tail, already wagging
+    palette: { D: "#4a4a56" }, // a little tail, already wagging
   },
   blob: {
     rows: [

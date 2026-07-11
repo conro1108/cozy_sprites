@@ -8,10 +8,11 @@ function px(buf: PixelBuffer, x: number, y: number): [number, number, number, nu
   return [buf.data[i], buf.data[i + 1], buf.data[i + 2], buf.data[i + 3]];
 }
 
-const NOSE: [number, number, number] = [0x6b, 0x4a, 0x2a];
 const EYE: [number, number, number] = [0x3a, 0x2b, 0x3f];
-const TAIL: [number, number, number] = [0xa9, 0x70, 0x2f];
+const TAIL: [number, number, number] = [0x4a, 0x4a, 0x56];
 const OUTLINE: [number, number, number] = [0x40, 0x2e, 0x3a];
+const DOG_FILL: [number, number, number] = [0x7a, 0x7a, 0x8a];
+const DOG_PATCH: [number, number, number] = [0xee, 0xf0, 0xf2];
 
 const rgb = (p: [number, number, number, number]) => p.slice(0, 3);
 const isOutline = (p: [number, number, number, number]) =>
@@ -30,20 +31,22 @@ const SMALL_FACE_KEYS = [
 ] as const;
 const MOODS = ["neutral", "happy", "sad", "sleep"] as const;
 
-describe("dog muzzle", () => {
+describe("dog chest patch", () => {
   const dog = renderPixels("dog", "neutral");
-  it("puts the nose just under the eyes with a stem down to the mouth", () => {
-    expect(rgb(px(dog, 7, 8))).toEqual(NOSE); // nose
-    expect(rgb(px(dog, 8, 8))).toEqual(NOSE);
-    expect(rgb(px(dog, 7, 9))).toEqual(EYE); // mood mouth wins the shared pixel with the stem
-    expect(rgb(px(dog, 8, 9))).toEqual(EYE);
+  it("leaves a gap row of coat colour between the mouth and the patch", () => {
+    expect(rgb(px(dog, 7, 10))).toEqual(DOG_FILL); // gap row
+    expect(rgb(px(dog, 7, 11))).toEqual(DOG_PATCH); // patch starts one row down
   });
-  it("keeps the eye row clear of the muzzle", () => {
+  it("keeps coat visible down both sides of the patch", () => {
+    expect(rgb(px(dog, 4, 12))).toEqual(DOG_FILL);
+    expect(rgb(px(dog, 9, 12))).toEqual(DOG_FILL);
+  });
+  it("keeps the eye row clear of any marking", () => {
     expect(rgb(px(dog, 5, 7))).toEqual(EYE);
     expect(rgb(px(dog, 9, 7))).toEqual(EYE);
-    expect(rgb(px(dog, 6, 7))).not.toEqual(NOSE);
-    expect(rgb(px(dog, 7, 7))).not.toEqual(NOSE);
-    expect(rgb(px(dog, 8, 7))).not.toEqual(NOSE);
+    expect(rgb(px(dog, 6, 7))).not.toEqual(DOG_PATCH);
+    expect(rgb(px(dog, 7, 7))).not.toEqual(DOG_PATCH);
+    expect(rgb(px(dog, 8, 7))).not.toEqual(DOG_PATCH);
   });
 });
 
