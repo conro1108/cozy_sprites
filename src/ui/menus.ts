@@ -865,7 +865,7 @@ export function openStatus(ctx: MenuCtx, now: number): void {
     ["Hunger", heartBar(pet.hunger)],
     ["Happiness", heartBar(pet.happiness)],
     ["Health", pctBar(pet.health)],
-    ["Discipline", pctBar(pet.discipline)],
+    ["Discipline", pctBar(pet.discipline, "var(--accent)")],
     ["Condition", condition],
   ];
   for (const [label, val] of rows) {
@@ -996,18 +996,27 @@ function notifySettings(): HTMLElement {
 }
 
 function heartBar(v: number): HTMLElement {
+  // Match the home-screen care meters: a row of pixel-art hearts snapped to
+  // half-heart steps (full / half / empty), not font glyphs.
   const el = document.createElement("span");
   el.className = "heart-meter";
-  const full = Math.round(v);
-  el.textContent = "♥".repeat(full) + "♡".repeat(Math.max(0, MAX_HEARTS - full));
+  const q = Math.round(v * 2) / 2;
+  for (let i = 0; i < MAX_HEARTS; i++) {
+    const filled = q - i;
+    const name = filled >= 1 ? "heart" : filled >= 0.5 ? "hearthalf" : "heartempty";
+    el.appendChild(iconEl(name, 16));
+  }
   return el;
 }
 
-function pctBar(v: number): HTMLElement {
+function pctBar(v: number, fill = "var(--health)"): HTMLElement {
+  // Same chrome as the home-screen health bar: square, bordered, tan track.
+  // Health fills green to match home; discipline passes its own accent.
   const bar = document.createElement("div");
   bar.className = "bar";
   const span = document.createElement("span");
   span.style.width = `${Math.max(0, Math.min(100, v))}%`;
+  span.style.background = fill;
   bar.appendChild(span);
   return bar;
 }
