@@ -4,11 +4,10 @@
 // acts, and all result text comes out of the sprite's mouth.
 
 import type { FoodId, GameId, PetState, FarmEntry, AdultForm } from "../pet/types";
-import { ILLNESSES } from "../pet/types";
 import { FOODS, FOOD_ORDER, ADULTS, ADULT_ORDER } from "../pet/roster";
 import { ageLabel } from "../pet/format";
 import { MAX_HEARTS, retirementPhase } from "../pet/state";
-import { farmConfirmLine, farewellWalkLine } from "../pet/dialogue";
+import { farmConfirmLine, farewellWalkLine, describeCondition } from "../pet/dialogue";
 import {
   judgeHigherLower,
   judgeRps,
@@ -852,11 +851,7 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   list.className = "stat-list";
 
   const formName = pet.form ? ADULTS[pet.form].name : STAGE_LABEL[pet.stage];
-  const condition = pet.sick
-    ? pet.illness
-      ? `Has ${ILLNESSES[pet.illness].label}`
-      : "Sick"
-    : "Well";
+  const condition = describeCondition(pet, now);
   const rows: [string, string | HTMLElement][] = [
     ["Name", pet.name],
     ["Stage", pet.form ? `Adult · ${formName}` : STAGE_LABEL[pet.stage]],

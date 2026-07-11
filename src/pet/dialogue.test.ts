@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  describeCondition,
   dyingLine,
   farmConfirmLine,
   illnessAnnouncement,
@@ -52,6 +53,46 @@ describe("illness + memorial copy", () => {
 
   it("writes the memorial line with a cause", () => {
     expect(memorialLine("Milo", "the plague")).toBe("Milo has died of the plague.");
+  });
+});
+
+describe("describeCondition", () => {
+  const awake = (over: Partial<PetState>): PetState => ({
+    ...createPet("Milo", T0),
+    stage: "child", // createPet starts as an egg; most cases want a hatched pet
+    asleep: false,
+    sick: false,
+    illness: null,
+    ...over,
+  });
+
+  it("is deterministic for a given pet and moment", () => {
+    const p = awake({ hunger: 0 });
+    expect(describeCondition(p, T0)).toBe(describeCondition(p, T0));
+  });
+
+  it("names the illness, and it outranks an empty bowl", () => {
+    const p = awake({ sick: true, illness: "plague", hunger: 0 });
+    expect(describeCondition(p, T0)).toContain("the plague");
+  });
+
+  it("an egg reads as forming even with empty meters", () => {
+    const egg = awake({ stage: "egg", hunger: 0, happiness: 0 });
+    const starving = awake({ stage: "baby", hunger: 0, happiness: 0 });
+    // Egg branch wins over the hunger/mood branches.
+    expect(describeCondition(egg, T0)).not.toBe(describeCondition(starving, T0));
+  });
+
+  it("an empty bowl reads differently from a thriving pet", () => {
+    const starving = awake({ hunger: 0, happiness: 4, health: 100 });
+    const thriving = awake({ hunger: 4, happiness: 4, health: 100 });
+    expect(describeCondition(starving, T0)).not.toBe(describeCondition(thriving, T0));
+  });
+
+  it("sleep outranks a peckish stomach", () => {
+    const asleep = awake({ asleep: true, hunger: 2, happiness: 4, health: 100 });
+    const up = awake({ asleep: false, hunger: 2, happiness: 4, health: 100 });
+    expect(describeCondition(asleep, T0)).not.toBe(describeCondition(up, T0));
   });
 });
 

@@ -4,6 +4,7 @@
 
 import { ILLNESSES } from "./types";
 import type { AdultForm, AttentionWant, IllnessId, PetState, Stage } from "./types";
+import { OVERWEIGHT, UNDERWEIGHT } from "./state";
 
 export type Category =
   | "hatch"
@@ -890,4 +891,79 @@ const EPITAPHS = [
 
 export function epitaph(rng: () => number = Math.random): string {
   return EPITAPHS[Math.floor(rng() * EPITAPHS.length)];
+}
+
+// --- Status "Condition" flavour ---------------------------------------------
+// A light, honest read of how the pet is doing right now, for the Status panel.
+// Cute where it can be, plain where it must be (illness stays legible). The word
+// is picked deterministically from the pet + a slow time bucket, so it holds
+// steady across quick re-opens but drifts every few minutes — alive, not
+// flickering. Priority runs most-urgent first: an illness outranks an empty
+// bowl outranks a good mood.
+const CONDITION_DRIFT_MS = 4 * 60_000;
+
+function conditionPick(pet: PetState, now: number, key: string, opts: string[]): string {
+  // FNV-1a over (key + pet id), seeded by the slow time bucket. Stable and cheap.
+  let h = (2166136261 ^ Math.floor(now / CONDITION_DRIFT_MS)) >>> 0;
+  const s = key + pet.createdAt;
+  for (let i = 0; i < s.length; i++) {
+    h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  }
+  return opts[(h >>> 0) % opts.length];
+}
+
+export function describeCondition(pet: PetState, now: number): string {
+  const pick = (key: string, opts: string[]): string => conditionPick(pet, now, key, opts);
+
+  if (pet.stage === "egg") {
+    return pick("egg", ["Incubating", "Forming", "Becoming", "Almost someone", "Cooking quietly"]);
+  }
+  if (pet.sick) {
+    if (!pet.illness) return "Feeling poorly"; // legacy saves: sick with no named illness
+    const verb = pick("sickverb", ["Has", "Fighting", "Down with", "Nursing"]);
+    return `${verb} ${ILLNESSES[pet.illness].label}`;
+  }
+  if (pet.asleep) {
+    return pick("asleep", [
+      "Dreaming", "Fast asleep", "Sound asleep", "Deep in a nap",
+      "Off with the fairies", "Dreaming of snacks",
+    ]);
+  }
+  if (pet.hunger <= 0) {
+    return pick("starving", ["Starving", "Famished", "Running on empty", "Absolutely ravenous"]);
+  }
+  if (pet.happiness <= 0) {
+    return pick("miserable", ["Miserable", "Heartbroken", "Inconsolable", "In a proper sulk"]);
+  }
+  if (pet.health < 40) {
+    return pick("rundown", ["Run down", "Under the weather", "Peaky", "A bit fragile"]);
+  }
+  if (pet.hunger <= 1) {
+    return pick("hungry", ["Hungry", "Rumbly", "Thinking about lunch", "Bowl-eyed"]);
+  }
+  if (pet.happiness <= 1) {
+    return pick("bored", ["Bored", "Glum", "Restless", "Sulking", "Understimulated"]);
+  }
+  if (pet.wantsAttention && !pet.fakeCall) {
+    return pick("needy", ["Needy", "Dramatic", "Fishing for attention", "Making a scene"]);
+  }
+  if (pet.poops >= 2) {
+    return pick("messy", ["Living in filth", "Surrounded by mess", "Unimpressed by the floor"]);
+  }
+  if (pet.hunger <= 2) {
+    return pick("peckish", ["Peckish", "Could eat", "Snackish", "Slightly rumbly"]);
+  }
+  if (pet.weight >= OVERWEIGHT) {
+    return pick("chonky", ["Well-fed", "Chonky", "Rotund", "Pleasantly round", "Ate well"]);
+  }
+  if (pet.weight <= UNDERWEIGHT) {
+    return pick("slight", ["Slight", "Needs a good meal", "All skin and pixels"]);
+  }
+  if (pet.happiness >= 3.5 && pet.health > 60) {
+    return pick("thriving", [
+      "Thriving", "Delighted", "Living the dream", "Blissful",
+      "On top of the world", "Content beyond words",
+    ]);
+  }
+  return pick("well", ["Well", "Content", "Perfectly fine", "Vibing", "At peace", "Happily unremarkable"]);
 }
