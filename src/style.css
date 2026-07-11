@@ -154,7 +154,6 @@ body {
   width: 72px;
   height: 9px;
   background: var(--heart-empty);
-  border-radius: 5px;
   overflow: hidden;
   border: 1px solid rgba(94, 62, 41, 0.3);
 }

@@ -73,18 +73,20 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, p: "#fdf3e0", c: "#c9a96a", l: "#c9b896" },
   },
   burger: {
+    // Sized to fill the cell like the heart glyph, so it reads the same size as
+    // the care-meter hearts sitting beside it in the HUD.
     rows: [
       "............",
       "...kkkkkk...",
       "..kbbbbbbk..",
-      ".kbbsbbsbbk.",
-      ".kLLLLLLLLk.",
-      ".kttttttttk.",
-      ".kmmmmmmmmk.",
+      ".kbsbbbsbbk.",
+      "kbbbbbbbbbbk",
+      "kLLLLLLLLLLk",
+      "kttttttttttk",
+      "kmmmmmmmmmmk",
+      "kbbbbbbbbbbk",
       ".kbbbbbbbbk.",
-      "..kbbbbbbk..",
-      "...kkkkkk...",
-      "............",
+      "..kkkkkkkk..",
       "............",
     ],
     palette: { k: K, b: "#eeb060", s: "#fbe6b6", L: "#7fc45e", t: "#e05c48", m: "#8a5030" },
@@ -266,16 +268,18 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, e: "#d9c3a3" },
   },
   // A round grin for the happiness meter — friendlier than a second heart.
+  // Sized to fill the cell like the heart glyph so it matches the hearts beside
+  // it in the HUD.
   smiley: {
     rows: [
       "............",
       "...kkkkkk...",
       "..kyyyyyyk..",
       ".kyyyyyyyyk.",
-      ".kyykyykyyk.",
-      ".kyyyyyyyyk.",
-      ".kykyyyykyk.",
-      ".kyykkkkyyk.",
+      "kyykyyyykyyk",
+      "kyyyyyyyyyyk",
+      "kykyyyyyykyk",
+      ".kykkkkkkyk.",
       "..kyyyyyyk..",
       "...kkkkkk...",
       "............",
@@ -284,21 +288,21 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, y: "#f0b840" },
   },
   // A first-aid cross for the health meter — cream box, dark outline, red plus.
-  // Inset with rounded corners so its filled footprint carries the same visual
-  // weight as the burger/smiley beside it (a full square reads too heavy).
+  // Sized to fill the cell like the heart glyph, with clipped corners, so it
+  // carries the same visual weight as the hearts beside it in the HUD.
   medcross: {
     rows: [
       "............",
-      "............",
-      "...kkkkkk...",
-      "..kwwrrwwk..",
-      "..kwwrrwwk..",
-      "..krrrrrrk..",
-      "..krrrrrrk..",
-      "..kwwrrwwk..",
-      "..kwwrrwwk..",
-      "...kkkkkk...",
-      "............",
+      ".kkkkkkkkkk.",
+      "kwwwwrrwwwwk",
+      "kwwwwrrwwwwk",
+      "kwwwwrrwwwwk",
+      "kwrrrrrrrrwk",
+      "kwrrrrrrrrwk",
+      "kwwwwrrwwwwk",
+      "kwwwwrrwwwwk",
+      "kwwwwrrwwwwk",
+      ".kkkkkkkkkk.",
       "............",
     ],
     palette: { k: K, w: "#fdf3e0", r: "#e05c48" },
