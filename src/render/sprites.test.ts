@@ -32,16 +32,18 @@ const MOODS = ["neutral", "happy", "sad", "sleep"] as const;
 
 describe("dog muzzle", () => {
   const dog = renderPixels("dog", "neutral");
-  it("puts the nose between the eyes with a stem down to the mouth", () => {
-    expect(rgb(px(dog, 7, 7))).toEqual(NOSE); // nose
-    expect(rgb(px(dog, 8, 7))).toEqual(NOSE);
-    expect(rgb(px(dog, 7, 8))).toEqual(NOSE); // philtrum stem
-    expect(rgb(px(dog, 7, 9))).toEqual(EYE); // mood mouth below
+  it("puts the nose just under the eyes with a stem down to the mouth", () => {
+    expect(rgb(px(dog, 7, 8))).toEqual(NOSE); // nose
+    expect(rgb(px(dog, 8, 8))).toEqual(NOSE);
+    expect(rgb(px(dog, 7, 9))).toEqual(EYE); // mood mouth wins the shared pixel with the stem
     expect(rgb(px(dog, 8, 9))).toEqual(EYE);
   });
-  it("keeps the eyes clear of the muzzle", () => {
+  it("keeps the eye row clear of the muzzle", () => {
     expect(rgb(px(dog, 5, 7))).toEqual(EYE);
     expect(rgb(px(dog, 9, 7))).toEqual(EYE);
+    expect(rgb(px(dog, 6, 7))).not.toEqual(NOSE);
+    expect(rgb(px(dog, 7, 7))).not.toEqual(NOSE);
+    expect(rgb(px(dog, 8, 7))).not.toEqual(NOSE);
   });
 });
 

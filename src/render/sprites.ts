@@ -243,10 +243,12 @@ const DOG: BodyDef = {
   faceDx: 5,
   faceDy: 7,
   overlay: {
-    // A proper puppy muzzle: a 3px nose between the eyes over a 1px philtrum,
-    // centred so the stem runs true down to the mood mouth — reads like 工, not
-    // two stacked dashes.
+    // A proper puppy muzzle: a 3px nose just under the eyes, over a 1px
+    // philtrum, centred so the stem runs true down to the mood mouth — reads
+    // like 工, not two stacked dashes. One row lower than the eye row itself,
+    // or the nose bridge sits flush against the eye pixels.
     rows: [
+      "................",
       "................",
       "................",
       "................",
