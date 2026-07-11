@@ -254,8 +254,8 @@ function mountGame(): void {
       <button data-action="status">${iconHTML("status", 26)}Status</button>
       <button data-action="food">${iconHTML("burger", 26)}Food</button>
       <button data-action="play">${iconHTML("play", 26)}Play</button>
-      <button data-action="clean">${iconHTML("broom", 26)}Clean</button>
       <button data-action="care">${iconHTML("bandage", 26)}Care</button>
+      <button data-action="clean">${iconHTML("broom", 26)}Clean</button>
       <button data-action="light">${iconHTML("bulb", 26)}Light</button>
     </nav>`;
 
