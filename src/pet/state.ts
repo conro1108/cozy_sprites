@@ -56,10 +56,18 @@ export const SLEEP_AGE_RATE = 0;
 const HUNGER_DECAY = MAX_HEARTS / (3.5 * HOUR);
 const HAPPINESS_DECAY = MAX_HEARTS / (2.5 * HOUR);
 
-// Baby is deliberately hectic: needs drop faster.
-const STAGE_DECAY_MULT: Record<Stage, number> = {
+// Baby is deliberately relentless: a full heart (of hunger or happiness) burns
+// off in about a minute awake, so hatch-day is active care start to finish.
+const STAGE_HUNGER_MULT: Record<Stage, number> = {
   egg: 0,
-  baby: 2.2,
+  baby: 52.5,
+  child: 1.3,
+  teen: 1.1,
+  adult: 1,
+};
+const STAGE_HAPPY_MULT: Record<Stage, number> = {
+  egg: 0,
+  baby: 37.5,
   child: 1.3,
   teen: 1.1,
   adult: 1,
@@ -102,6 +110,9 @@ const STAGE_DIGEST_MULT: Record<Stage, number> = {
 
 /** Most poops a pet can have queued up in its gut, waiting on the floor to clear. */
 const MAX_POOP_PRESSURE = 2;
+
+/** Most messes that can pile up on the floor before the game stops adding more. */
+const MAX_POOPS = 8;
 
 const MISTAKE_INTERVAL_MS = 30 * 60_000; // one care mistake per 30min of neglect
 
@@ -401,9 +412,8 @@ function decaySegment(s: PetState, seg: number, segTime: number, night: boolean)
   const fx = s.sick && s.illness ? ILLNESSES[s.illness] : null;
 
   // --- Meters ---------------------------------------------------------------
-  const stageMult = STAGE_DECAY_MULT[s.stage];
-  let hungerMult = stageMult;
-  let happyMult = stageMult * (fx ? fx.happinessDecayMult : 1);
+  let hungerMult = STAGE_HUNGER_MULT[s.stage];
+  let happyMult = STAGE_HAPPY_MULT[s.stage] * (fx ? fx.happinessDecayMult : 1);
   if (asleep) {
     hungerMult *= SLEEP_HUNGER_MULT;
     happyMult *= SLEEP_HAPPY_MULT;
@@ -944,13 +954,15 @@ export function stepEvents(
     //     the whole point of the mechanic. Subtract 1.0 and keep the remainder
     //     so a fibrous binge queues the next poop instead of losing it.
     //  2) Ambient: even a pet that hasn't eaten eventually goes; babies sooner.
-    if (s.poops < 4) {
+    if (s.poops < MAX_POOPS) {
       if (s.poopPressure >= 1) {
         s.poopPressure -= 1;
         s.poops++;
         events.push("poop");
       } else {
-        let ambientPerHour = s.stage === "baby" ? 1.2 : 0.25;
+        // Baby is a real shitter — ambient messes fire much more often than
+        // any other stage.
+        let ambientPerHour = s.stage === "baby" ? 8 : 0.25;
         // Dysentery is the runs — the floor floods far faster than nature's pace.
         if (s.sick && s.illness === "dysentery") ambientPerHour += 1.5;
         if (rng() < ambientPerHour * perHour) {
@@ -978,9 +990,11 @@ export function stepEvents(
 
     // Attention calls. From teen on, some are fake (boundary-testing). Teens
     // call noticeably more — it's the main source of discipline opportunities.
+    // Baby calls far more often still (always genuine — see `fake` below), to
+    // keep hatch-day actively demanding.
     // A call rolled during a long absence that would already have gone stale is
     // charged directly: a genuine cry with nobody home is a care mistake.
-    const callPerHour = s.stage === "teen" ? 0.8 : 0.4;
+    const callPerHour = s.stage === "baby" ? 8 : s.stage === "teen" ? 0.8 : 0.4;
     if (!s.wantsAttention && rng() < callPerHour * perHour) {
       const startedAt = chunkStart + chunk;
       const fake =

@@ -973,11 +973,11 @@ describe("stepEvents", () => {
 
   it("a long absence is replayed in slices — several messes, not one", () => {
     // 8 daytime hours away with an adversarial rng: the floor fills to its
-    // 4-mess cap, one slice at a time.
+    // 8-mess cap, one slice at a time.
     const pet = asStage(createPet("Milo", at(18)), "child");
     const { state, events } = stepEvents(pet, 8 * HOUR, () => 0);
-    expect(state.poops).toBe(4);
-    expect(events.filter((e) => e === "poop")).toHaveLength(4);
+    expect(state.poops).toBe(8);
+    expect(events.filter((e) => e === "poop")).toHaveLength(8);
   });
 
   it("a call rolled hours ago during an absence is already stale — charged, not shown", () => {
@@ -1047,11 +1047,11 @@ describe("fiber-driven pooping", () => {
     expect(t2.state.poopPressure).toBeCloseTo(0.5);
   });
 
-  it("still honours the poops<4 cap even when pressure is high", () => {
-    const pet = asStage({ ...createPet("Milo", T0), poops: 4, poopPressure: 5 }, "child");
+  it("still honours the poops cap even when pressure is high", () => {
+    const pet = asStage({ ...createPet("Milo", T0), poops: 8, poopPressure: 5 }, "child");
     const { state, events } = stepEvents(pet, 60_000, quiet);
     expect(events).not.toContain("poop");
-    expect(state.poops).toBe(4);
+    expect(state.poops).toBe(8);
   });
 
   it("still poops ambiently on a pet that hasn't eaten", () => {
