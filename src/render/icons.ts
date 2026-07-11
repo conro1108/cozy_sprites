@@ -129,24 +129,23 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, g: "#ddd0b0", d: "#5c4a38", r: "#e05c48" },
   },
   broom: {
-    // a dustpan: same handle as before, but ending in a solid scoop with a
-    // flared flat lip and a couple of dirt flecks, instead of thin bristles
-    // that read as a sparse blob at icon size.
+    // a dustpan: narrow handle with a grab-hole, flaring straight into a
+    // wide domed pan with a bright flat lip along the bottom edge.
     rows: [
-      ".....kkk....",
-      ".....khk....",
-      ".....khk....",
-      ".....khk....",
-      "....kkkkk...",
-      "..kkkkkkkk..",
+      "....kbbk....",
+      "....k..k....",
+      "....kbbk....",
+      "....kbbk....",
+      "...kkbbkk...",
+      "..kbbbbbbk..",
       ".kbbbbbbbbk.",
-      ".kbbbdbdbbk.",
       ".kbbbbbbbbk.",
-      "kkkkkkkkkkkk",
+      ".kbbbbbbbbk.",
+      ".kwwwwwwwwk.",
       "............",
       "............",
     ],
-    palette: { k: K, h: "#a97048", b: "#7fb3d5", d: "#4a4038" },
+    palette: { k: K, b: "#b9bcc3", w: "#eef0f4" },
   },
   bandage: {
     // a proper plaster: tan wings, pale pad, dotted texture
