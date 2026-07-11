@@ -160,10 +160,19 @@ interface Backup {
   v: number;
   pet: PetState | null;
   farm: FarmEntry[];
+  discovered: AdultForm[];
 }
 
 export function exportSave(): string {
-  const backup: Backup = { v: SAVE_VERSION, pet: loadPet(), farm: loadFarm() };
+  const pet = loadPet();
+  const farm = loadFarm();
+  // Discovered forms live in their own snapshot key (see DISCOVERED_KEY) so a
+  // farm wipe doesn't erase them — a backup has to union all three sources or
+  // it silently drops any form that only survives in that snapshot.
+  const discovered = new Set<AdultForm>(loadDiscoveredForms());
+  for (const e of farm) if (e.form) discovered.add(e.form);
+  if (pet?.form) discovered.add(pet.form);
+  const backup: Backup = { v: SAVE_VERSION, pet, farm, discovered: Array.from(discovered) };
   // encodeURIComponent handles any unicode in pet names before base64.
   return btoa(encodeURIComponent(JSON.stringify(backup)));
 }
@@ -195,6 +204,9 @@ export function importSave(code: string): boolean {
       clearPet();
     }
     saveFarm(Array.isArray(backup.farm) ? backup.farm : []);
+    // Older backups predate this field — leave the local snapshot alone
+    // rather than reading `undefined` as "wipe collection progress".
+    if (Array.isArray(backup.discovered)) saveDiscoveredForms(backup.discovered);
     return true;
   } catch {
     return false;

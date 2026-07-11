@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  exportSave,
+  importSave,
   loadDiscoveredForms,
   loadFarm,
   saveDiscoveredForms,
@@ -57,6 +59,29 @@ describe("wipeFarm", () => {
     saveFarm([grave]);
     wipeFarm(["dog", "carrot"]);
     expect(loadFarm()).toEqual([]);
+    expect(loadDiscoveredForms()).toEqual(["dog", "carrot"]);
+  });
+});
+
+describe("export/import round trip", () => {
+  it("carries forms that only survive in the discovered snapshot (post farm-wipe)", () => {
+    // A wiped farm has no "carrot" gravestone anymore — only the snapshot
+    // remembers it was ever discovered.
+    saveFarm([grave]);
+    wipeFarm(["dog", "carrot"]);
+    const code = exportSave();
+
+    // Simulate a fresh device/browser with no local state at all.
+    store = {};
+    expect(importSave(code)).toBe(true);
+    expect(loadDiscoveredForms().sort()).toEqual(["carrot", "dog"]);
+  });
+
+  it("leaves local discovered forms untouched when importing an old-format backup", () => {
+    saveDiscoveredForms(["dog", "carrot"]);
+    // An export from before the `discovered` field existed.
+    const legacyCode = btoa(encodeURIComponent(JSON.stringify({ v: 1, pet: null, farm: [] })));
+    expect(importSave(legacyCode)).toBe(true);
     expect(loadDiscoveredForms()).toEqual(["dog", "carrot"]);
   });
 });
