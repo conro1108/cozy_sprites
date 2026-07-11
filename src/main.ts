@@ -321,7 +321,14 @@ function mountGame(): void {
     openPlay(ctx);
   });
   nav.clean.addEventListener("click", doClean);
-  nav.care.addEventListener("click", () => openCare(ctx));
+  nav.care.addEventListener("click", () => {
+    if (pet?.asleep) {
+      // Fast asleep — medicine and discipline wait until morning, same as food and play.
+      say("Zzz…");
+      return;
+    }
+    openCare(ctx);
+  });
   nav.light.addEventListener("click", doLight);
 
   nextIdleAt = Date.now() + rand(IDLE_MIN_MS, IDLE_MAX_MS);

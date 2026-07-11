@@ -849,16 +849,7 @@ export function openCare(ctx: MenuCtx): void {
     p.close();
   });
 
-  // A ready retiree isn't "sent" anywhere — you walk them over. Same
-  // destination, entirely different button.
-  const ready = retirementPhase(pet) === "ready";
-  const farm = document.createElement("button");
-  farm.className = ready ? "btn btn-iconed" : "btn danger btn-iconed";
-  farm.appendChild(iconEl("tractor", 20));
-  farm.appendChild(document.createTextNode(ready ? "Walk them to the farm" : "Send to Farm…"));
-  farm.addEventListener("click", () => (ready ? confirmWalk(ctx, p) : confirmFarm(ctx, p)));
-
-  p.body.append(med, disc, farm);
+  p.body.append(med, disc);
 
   if (pet.stage === "baby" || pet.stage === "egg") {
     const note = document.createElement("p");
@@ -971,6 +962,17 @@ export function openStatus(ctx: MenuCtx, now: number): void {
     p.close();
     openCollection(ctx);
   });
+
+  // Lives next to Collection & Farm, not in Care — sending a sprite off is a
+  // life-stage decision, not day-to-day upkeep. A ready retiree isn't "sent"
+  // anywhere — you walk them over. Same destination, entirely different button.
+  const ready = retirementPhase(pet) === "ready";
+  const farmBtn = document.createElement("button");
+  farmBtn.className = ready ? "btn btn-iconed" : "btn danger btn-iconed";
+  farmBtn.appendChild(iconEl("tractor", 20));
+  farmBtn.appendChild(document.createTextNode(ready ? "Walk them to the farm" : "Send to Farm…"));
+  farmBtn.addEventListener("click", () => (ready ? confirmWalk(ctx, p) : confirmFarm(ctx, p)));
+
   const backup = document.createElement("button");
   backup.className = "btn secondary btn-iconed";
   backup.appendChild(iconEl("disk", 20));
@@ -979,7 +981,7 @@ export function openStatus(ctx: MenuCtx, now: number): void {
     p.close();
     openBackup(ctx);
   });
-  p.body.append(coll, backup);
+  p.body.append(coll, farmBtn, backup);
 
   p.body.appendChild(soundSettings());
   p.body.appendChild(notifySettings());
