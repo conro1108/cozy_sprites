@@ -373,7 +373,7 @@ function render(): void {
   toggleAlert(els.nav.play, pet.happiness <= 1);
   toggleAlert(els.nav.clean, pet.poops > 0);
   toggleAlert(els.nav.care, pet.sick);
-  els.nav.light.querySelector("img")!.src = iconUrl(pet.lightsOn ? "bulb" : "moon");
+  els.nav.light.querySelector("img")!.src = iconUrl(pet.lightsOn ? "bulb" : "bulboff");
 
   scene.update({
     key: creatureKey(pet.stage, pet.form),

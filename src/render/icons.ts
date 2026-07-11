@@ -9,6 +9,7 @@ export type IconName =
   | "broom"
   | "bandage"
   | "bulb"
+  | "bulboff"
   | "moon"
   | "heart"
   | "heartgold"
@@ -181,6 +182,25 @@ const ICONS: Record<IconName, IconDef> = {
       "............",
     ],
     palette: { k: K, y: "#ffd884", w: "#fff7dc", g: "#9a9cb0" },
+  },
+  // Same silhouette as bulb, but a cold dead-glass grey instead of a glow —
+  // the light-switch icon when the lights are off.
+  bulboff: {
+    rows: [
+      "....kkkk....",
+      "...kddddk...",
+      "..kddddddk..",
+      "..kddeddd...",
+      "..kddeddd...",
+      "..kddddddk..",
+      "...kddddk...",
+      "....kddk....",
+      "....kggk....",
+      "....kggk....",
+      ".....kk.....",
+      "............",
+    ],
+    palette: { k: K, d: "#c3c5d2", e: "#a7aabb", g: "#7d7f92" },
   },
   moon: {
     rows: [
