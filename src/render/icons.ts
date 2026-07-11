@@ -499,22 +499,23 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, y: "#a8d84a", w: "#f0f8d0" },
   },
   magnifying: {
-    // a magnifying glass: circular lens with a handle extending down-right
+    // a magnifying glass: round lens ring with pale glass and a glint,
+    // handle running diagonally off the bottom-right of the ring
     rows: [
       "............",
-      "....kkkk....",
-      "...kggggk...",
-      "..kgggggk...",
-      "..kggwggk...",
-      "..kgggggk...",
-      "...kggggk...",
-      "....kkkk....",
+      "...kkkk.....",
+      "..kwwwwk....",
+      ".kwwwwwwk...",
+      ".khwwwwwk...",
+      ".kwwwwwwk...",
+      ".kwwwwwwk...",
+      "..kwwwwk....",
+      "...kkkk.....",
       ".......kk...",
       "........kk..",
       ".........kk.",
-      "............",
     ],
-    palette: { k: K, g: "#c9a96a", w: "#f0d9b0" },
+    palette: { k: K, w: "#fdf3e0", h: "#ffffff" },
   },
   question: {
     // the mystery card: an outlined tile with the question on it
