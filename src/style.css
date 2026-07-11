@@ -1511,7 +1511,7 @@ body {
 
 /* --- Notification settings ------------------------------------------------ */
 .notify-settings {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .notify-settings > p {
@@ -1523,15 +1523,18 @@ body {
   gap: 8px;
 }
 
+/* Same quiet family as Status's Send to Farm / Collection / Backup row —
+   thinner border, cream face instead of stark white, so these settings
+   don't out-shout the stat list either. */
 .notify-opt {
   flex: 1;
-  padding: 9px 4px;
-  border: 2px solid var(--wood);
+  padding: 8px 4px;
+  border: 1.5px solid var(--wood);
   border-radius: 10px;
-  background: #fffdf7;
+  background: var(--cream-2);
   color: var(--wood-dark);
   font-family: inherit;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
   cursor: pointer;
 }
