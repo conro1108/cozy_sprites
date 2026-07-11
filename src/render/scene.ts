@@ -204,6 +204,7 @@ export class Scene {
   private altFrame = false; // per-frame: use the alt pose (dog's tail up)
   private forceGlance: -1 | 0 | 1 = 0; // per-frame: a quirk overrides the gaze
   private extraAlpha = 1; // per-frame: ghost flicker translucency
+  private patSquintUntil = 0; // eyes held shut until this time (a savoured pat)
   private settleStart = -Infinity; // last time it stopped moving → plop squish
   private raf = 0;
   private t0 = performance.now();
@@ -305,6 +306,13 @@ export class Scene {
   triggerPulse(p: Pulse): void {
     this.pulse = p;
     this.pulseStart = performance.now();
+  }
+
+  /** A brief, contented eye-close — the pet savouring a good pat. Shown instead
+   *  of narrating it. Refreshing it (rubbing) keeps the eyes shut until you stop. */
+  patSquint(): void {
+    if (this.busy() || this.hidden) return;
+    this.patSquintUntil = performance.now() + 750;
   }
 
   /** Register the sound to play when the pet strikes up an idle song. Kept as
@@ -2226,7 +2234,9 @@ export class Scene {
     // --- Face life: quirk-driven glances only (no idle blink/glance jitter) -
     let sprite = this.creatureCanvas;
     if (!v.asleep && v.key !== "egg") {
-      if (this.altFrame) {
+      if (performance.now() < this.patSquintUntil) {
+        sprite = this.frames.blink; // eyes shut, savouring the pat
+      } else if (this.altFrame) {
         sprite = this.frames.alt;
       } else if (this.forceGlance !== 0) {
         sprite = this.forceGlance === -1 ? this.frames.glanceL : this.frames.glanceR;

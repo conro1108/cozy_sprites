@@ -127,7 +127,6 @@ const GENERAL: Bank = {
     "*leans in*",
     "Oh. That's nice.",
     "Continue.",
-    "*closes eyes*",
     "You have good hands. Structurally.",
     "This is acceptable forever.",
     "*small contented noise*",
