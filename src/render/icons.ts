@@ -15,7 +15,7 @@ export type IconName =
   | "hearthalf"
   | "heartempty"
   | "smiley"
-  | "pulse"
+  | "thermohealth"
   | "cake"
   | "carrot"
   | "noodles"
@@ -283,24 +283,25 @@ const ICONS: Record<IconName, IconDef> = {
     ],
     palette: { k: K, y: "#f0b840" },
   },
-  // A heartbeat trace for the health meter — a flat vitals line with one QRS
-  // spike, in the health green. Reads as "monitoring", not "sick".
-  pulse: {
+  // A jaunty diagonal thermometer for the health meter — cream glass, red
+  // mercury, round bulb with a glint. Tilted like the 🌡️ emoji so it reads
+  // cute and stays distinct from the upright sick-badge thermometer.
+  thermohealth: {
     rows: [
       "............",
-      "............",
-      ".....gg.....",
-      ".....gg.....",
-      ".....gg.....",
-      ".....gg.....",
-      "gggg.ggggggg",
-      "....gggg....",
-      "......gg....",
-      "......gg....",
-      "............",
-      "............",
+      "........kk..",
+      ".......kwrk.",
+      "......kwrk..",
+      ".....kwrk...",
+      "....kwrk....",
+      "...kwrk.....",
+      "..kwrk......",
+      ".kkrrkk.....",
+      "kwrrrrk.....",
+      "kwrrrk......",
+      ".kkkk.......",
     ],
-    palette: { g: "#6bbf59" },
+    palette: { k: K, w: "#fdf3e0", r: "#e05c48" },
   },
   cake: {
     rows: [
