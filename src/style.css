@@ -556,10 +556,12 @@ body {
 
 /* Status's Send to Farm button, and the Collection/Backup row below it:
    sized down from a standard .btn so the stat list above stays the
-   focal point of the panel — still buttons, just quieter ones. */
+   focal point of the panel — still buttons, just quieter ones. Padding
+   and font size match .btn-pair .btn exactly so the two rows line up
+   at the same height. */
 .farm-btn {
-  padding: 9px 14px;
-  font-size: 0.8rem;
+  padding: 7px 10px;
+  font-size: 0.72rem;
   margin-top: 10px;
 }
 
@@ -567,17 +569,26 @@ body {
   box-shadow: 0 2px 0 var(--wood-dark);
 }
 
+/* Margin-top matches the row's own internal gap (8px) so the space
+   above this row equals the space between Collection and Backup. */
 .btn-pair {
   display: flex;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
+/* Same 2px wood border as Send to Farm's red one — the outline is what
+   marks this row as part of the farm set, not just the shadow. Margin
+   reset to 0: the base .btn's margin-top was otherwise adding 6px of
+   invisible space inside the row that .btn-pair's own gap/margin-top
+   didn't account for. */
 .btn-pair .btn {
   width: auto;
   flex: 1;
-  padding: 8px 10px;
+  margin-top: 0;
+  padding: 7px 10px;
   font-size: 0.72rem;
+  border: 2px solid var(--wood);
   box-shadow: 0 2px 0 #cbb890;
 }
 
@@ -1523,29 +1534,28 @@ body {
   gap: 8px;
 }
 
-/* Same quiet family as Status's Send to Farm / Collection / Backup row —
-   thinner border, cream face instead of stark white, so these settings
-   don't out-shout the stat list either. */
+/* No border, no shadow — unlike Send to Farm / Collection / Backup, the
+   outline is reserved for that set, so these fade back into the panel.
+   The active fill is the only thing that marks a selection. */
 .notify-opt {
   flex: 1;
   padding: 8px 4px;
-  border: 1.5px solid var(--wood);
+  border: none;
   border-radius: 10px;
   background: var(--cream-2);
   color: var(--wood-dark);
   font-family: inherit;
   font-size: 0.7rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
 }
 
 /* A darker tan, not a solid wood block — still ~5.6:1 contrast against
    the wood-dark text (comfortably passes WCAG AA), but reads as a shade
-   shift rather than an inversion. Border and weight pick up the slack
-   so selection doesn't rely on color alone. */
+   shift rather than an inversion. Weight picks up the slack so
+   selection doesn't rely on color alone. */
 .notify-opt.active {
   background: var(--heart-empty);
-  border-color: var(--wood-dark);
   color: var(--wood-dark);
   font-weight: 800;
 }

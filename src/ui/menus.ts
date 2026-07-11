@@ -989,7 +989,7 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   farmBtn.className = ready
     ? "btn btn-iconed farm-btn"
     : "btn danger-outline btn-iconed farm-btn";
-  farmBtn.appendChild(iconEl("tractor", 18));
+  farmBtn.appendChild(iconEl("tractor", 16));
   farmBtn.appendChild(document.createTextNode(ready ? "Walk them to the farm" : "Send to Farm…"));
   farmBtn.addEventListener("click", () => (ready ? confirmWalk(ctx, p) : confirmFarm(ctx, p)));
   p.body.appendChild(farmBtn);
