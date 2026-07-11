@@ -51,12 +51,8 @@ export function loadPet(): PetState | null {
  *  Exported for unit tests (loadPet needs localStorage; this doesn't). */
 export function migratePet(p: PetState): PetState {
   const defaults = emptyHidden();
-  // Pre-rename saves stored this meter as "hunger" (a fullness meter where
-  // higher was confusingly better) — carry the value over under its new name.
-  const legacy = p as unknown as { hunger?: number; hungerZeroMs?: number };
   return {
     ...p,
-    energy: p.energy ?? legacy.hunger ?? 3,
     illness: p.illness ?? (p.sick ? "sniffles" : null),
     dosesGiven: p.dosesGiven ?? 0,
     lastDoseAt: p.lastDoseAt ?? null,
@@ -64,7 +60,7 @@ export function migratePet(p: PetState): PetState {
     napMs: p.napMs ?? 0,
     // Real-clock fields (grace windows, night ledger, retirement). Zero is the
     // gentle default for every accumulator: no penalty inherited retroactively.
-    energyZeroMs: p.energyZeroMs ?? legacy.hungerZeroMs ?? 0,
+    energyZeroMs: p.energyZeroMs ?? 0,
     happinessZeroMs: p.happinessZeroMs ?? 0,
     nightAwakeMs: p.nightAwakeMs ?? 0,
     nightSleepMs: p.nightSleepMs ?? 0,
@@ -191,9 +187,7 @@ function isValidPet(p: unknown): p is PetState {
   return (
     typeof s.name === "string" &&
     typeof s.stage === "string" &&
-    // Accept pre-rename backups too (they store this meter as "hunger");
-    // migratePet carries the value over to "energy" on next load.
-    (typeof s.energy === "number" || typeof s.hunger === "number") &&
+    typeof s.energy === "number" &&
     typeof s.lastUpdated === "number" &&
     !!hidden &&
     typeof hidden === "object" &&
