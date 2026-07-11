@@ -132,6 +132,7 @@ const ICONS: Record<IconName, IconDef> = {
     // a dustpan: narrow handle with a grab-hole, flaring straight into a
     // wide domed pan with a bright flat lip along the bottom edge.
     rows: [
+      "....kkkk....",
       "....kbbk....",
       "....k..k....",
       "....kbbk....",
@@ -141,7 +142,6 @@ const ICONS: Record<IconName, IconDef> = {
       ".kbbbbbbbbk.",
       ".kwwwwwwwwk.",
       ".kkkkkkkkkk.",
-      "............",
       "............",
       "............",
     ],
