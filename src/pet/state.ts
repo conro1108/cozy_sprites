@@ -57,17 +57,17 @@ const HUNGER_DECAY = MAX_HEARTS / (3.5 * HOUR);
 const HAPPINESS_DECAY = MAX_HEARTS / (2.5 * HOUR);
 
 // Baby is deliberately relentless: a full heart (of hunger or happiness) burns
-// off in about a minute awake, so hatch-day is active care start to finish.
+// off in about twenty seconds awake, so hatch-day is nonstop care.
 const STAGE_HUNGER_MULT: Record<Stage, number> = {
   egg: 0,
-  baby: 52.5,
+  baby: 157.5,
   child: 1.3,
   teen: 1.1,
   adult: 1,
 };
 const STAGE_HAPPY_MULT: Record<Stage, number> = {
   egg: 0,
-  baby: 37.5,
+  baby: 112.5,
   child: 1.3,
   teen: 1.1,
   adult: 1,
@@ -962,7 +962,7 @@ export function stepEvents(
       } else {
         // Baby is a real shitter — ambient messes fire much more often than
         // any other stage.
-        let ambientPerHour = s.stage === "baby" ? 8 : 0.25;
+        let ambientPerHour = s.stage === "baby" ? 24 : 0.25;
         // Dysentery is the runs — the floor floods far faster than nature's pace.
         if (s.sick && s.illness === "dysentery") ambientPerHour += 1.5;
         if (rng() < ambientPerHour * perHour) {
@@ -994,7 +994,7 @@ export function stepEvents(
     // keep hatch-day actively demanding.
     // A call rolled during a long absence that would already have gone stale is
     // charged directly: a genuine cry with nobody home is a care mistake.
-    const callPerHour = s.stage === "baby" ? 8 : s.stage === "teen" ? 0.8 : 0.4;
+    const callPerHour = s.stage === "baby" ? 24 : s.stage === "teen" ? 0.8 : 0.4;
     if (!s.wantsAttention && rng() < callPerHour * perHour) {
       const startedAt = chunkStart + chunk;
       const fake =
