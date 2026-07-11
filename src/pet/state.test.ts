@@ -1002,22 +1002,57 @@ describe("attention wants", () => {
 
   it("feeding a snack it doesn't need spoils, even on a genuine call", () => {
     const pet = asStage(
-      { ...createPet("Milo", T0), hunger: 3, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
+      {
+        ...createPet("Milo", T0),
+        hunger: 3,
+        discipline: 50,
+        wantsAttention: true,
+        fakeCall: false,
+        attentionWant: "snack" as const,
+      },
       "child",
     );
     const { state, call } = feed(pet, "burger", T0);
     expect(call).toBe("spoiled");
     expect(state.hidden.careMistakes).toBe(1);
+    // Half of what a correct scold would have earned (8 for a non-teen).
+    expect(state.discipline).toBe(46);
   });
 
   it("playing when it isn't bored spoils, even on a genuine call", () => {
     const pet = asStage(
-      { ...createPet("Milo", T0), happiness: 3, wantsAttention: true, fakeCall: false, attentionWant: "play" as const },
+      {
+        ...createPet("Milo", T0),
+        happiness: 3,
+        discipline: 50,
+        wantsAttention: true,
+        fakeCall: false,
+        attentionWant: "play" as const,
+      },
       "child",
     );
     const { state, call } = applyGameResult(pet, "fetch", true, T0);
     expect(call).toBe("spoiled");
     expect(state.hidden.careMistakes).toBe(1);
+    expect(state.discipline).toBe(46);
+  });
+
+  it("falling for a fake call costs more discipline as a teen, mirroring the bigger correct-scold reward", () => {
+    const pet = asStage(
+      {
+        ...createPet("Milo", T0),
+        hunger: 3,
+        discipline: 50,
+        wantsAttention: true,
+        fakeCall: true,
+        attentionWant: "snack" as const,
+      },
+      "teen",
+    );
+    const { state, call } = feed(pet, "burger", T0);
+    expect(call).toBe("spoiled");
+    // Half of the teen correct-scold reward (12), not the non-teen one (8).
+    expect(state.discipline).toBe(44);
   });
 
   it("every new call comes with a want attached", () => {
@@ -1095,6 +1130,26 @@ describe("stepEvents", () => {
     const { state } = stepEvents(pet, 8 * HOUR, rng);
     expect(state.wantsAttention).toBe(false);
     expect(state.hidden.careMistakes).toBe(1);
+  });
+
+  it("a fake call never asks for a pat — a pat is always a fair ask", () => {
+    // Rolls in order: poop (high, none), sick (high, none), call-gate (low,
+    // triggers), fake (low, triggers), want-index (swept across its range).
+    const rngFor = (indexRoll: number) => {
+      let calls = 0;
+      return () => {
+        calls++;
+        if (calls === 3 || calls === 4) return 0;
+        if (calls === 5) return indexRoll;
+        return 0.99;
+      };
+    };
+    const pet = asStage(createPet("Milo", T0), "teen");
+    for (const indexRoll of [0, 0.999]) {
+      const { state, events } = stepEvents(pet, 60_000, rngFor(indexRoll));
+      expect(events).toContain("fakecall");
+      expect(state.attentionWant).not.toBe("pat");
+    }
   });
 });
 

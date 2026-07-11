@@ -586,6 +586,13 @@ function callUnjustified(s: PetState): boolean {
   }
 }
 
+/** How much the visible discipline stat moves on a correct scolding — teens
+ *  push back harder, so correcting one counts for more. Shared with
+ *  `resolveCall`, where falling for the same call costs half as much. */
+function disciplineGain(stage: PetState["stage"]): number {
+  return stage === "teen" ? 12 : 8;
+}
+
 /** Resolve an active attention call whose want this action just met. Mutates
  *  `s` (callers pass a fresh copy) and returns how it landed. `unjustified` is
  *  computed by the caller from pre-action stats (see callUnjustified). */
@@ -598,9 +605,11 @@ function resolveCall(
   clearCall(s);
   if (unjustified) {
     // You placated a demand it didn't need — the lazy calm. It's thrilled;
-    // the ledger is not. Disciplining would have been the other option.
+    // the ledger is not. Disciplining would have been the other option, and
+    // missing it costs half the discipline a correct scolding would have won.
     s.hidden = { ...s.hidden, careMistakes: s.hidden.careMistakes + 1 };
     s.happiness = clampHearts(s.happiness + 0.3);
+    s.discipline = clamp100(s.discipline - disciplineGain(s.stage) / 2);
     return "spoiled";
   }
   s.happiness = clampHearts(s.happiness + 0.4);
@@ -766,8 +775,9 @@ export function discipline(state: PetState, now: number): ActionResult {
   const correct = callUnjustified(s);
   if (correct) {
     // Teen discipline carries more weight.
-    s.hidden.discipline += s.stage === "teen" ? 12 : 8;
-    s.discipline = clamp100(s.discipline + (s.stage === "teen" ? 12 : 8));
+    const gain = disciplineGain(s.stage);
+    s.hidden.discipline += gain;
+    s.discipline = clamp100(s.discipline + gain);
     clearCall(s);
     return { state: s, note: "correct" };
   }
@@ -1042,7 +1052,9 @@ export function stepEvents(
       } else {
         s.wantsAttention = true;
         s.fakeCall = fake;
-        const wants: AttentionWant[] = ["pat", "play", "snack"];
+        // A pat is always a fair ask (see callUnjustified) — a fake call
+        // can only ever be faking hunger or boredom, never affection.
+        const wants: AttentionWant[] = fake ? ["play", "snack"] : ["pat", "play", "snack"];
         s.attentionWant = wants[Math.floor(rng() * wants.length)];
         s.callStartedAt = startedAt;
         events.push(fake ? "fakecall" : "call");
