@@ -2300,7 +2300,7 @@ export class Scene {
     // (sitdown/situp) and settling onto the wood (sit). `s` runs 0 = on the
     // grass → 1 = resting on the cut, read straight off how far the seat lift
     // has carried the feet.
-    const shW = cw * (isGhost ? 0.5 : 0.7);
+    const shW = cw * squashX * (isGhost ? 0.5 : 0.7);
     const seated =
       ambient &&
       (this.wanderPhase === "sitdown" ||
@@ -2311,7 +2311,7 @@ export class Scene {
       const s = sb !== 0 ? Math.max(0, Math.min(1, bob / sb)) : 1;
       if (s < 1) {
         // still near the grass: a ground shadow that shrinks and fades away
-        ctx.fillStyle = `rgba(0,0,0,${0.15 * (1 - s)})`;
+        ctx.fillStyle = `rgba(0,0,0,${0.3 * (1 - s)})`;
         const w = shW * (1 - s * 0.45);
         ctx.fillRect(Math.round(CREATURE_X + dx - w / 2), Math.round(groundY + 6), Math.round(w), 3);
       }
@@ -2325,7 +2325,7 @@ export class Scene {
         ctx.fillRect(scx - 5, sy, 11, 1);
       }
     } else {
-      ctx.fillStyle = isGhost ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.15)";
+      ctx.fillStyle = isGhost ? "rgba(0,0,0,0.16)" : "rgba(0,0,0,0.3)";
       ctx.fillRect(
         Math.round(CREATURE_X + dx - shW / 2),
         Math.round(groundY + 6),
