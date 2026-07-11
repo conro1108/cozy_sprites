@@ -1279,6 +1279,19 @@ describe("save migration", () => {
     expect(Number.isNaN(later.energyZeroMs)).toBe(false);
   });
 
+  it("migrates a pre-rename save's hunger field to energy", () => {
+    const { energy: _e, energyZeroMs: _ez, ...pet } = createPet("Ancient", T0);
+    const legacy = { ...pet, hunger: 2, hungerZeroMs: 45_000 };
+    const migrated = migratePet(legacy as unknown as PetState);
+    expect(migrated.energy).toBe(2);
+    expect(migrated.energyZeroMs).toBe(45_000);
+
+    // And it stays usable — no NaN freezing the meter shut.
+    const fed = feed(asStage(migrated, "child"), "carrot", T0).state;
+    expect(Number.isNaN(fed.energy)).toBe(false);
+    expect(fed.energy).toBeGreaterThan(2);
+  });
+
   it("starts the expiry clock on an in-flight call from an old save", () => {
     const calling = {
       ...createPet("Ancient", T0),
