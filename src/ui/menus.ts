@@ -166,10 +166,14 @@ export function handleStageTap(x: number, y: number): boolean {
   return stageTapHandler?.(x, y) ?? false;
 }
 
-/** Compact control strip overlaid on the stage for in-scene games. */
-function stageOverlay(ctx: MenuCtx): { el: HTMLDivElement; close: () => void } {
+/** Compact control strip overlaid on the stage for in-scene games. Pass
+ *  `bottom` to pin it low instead of up top (e.g. prompts within thumb reach). */
+function stageOverlay(
+  ctx: MenuCtx,
+  position: "top" | "bottom" = "top",
+): { el: HTMLDivElement; close: () => void } {
   const el = document.createElement("div");
-  el.className = "stage-controls";
+  el.className = position === "bottom" ? "stage-controls stage-controls-bottom" : "stage-controls";
   ctx.stageEl().appendChild(el);
   return { el, close: () => el.remove() };
 }
@@ -760,9 +764,15 @@ function hideSeek(ctx: MenuCtx): void {
   playSfx("hide"); // scurries off
   ctx.scene().playHide(peek, () => {
     const { el, close: rawClose } = stageOverlay(ctx);
+    // A miss (stray tap outside every hide spot) or navigating away both fall
+    // through to this same teardown, not just a real guess. Either way the
+    // creature is still off-scene, so bring it back — otherwise it's stuck
+    // invisible until the next hide & seek round happens to reveal it.
+    let resolved = false;
     const close = registerActiveGame(() => {
       stageTapHandler = null;
       rawClose();
+      if (!resolved) ctx.scene().playReveal(spot);
     });
     const hint = document.createElement("p");
     hint.className = "stage-hint";
@@ -772,6 +782,7 @@ function hideSeek(ctx: MenuCtx): void {
 
     const guess = (s: (typeof HIDE_SPOTS)[number]) => {
       const won = s === spot;
+      resolved = true;
       close();
       // Sound the reveal now, at the start of the ~1.4s pop-out — the
       // win/lose verdict still lands later, at the animation's end.
@@ -804,7 +815,7 @@ function hideSeek(ctx: MenuCtx): void {
 
 /** The between-rounds beat: hide again, or call it. */
 function hideSeekAgain(ctx: MenuCtx): void {
-  const { el, close: rawClose } = stageOverlay(ctx);
+  const { el, close: rawClose } = stageOverlay(ctx, "bottom");
   const close = registerActiveGame(rawClose);
   const row = document.createElement("div");
   row.className = "game-choices";
