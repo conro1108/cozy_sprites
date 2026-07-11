@@ -367,6 +367,7 @@ function render(): void {
   const variant =
     pet.stage === "teen" ? determineAdultForm(pet.hidden, pet.health, () => 0) : null;
   const tantrum = pet.wantsAttention && pet.fakeCall && !dying;
+  const zoomies = pet.zoomies && !dying;
 
   // Nav alert cues (never reveals hidden state — just surfaces visible needs).
   toggleAlert(els.nav.food, pet.hunger <= 1);
@@ -384,6 +385,7 @@ function render(): void {
     lightsOn: pet.lightsOn,
     variant,
     tantrum,
+    zoomies,
     activity: activityOf(pet, now),
     runny: pet.sick && pet.illness === "dysentery",
   });

@@ -10,6 +10,7 @@ import {
   TAP_ANNOY_THRESHOLD,
   TAP_WINDOW_MS,
   TIMING,
+  ZOOMIES_DURATION_MS,
   applyElapsedDecay,
   applyGameResult,
   clean,
@@ -653,6 +654,58 @@ describe("attention call expiry", () => {
   it("a fresh call survives a short wait", () => {
     const later = applyElapsedDecay(caller(false), T0 + 10 * 60_000);
     expect(later.wantsAttention).toBe(true);
+  });
+});
+
+describe("zoomies", () => {
+  it("a happy, healthy pet can catch the zoomies", () => {
+    // A single short slice (well under EVENT_CHUNK_MS) ending exactly at
+    // lastUpdated, so a roll that lands isn't dismissed as already-stale.
+    // Roll order within the slice is poop, illness, attention call, then
+    // zoomies — keep the first three high (no mess, no illness, no call) and
+    // let only the fourth roll low.
+    let calls = 0;
+    const rng = () => {
+      calls++;
+      return calls === 4 ? 0 : 0.99;
+    };
+    const pet = asStage(createPet("Milo", T0), "child");
+    const { state, events } = stepEvents(pet, 60_000, rng);
+    expect(events).toContain("zoomies");
+    expect(state.zoomies).toBe(true);
+    expect(state.zoomiesStartedAt).not.toBeNull();
+  });
+
+  it("never strikes a sick pet", () => {
+    const pet = { ...asStage(createPet("Milo", T0), "child"), sick: true, illness: "sniffles" as const };
+    const { events } = stepEvents(pet, 1 * HOUR, () => 0);
+    expect(events).not.toContain("zoomies");
+  });
+
+  it("never strikes a pet that's down in the dumps", () => {
+    const pet = { ...asStage(createPet("Milo", T0), "child"), happiness: 1 };
+    const { events } = stepEvents(pet, 1 * HOUR, () => 0);
+    expect(events).not.toContain("zoomies");
+  });
+
+  it("runs its course with no penalty, unlike a stale attention call", () => {
+    const zooming = asStage(
+      { ...createPet("Milo", T0), zoomies: true, zoomiesStartedAt: T0 },
+      "child",
+    );
+    const later = applyElapsedDecay(zooming, T0 + ZOOMIES_DURATION_MS + 5_000);
+    expect(later.zoomies).toBe(false);
+    expect(later.zoomiesStartedAt).toBeNull();
+    expect(later.hidden.careMistakes).toBe(0);
+  });
+
+  it("a fresh burst survives a short moment", () => {
+    const zooming = asStage(
+      { ...createPet("Milo", T0), zoomies: true, zoomiesStartedAt: T0 },
+      "child",
+    );
+    const soon = applyElapsedDecay(zooming, T0 + 5_000);
+    expect(soon.zoomies).toBe(true);
   });
 });
 

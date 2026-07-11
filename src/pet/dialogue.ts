@@ -972,6 +972,9 @@ export function describeCondition(pet: PetState, now: number): string {
   if (pet.wantsAttention && !pet.fakeCall) {
     return pick("needy", ["Needy", "Dramatic", "Fishing for attention", "Making a scene"]);
   }
+  if (pet.zoomies) {
+    return pick("zoomies", ["Has the zoomies", "Zooming", "Absolutely sending it", "Vibrating with energy"]);
+  }
   if (pet.poops >= 2) {
     return pick("messy", ["Living in filth", "Surrounded by mess", "Unimpressed by the floor"]);
   }

@@ -76,6 +76,8 @@ export function migratePet(p: PetState): PetState {
     deadAt: p.deadAt ?? null,
     causeOfDeath: p.causeOfDeath ?? null,
     attentionWant: p.attentionWant ?? (p.wantsAttention ? "pat" : null),
+    zoomies: p.zoomies ?? false,
+    zoomiesStartedAt: p.zoomiesStartedAt ?? null,
     tapStreak: p.tapStreak ?? 0,
     // Pre-accumulator saves aged by wall clock, so progress through the current
     // stage was (lastUpdated − stageStartedAt). Deriving from that preserves an

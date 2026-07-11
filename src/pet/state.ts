@@ -130,6 +130,9 @@ const BEDTIME_BONUS = 8; // health, for a full night's sleep gone to bed well
 /** An unanswered call goes stale after this long. A genuine one that expires
  *  is a care mistake (it needed you); a fake one just gives up on the bit. */
 export const CALL_EXPIRE_MS = 30 * 60_000;
+// Rare and brief, by design — a real event to catch, not a state to manage.
+export const ZOOMIES_DURATION_MS = 25 * 1000;
+const ZOOMIES_PER_HOUR = 0.06; // roughly once every ~16h of happy, healthy, awake time
 
 // --- Illness particulars ------------------------------------------------------
 export const NAP_CURE_MS = 1 * HOUR; // the vapors: a proper daytime lie-down
@@ -203,6 +206,8 @@ export function createPet(name: string, now: number): PetState {
     fakeCall: false,
     attentionWant: null,
     callStartedAt: null,
+    zoomies: false,
+    zoomiesStartedAt: null,
     hidden: emptyHidden(),
     recentTaps: [],
     recentPats: [],
@@ -328,6 +333,16 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
     ) {
       if (!s.fakeCall) s.hidden.careMistakes += 1;
       clearCall(s);
+    }
+
+    // Zoomies run their course with no penalty — it's just over.
+    if (
+      s.zoomies &&
+      s.zoomiesStartedAt !== null &&
+      cursor - s.zoomiesStartedAt >= ZOOMIES_DURATION_MS
+    ) {
+      s.zoomies = false;
+      s.zoomiesStartedAt = null;
     }
 
     // A night chunk that ran all the way to its boundary just hit dawn.
@@ -1012,6 +1027,26 @@ export function stepEvents(
         s.attentionWant = wants[Math.floor(rng() * wants.length)];
         s.callStartedAt = startedAt;
         events.push(fake ? "fakecall" : "call");
+      }
+    }
+
+    // Zoomies: a rare, brief burst of energy in an otherwise well pet — never
+    // while sick, mid-call, or already off zooming. Skipped outright (no
+    // penalty, unlike a stale call) if it would already be over by the time
+    // this catch-up reaches `now`, since it's a moment to watch, not a debt.
+    if (
+      !s.zoomies &&
+      !s.sick &&
+      !s.wantsAttention &&
+      s.happiness >= 3 &&
+      s.health > 50 &&
+      rng() < ZOOMIES_PER_HOUR * perHour
+    ) {
+      const startedAt = chunkStart + chunk;
+      if (s.lastUpdated - startedAt < ZOOMIES_DURATION_MS) {
+        s.zoomies = true;
+        s.zoomiesStartedAt = startedAt;
+        events.push("zoomies");
       }
     }
   }

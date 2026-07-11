@@ -84,6 +84,8 @@ export interface SceneView {
   variant?: AdultForm | null;
   /** A discipline-worthy fake call: the pet is visibly throwing a tantrum. */
   tantrum?: boolean;
+  /** A rare, brief burst of energy: the pet dashes around the clearing. */
+  zoomies?: boolean;
   /** 0..1 — how energetic the creature is. Old-timers rest more, walk slower. */
   activity?: number;
   /** Dysentery: the messes render as wet diarrhea pools, not tidy coils. */
@@ -109,6 +111,7 @@ interface Act {
 type WanderPhase =
   | "dwell"
   | "walk"
+  | "zoom" // the zoomies: a fast, giddy dash from spot to spot
   | "interact"
   | "yawn"
   | "rest"
@@ -134,6 +137,7 @@ const WANDER_TARGETS: WanderTarget[] = [
   { dx: 0, dy: 0, prop: null },
 ];
 const WALK_SPEED = 16; // px / second
+const ZOOM_SPEED = 110; // px / second — the zoomies, a proper blur
 const FLOURISH_DUR = 1.7; // seconds
 const EVOLVE_DUR = 1.4; // seconds — the shared age-up transformation
 
@@ -1686,6 +1690,35 @@ export class Scene {
       return;
     }
 
+    // The zoomies override the ordinary cadence entirely: a giddy dash from
+    // spot to spot, picking a new one the instant it arrives, for as long as
+    // the burst lasts. It ends the moment the flag drops, settling with the
+    // same plop a normal walk gets when it arrives somewhere.
+    if (v.zoomies) {
+      if (this.wanderPhase !== "zoom") {
+        this.wanderPhase = "zoom";
+        this.pickZoomTarget();
+      }
+      const step = ZOOM_SPEED * dt;
+      const dxDiff = this.wanderTargetX - this.wanderX;
+      const dyDiff = this.wanderTargetY - this.wanderY;
+      const remaining = Math.hypot(dxDiff, dyDiff);
+      if (remaining <= step + 0.4) {
+        this.wanderX = this.wanderTargetX;
+        this.wanderY = this.wanderTargetY;
+        this.pickZoomTarget();
+      } else {
+        this.wanderX += (dxDiff / remaining) * step;
+        this.wanderY += (dyDiff / remaining) * step;
+      }
+      return;
+    }
+    if (this.wanderPhase === "zoom") {
+      this.wanderPhase = "dwell";
+      this.wanderUntil = now + 600;
+      this.settleStart = now; // skidded to a stop: plop
+    }
+
     // Older creatures dwell longer, walk slower, and flop down more often.
     const activity = v.activity ?? 1;
     const dwellFor = () => (7000 + Math.random() * 7000) * (2 - activity);
@@ -1805,6 +1838,14 @@ export class Scene {
     }
   }
 
+  /** A fresh spot to dash to mid-zoomies. Reuses the ordinary wander spots but
+   *  ignores their prop — the zoomies never stop to sniff anything. */
+  private pickZoomTarget(): void {
+    const target = WANDER_TARGETS[Math.floor(Math.random() * WANDER_TARGETS.length)];
+    this.wanderTargetX = target.dx;
+    this.wanderTargetY = target.dy;
+  }
+
   /** The bob (negative = up) that rests the creature's *real* feet on the
    *  stump's sawn top. Feet sit `12 - squashY·cw·bottomFrac` px below the
    *  ground line (bottomFrac = empty rows under the sprite); we want them at
@@ -1874,6 +1915,16 @@ export class Scene {
       m.sx = 1 - phase * 0.06;
       m.rot = this.facing * 0.05; // leans into where it's going
       if (key === "dog") this.altFrame = true; // tail streams up on the run
+      return m;
+    }
+    if (this.wanderPhase === "zoom") {
+      // The zoomies: the same trot, cranked — a much faster, bouncier blur.
+      const phase = Math.abs(Math.sin(t * 22));
+      m.bob = -phase * 4;
+      m.sy = 1 + phase * 0.16;
+      m.sx = 1 - phase * 0.1;
+      m.rot = this.facing * 0.09;
+      if (key === "dog") this.altFrame = true;
       return m;
     }
     if (this.wanderPhase === "interact") {

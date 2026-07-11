@@ -197,6 +197,11 @@ export interface PetState {
    *  a genuine one that times out is a care mistake. */
   callStartedAt: number | null;
 
+  /** A rare, brief burst of pure energy — the pet zooms around the screen. */
+  zoomies: boolean;
+  /** When the current zoomies burst started. Self-expires; no penalty. */
+  zoomiesStartedAt: number | null;
+
   hidden: HiddenStats;
 
   recentTaps: number[];

@@ -94,6 +94,25 @@ describe("describeCondition", () => {
     const up = awake({ asleep: false, hunger: 2, happiness: 4, health: 100 });
     expect(describeCondition(asleep, T0)).not.toBe(describeCondition(up, T0));
   });
+
+  const ZOOMIES_LABELS = [
+    "Has the zoomies",
+    "Zooming",
+    "Absolutely sending it",
+    "Vibrating with energy",
+  ];
+
+  it("the zoomies read distinctly from an ordinary good mood", () => {
+    const zooming = awake({ zoomies: true, hunger: 4, happiness: 4, health: 100 });
+    const calm = awake({ zoomies: false, hunger: 4, happiness: 4, health: 100 });
+    expect(ZOOMIES_LABELS).toContain(describeCondition(zooming, T0));
+    expect(describeCondition(zooming, T0)).not.toBe(describeCondition(calm, T0));
+  });
+
+  it("being sick outranks the zoomies", () => {
+    const p = awake({ zoomies: true, sick: true, illness: "sniffles", hunger: 4, happiness: 4 });
+    expect(ZOOMIES_LABELS).not.toContain(describeCondition(p, T0));
+  });
 });
 
 describe("farm confirmation lines", () => {
