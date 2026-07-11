@@ -378,12 +378,15 @@ function activityOf(p: PetState, now: number): number {
 
 function renderHearts(container: HTMLElement, value: number): void {
   container.innerHTML = "";
+  // Snap to half-heart steps so the meter ticks down discretely — each heart is
+  // empty, half, or full — rather than draining as a smooth continuous fill.
+  const q = Math.round(value * 2) / 2;
   for (let i = 0; i < MAX_HEARTS; i++) {
     const heart = document.createElement("div");
     heart.className = "heart";
     const fill = document.createElement("div");
     fill.className = "fill";
-    fill.style.width = `${Math.max(0, Math.min(1, value - i)) * 100}%`;
+    fill.style.width = `${Math.max(0, Math.min(1, q - i)) * 100}%`;
     heart.appendChild(fill);
     container.appendChild(heart);
   }
