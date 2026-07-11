@@ -15,7 +15,7 @@ export type IconName =
   | "hearthalf"
   | "heartempty"
   | "smiley"
-  | "thermohealth"
+  | "medcross"
   | "cake"
   | "carrot"
   | "noodles"
@@ -283,23 +283,22 @@ const ICONS: Record<IconName, IconDef> = {
     ],
     palette: { k: K, y: "#f0b840" },
   },
-  // A jaunty diagonal thermometer for the health meter — cream glass, red
-  // mercury, round bulb with a glint. Tilted like the 🌡️ emoji so it reads
-  // cute and stays distinct from the upright sick-badge thermometer.
-  thermohealth: {
+  // A first-aid cross for the health meter — cream box, dark outline, red plus.
+  // The universal "health" mark; clean and legible at meter size.
+  medcross: {
     rows: [
       "............",
-      "........kk..",
-      ".......kwrk.",
-      "......kwrk..",
-      ".....kwrk...",
-      "....kwrk....",
-      "...kwrk.....",
-      "..kwrk......",
-      ".kkrrkk.....",
-      "kwrrrrk.....",
-      "kwrrrk......",
-      ".kkkk.......",
+      ".kkkkkkkkkk.",
+      ".kwwwwwwwwk.",
+      ".kwwwrrwwwk.",
+      ".kwwwrrwwwk.",
+      ".kwrrrrrrwk.",
+      ".kwrrrrrrwk.",
+      ".kwwwrrwwwk.",
+      ".kwwwrrwwwk.",
+      ".kwwwwwwwwk.",
+      ".kkkkkkkkkk.",
+      "............",
     ],
     palette: { k: K, w: "#fdf3e0", r: "#e05c48" },
   },
