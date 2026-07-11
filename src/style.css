@@ -9,6 +9,7 @@
   --heart: #ff5c7a;
   --heart-empty: #d9c3a3;
   --health: #6bbf59;
+  --ink-outline: #402e3a; /* the outline ink used by the pixel-art icons */
   --panel-shadow: 0 6px 0 rgba(94, 62, 41, 0.25);
   color-scheme: light;
 }
@@ -155,7 +156,9 @@ body {
   height: 9px;
   background: var(--heart-empty);
   overflow: hidden;
-  border: 1px solid rgba(94, 62, 41, 0.3);
+  /* Same ink outline as the pixel-art hearts/icons, so the bar reads as part
+     of the same set. */
+  border: 1px solid var(--ink-outline);
 }
 
 .health-bar .fill {
@@ -497,7 +500,7 @@ body {
   height: 9px;
   background: var(--heart-empty);
   overflow: hidden;
-  border: 1px solid rgba(94, 62, 41, 0.3);
+  border: 1px solid var(--ink-outline);
 }
 
 .bar > span {
