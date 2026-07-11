@@ -4,7 +4,9 @@ export const MAX_HEARTS = 4;
 
 export type Stage = "egg" | "baby" | "child" | "teen" | "adult";
 
-/** The six standard adult forms plus three secrets (ghost, humcube, carrot). */
+/** The six standard adult forms, three earnable secrets (ghost, humcube,
+ *  carrot), and one ultra-rare secret (cosmos) that no upbringing can summon —
+ *  it's pure luck. */
 export type AdultForm =
   | "dog"
   | "blob"
@@ -14,7 +16,8 @@ export type AdultForm =
   | "menace"
   | "ghost"
   | "humcube"
-  | "carrot";
+  | "carrot"
+  | "cosmos";
 
 export type FoodId = "burger" | "cake" | "carrot" | "noodles" | "cube" | "soup";
 

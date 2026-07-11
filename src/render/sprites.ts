@@ -550,6 +550,43 @@ const CARROT: BodyDef = {
   faceDy: 6,
 };
 
+// The Little Cosmos — a pet-shaped piece of the night sky: a swirling nebula of
+// indigo (I), amethyst (U) and rose (N), freckled with white stars (w). The
+// engine's face rides in the swirl; the whole thing shimmers in the scene (see
+// scene.ts). Kept mid-toned so the shared dark eyes still read on the swirl.
+const COSMOS: BodyDef = {
+  rows: [
+    "................",
+    "................",
+    ".....kkkkkk.....",
+    "...kkIUUUUIkk...",
+    "..kIUUNNNNUUIk..",
+    ".kIUNNwNNUUNIk..",
+    ".kIUNUUUwNNUUk..",
+    ".kIwUNUUUNUUwk..",
+    ".kIUNUUwUNUNIk..",
+    "..kIUNNNUUwIIk..",
+    "..kIIUwNNUUIk...",
+    "...kkIUUNUIk....",
+    "...kSIUUUISk....",
+    "....kSSSSSk.....",
+    ".....kkkkkk.....",
+    "................",
+  ],
+  extra: {
+    I: "#3c3478", // deep indigo
+    U: "#7a52ac", // amethyst
+    N: "#d46eb6", // rose nebula
+    w: "#ffffff", // stars
+    k: "#241d47", // night outline
+  },
+  fill: "#7a52ac",
+  shade: "#3c3478",
+  face: "small",
+  faceDx: 6,
+  faceDy: 7,
+};
+
 const BODIES: Record<string, BodyDef> = {
   baby: BABY,
   child: CHILD,
@@ -563,6 +600,7 @@ const BODIES: Record<string, BodyDef> = {
   ghost: GHOST,
   humcube: HUMCUBE,
   carrot: CARROT,
+  cosmos: COSMOS,
 };
 
 // --- Teen "audition" accents --------------------------------------------------

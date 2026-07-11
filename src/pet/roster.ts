@@ -39,6 +39,9 @@ export interface AdultDef {
   preferredGame: GameId;
   /** Secret forms don't appear in the collection until discovered. */
   secret?: boolean;
+  /** The one double-secret form: even rarer than a secret, and given its own
+   *  cosmic collection treatment when finally caught. */
+  ultra?: boolean;
 }
 
 export const ADULTS: Record<AdultForm, AdultDef> = {
@@ -117,6 +120,16 @@ export const ADULTS: Record<AdultForm, AdultDef> = {
     preferredGame: "hideseek", // root vegetables are naturals underground
     secret: true,
   },
+  cosmos: {
+    id: "cosmos",
+    name: "The Little Cosmos",
+    blurb: "No upbringing summons it. Once in a great while, the night sky simply keeps one.",
+    favorite: "soup", // a warm bowl, swirled like a small galaxy
+    disliked: null, // it holds nothing against anything down here
+    preferredGame: "hideseek", // it is, after all, mostly somewhere else
+    secret: true,
+    ultra: true,
+  },
 };
 
 export const ADULT_ORDER: AdultForm[] = [
@@ -129,4 +142,5 @@ export const ADULT_ORDER: AdultForm[] = [
   "ghost",
   "humcube",
   "carrot",
+  "cosmos",
 ];

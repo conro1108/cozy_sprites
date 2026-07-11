@@ -8,8 +8,13 @@ function hidden(overrides: Partial<HiddenStats>): HiddenStats {
 }
 
 describe("determineAdultForm", () => {
+  // A fixed rng of 0 pins tie-breaks to the top scorer *and* skips the 1%
+  // cosmic override (which only fires at the very top of the roll), so these
+  // upbringing tests stay deterministic.
+  const NO_LUCK = () => 0;
+
   it("defaults to the office creature from a blank slate", () => {
-    expect(determineAdultForm(emptyHidden(), 100)).toBe("office");
+    expect(determineAdultForm(emptyHidden(), 100, NO_LUCK)).toBe("office");
   });
 
   it("produces a dog from lots of fetch and good care", () => {
@@ -17,17 +22,17 @@ describe("determineAdultForm", () => {
       gamePlays: { ...emptyHidden().gamePlays, fetch: 10 },
       careMistakes: 0,
     });
-    expect(determineAdultForm(h, 90)).toBe("dog");
+    expect(determineAdultForm(h, 90, NO_LUCK)).toBe("dog");
   });
 
   it("produces a blob from heavy cake consumption", () => {
     const h = hidden({ cakeEaten: 12, careMistakes: 3 });
-    expect(determineAdultForm(h, 70)).toBe("blob");
+    expect(determineAdultForm(h, 70, NO_LUCK)).toBe("blob");
   });
 
   it("produces a gremlin from sustained care mistakes and no discipline", () => {
     const h = hidden({ careMistakes: 8, discipline: 0 });
-    expect(determineAdultForm(h, 50)).toBe("gremlin");
+    expect(determineAdultForm(h, 50, NO_LUCK)).toBe("gremlin");
   });
 
   it("treats the cube as neutral: a cube habit alone lands the office default", () => {
@@ -51,12 +56,12 @@ describe("determineAdultForm", () => {
       cakeEaten: 0,
       gamePlays: { ...emptyHidden().gamePlays, higherlower: 8 },
     });
-    expect(determineAdultForm(h, 90)).toBe("scholar");
+    expect(determineAdultForm(h, 90, NO_LUCK)).toBe("scholar");
   });
 
   it("produces the secret ghost from dominant night care", () => {
     const h = hidden({ nightCare: 12 });
-    expect(determineAdultForm(h, 80)).toBe("ghost");
+    expect(determineAdultForm(h, 80, NO_LUCK)).toBe("ghost");
   });
 
   it("produces the secret humming cube from a devoted, calm cube diet + its game", () => {
@@ -65,7 +70,7 @@ describe("determineAdultForm", () => {
       careMistakes: 0,
       gamePlays: { ...emptyHidden().gamePlays, cubehum: 8 },
     });
-    expect(determineAdultForm(h, 90)).toBe("humcube");
+    expect(determineAdultForm(h, 90, NO_LUCK)).toBe("humcube");
   });
 
   it("keeps chaotic cube abuse on the gremlin path, not the humming cube", () => {
@@ -88,7 +93,7 @@ describe("determineAdultForm", () => {
 
   it("produces the secret carrot from a perfectly pure carrot diet", () => {
     const h = hidden({ carrotEaten: 6, mealsEaten: 6 });
-    expect(determineAdultForm(h, 90)).toBe("carrot");
+    expect(determineAdultForm(h, 90, NO_LUCK)).toBe("carrot");
   });
 
   it("outranks a disciplined vegetable-fed scholar when the diet is pure", () => {
@@ -129,5 +134,28 @@ describe("determineAdultForm", () => {
     // A blank slate is a clear office win — but rng must select within
     // candidates, so a single candidate always returns office.
     expect(seen).toEqual(new Set(["office"]));
+  });
+
+  it("hands any non-gremlin a 1% cosmic upset, no matter how it was raised", () => {
+    // A blank-slate office pet — but the roll lands in the top 1%, so the sky
+    // keeps it instead. Care never entered into it.
+    expect(determineAdultForm(emptyHidden(), 100, () => 0.995)).toBe("cosmos");
+
+    // Even a picture-perfect scholar upbringing is overtaken by the luck roll.
+    const scholarly = hidden({
+      discipline: 80,
+      gamePlays: { ...emptyHidden().gamePlays, higherlower: 8 },
+    });
+    expect(determineAdultForm(scholarly, 90, () => 0.999)).toBe("cosmos");
+  });
+
+  it("never turns a would-be gremlin into the cosmos", () => {
+    const h = hidden({ careMistakes: 8, discipline: 0 });
+    // Top-of-the-roll luck, but gremlins are exempt from the sky's collection.
+    expect(determineAdultForm(h, 50, () => 0.999)).toBe("gremlin");
+  });
+
+  it("leaves an ordinary roll well short of the cosmic 1%", () => {
+    expect(determineAdultForm(emptyHidden(), 100, () => 0.5)).toBe("office");
   });
 });

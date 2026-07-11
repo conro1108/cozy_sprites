@@ -489,6 +489,24 @@ const ADULT: Record<AdultForm, Bank> = {
       "Full circle.",
     ],
   },
+  cosmos: {
+    idle: [
+      "...",
+      "I was passing. You looked kind.",
+      "I contain a small amount of everything.",
+      "The dark between the stars is not empty. It is me.",
+      "You are very warm. I had not expected that.",
+      "*a faint, drifting light*",
+      "I remember being much further away.",
+      "Somewhere, I am still falling. It's alright.",
+    ],
+    tap: ["*starlight, briefly*", "Oh. A hand.", "..."],
+    win: ["The outcome was written in me already.", "I have seen longer odds. I was one.", "..."],
+    lose: ["No matter. I have time. Rather a lot of it.", "The stars lose sometimes too.", "..."],
+    feed_favorite: ["Warmth. I had forgotten it.", "Thank you. I'll keep this.", "*glows a shade brighter*"],
+    sleep: ["I return to the dark. Only briefly.", "Goodnight. I'll be overhead.", "*dims, contentedly*"],
+    farm: ["I'll hang over the fields.", "Every night sky needs one of me.", "The pasture looks lovely from up here."],
+  },
 };
 
 function bankForStage(stage: Stage): Bank {
@@ -579,6 +597,7 @@ const FORM_CHATTINESS: Record<AdultForm, number> = {
   ghost: 0.18,
   humcube: 0.2, // quiet and cryptic, like the ghost — speaks when it matters
   carrot: 0.45, // evangelical about the lifestyle
+  cosmos: 0.19, // speaks rarely, from very far away
 };
 
 export function speakChance(state: PetState, category: Category): number {

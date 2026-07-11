@@ -1531,7 +1531,7 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
 
 /** True for residents that hover rather than walk (they keep the dreamy bob). */
 function floater(key: string): boolean {
-  return key === "ghost" || key === "humcube";
+  return key === "ghost" || key === "humcube" || key === "cosmos";
 }
 
 /** A pasture resident: just the roaming sprite — its story pops up on tap. */
@@ -1762,12 +1762,14 @@ export function openCollection(ctx: MenuCtx): void {
     el.className = "tile";
     if (found) {
       // Discovered secrets wear a golden frame + star so they read as rare
-      // catches, not just another face in the regular crew.
+      // catches, not just another face in the regular crew. The one ultra
+      // secret gets a whole starfield of its own (see .tile.cosmic) — a
+      // different order of rare.
       if (def.secret) {
-        el.classList.add("secret");
+        el.classList.add(def.ultra ? "cosmic" : "secret");
         const badge = document.createElement("span");
         badge.className = "secret-badge";
-        badge.appendChild(iconEl("star", 16));
+        badge.appendChild(iconEl(def.ultra ? "sparkle" : "star", 16));
         el.appendChild(badge);
       }
       // Built with createElement — innerHTML += would re-serialize the canvas

@@ -2021,6 +2021,16 @@ export class Scene {
           m.bob -= Math.sin(q * Math.PI) * 1.2;
         }
         break;
+      case "cosmos":
+        m.bob = Math.sin(t * 1.15) * 1.6 - 3; // held a little aloft, drifting
+        m.dx = Math.sin(t * 0.6) * 1.2; // never quite anchored to the ground
+        // The shimmer: the whole nebula breathes like far starlight, always —
+        // with an occasional deeper twinkle laid over it.
+        this.extraAlpha = 0.82 + 0.18 * Math.sin(t * 2.2);
+        if ((q = quirk(t, 16.7, 1.2)) >= 0) {
+          this.extraAlpha = 0.55 + 0.45 * Math.abs(Math.cos(q * Math.PI * 3));
+        }
+        break;
       case "baby":
         m.bob = Math.sin(t * 2.6) * 1.6;
         m.dx = Math.sin(t * 6) * 0.5; // a delighted wiggle

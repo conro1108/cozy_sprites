@@ -48,6 +48,7 @@ export function scoreForms(
     ghost: 0,
     humcube: 0,
     carrot: 0,
+    cosmos: 0, // never scored — the cosmos is drawn by luck, not raised (see below)
   };
 
   // Loyal Dog Thing — fetch enthusiast, well cared for. Ordinary wear and tear
@@ -131,5 +132,13 @@ export function determineAdultForm(
   // shouldn't produce the identical adult on every single run.
   const top = scores[ranked[0]];
   const candidates = ranked.filter((f) => top - scores[f] < TIE_EPSILON);
-  return candidates[Math.floor(rng() * candidates.length)];
+  const chosen = candidates[Math.floor(rng() * candidates.length)];
+
+  // The double-secret cosmos: no upbringing summons it. Any pet that was about
+  // to become *anything but a gremlin* has a flat 1% chance of instead being
+  // quietly kept by the night sky — care is irrelevant, it's pure luck. Gremlins
+  // are exempt: the sky doesn't collect those. Drawn from the *top* of the roll
+  // so rng()=0 keeps its documented meaning ("no luck, take the top scorer").
+  if (chosen !== "gremlin" && rng() >= 0.99) return "cosmos";
+  return chosen;
 }
