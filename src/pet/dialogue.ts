@@ -920,6 +920,12 @@ export function epitaph(rng: () => number = Math.random): string {
 // bowl outranks a good mood.
 const CONDITION_DRIFT_MS = 4 * 60_000;
 
+// Weight climbs fast (feeding) and drains slow (0.15/hr drift), so it sits
+// above OVERWEIGHT for long stretches on a well-fed pet. The sickness/game-joy
+// mechanics still use OVERWEIGHT itself — this margin only keeps the *label*
+// from dominating the Condition row every time a pet is a bit chonky.
+const CONDITION_OVERWEIGHT = OVERWEIGHT + 3;
+
 function conditionPick(pet: PetState, now: number, key: string, opts: string[]): string {
   // FNV-1a over (key + pet id), seeded by the slow time bucket. Stable and cheap.
   let h = (2166136261 ^ Math.floor(now / CONDITION_DRIFT_MS)) >>> 0;
@@ -942,8 +948,9 @@ export function describeCondition(pet: PetState, now: number): string {
     return `${verb} ${ILLNESSES[pet.illness].label}`;
   }
   if (pet.asleep) {
+    // Always overnight sleep (see isNight()), never a daytime nap — don't say "nap".
     return pick("asleep", [
-      "Dreaming", "Fast asleep", "Sound asleep", "Deep in a nap",
+      "Dreaming", "Fast asleep", "Sound asleep",
       "Off with the fairies", "Dreaming of snacks",
     ]);
   }
@@ -971,7 +978,7 @@ export function describeCondition(pet: PetState, now: number): string {
   if (pet.hunger <= 2) {
     return pick("peckish", ["Peckish", "Could eat", "Snackish", "Slightly rumbly"]);
   }
-  if (pet.weight >= OVERWEIGHT) {
+  if (pet.weight >= CONDITION_OVERWEIGHT) {
     return pick("chonky", ["Well-fed", "Chonky", "Rotund", "Pleasantly round", "Ate well"]);
   }
   if (pet.weight <= UNDERWEIGHT) {
