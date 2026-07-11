@@ -251,7 +251,7 @@ const GAME_META: { id: GameId; icon: IconName; name: string }[] = [
   { id: "higherlower", icon: "dice", name: "Higher / Lower" },
   { id: "fetch", icon: "ball", name: "Fetch" },
   { id: "rps", icon: "rock", name: "Rock Paper Scissors" },
-  { id: "hideseek", icon: "eyes", name: "Hide & Seek" },
+  { id: "hideseek", icon: "magnifying", name: "Hide & Seek" },
   { id: "wouldyou", icon: "question", name: "Would You Rather" },
   { id: "cubehum", icon: "cube", name: "The Cube's Hum" },
 ];

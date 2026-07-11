@@ -28,7 +28,7 @@ export type IconName =
   | "dice4"
   | "dice6"
   | "ball"
-  | "eyes"
+  | "magnifying"
   | "question"
   | "pill"
   | "hand"
@@ -498,23 +498,23 @@ const ICONS: Record<IconName, IconDef> = {
     ],
     palette: { k: K, y: "#a8d84a", w: "#f0f8d0" },
   },
-  eyes: {
-    // two peeking eyes in the dark
+  magnifying: {
+    // a magnifying glass: circular lens with a handle extending down-right
     rows: [
       "............",
-      "..kkkkkkkk..",
-      ".kddddddddk.",
-      ".kdwwddwwdk.",
-      ".kdwedwedk..",
-      ".kdwwddwwdk.",
-      ".kddddddddk.",
-      "..kkkkkkkk..",
-      "............",
-      "............",
-      "............",
+      "....kkkk....",
+      "...kggggk...",
+      "..kgggggk...",
+      "..kggwggk...",
+      "..kgggggk...",
+      "...kggggk...",
+      "....kkkk....",
+      ".......kk...",
+      "........kk..",
+      ".........kk.",
       "............",
     ],
-    palette: { k: K, d: "#3a2b3f", w: "#fdf3e0", e: "#402e3a" },
+    palette: { k: K, g: "#c9a96a", w: "#f0d9b0" },
   },
   question: {
     // the mystery card: an outlined tile with the question on it
