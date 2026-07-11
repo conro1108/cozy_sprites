@@ -151,20 +151,10 @@ body {
   content: "\2665";
 }
 
-.health-bar {
-  width: 72px;
-  height: 9px;
-  background: var(--heart-empty);
-  overflow: hidden;
-  /* Same ink outline as the pixel-art hearts/icons, so the bar reads as part
-     of the same set. */
-  border: 1px solid var(--ink-outline);
-}
-
-.health-bar .fill {
-  height: 100%;
-  background: var(--health);
-  transition: width 0.3s ease;
+.condition {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--wood-dark);
 }
 
 .hud .idcol {
@@ -538,7 +528,7 @@ body {
   width: var(--meter-w);
 }
 
-/* Same chrome as the home-screen .health-bar — square, bordered, tan track. */
+/* Square, bordered, tan track — matches the pixel-art icon/heart chrome. */
 .bar {
   width: var(--meter-w);
   height: 9px;

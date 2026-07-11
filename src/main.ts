@@ -35,6 +35,7 @@ import {
   attentionWrongLine,
   retirementLine,
   departedNote,
+  describeCondition,
 } from "./pet/dialogue";
 import type { Category } from "./pet/dialogue";
 import { determineAdultForm } from "./pet/evolution";
@@ -237,7 +238,7 @@ function mountGame(): void {
       <div class="meters">
         <div class="meter-row">${iconHTML("burger", 16)}<div class="hearts" data-energy></div></div>
         <div class="meter-row">${iconHTML("smiley", 16)}<div class="hearts" data-happy></div></div>
-        <div class="meter-row">${iconHTML("medcross", 16)}<div class="health-bar"><div class="fill" data-health></div></div></div>
+        <div class="meter-row">${iconHTML("medcross", 16)}<div class="condition" data-health></div></div>
       </div>
       <div class="idcol">
         <div class="pet-name" data-name></div>
@@ -355,7 +356,7 @@ function render(): void {
   const now = Date.now();
   renderHearts(els.energy, pet.energy);
   renderHearts(els.happy, pet.happiness);
-  els.health.style.width = `${pet.health}%`;
+  els.health.textContent = describeCondition(pet, now);
   els.name.textContent = pet.name;
   els.sub.textContent = pet.form ? ADULTS[pet.form].name : stageLabel(pet.stage);
   els.sick.style.display = pet.sick ? "flex" : "none";
