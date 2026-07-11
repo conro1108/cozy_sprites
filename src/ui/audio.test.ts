@@ -79,6 +79,7 @@ describe("unlockAudio surviving a backgrounded PWA", () => {
     static instances: FakeAudioContext[] = [];
     state: AudioContextState = "suspended";
     resumeCalls = 0;
+    closeCalls = 0;
     constructor() {
       FakeAudioContext.instances.push(this);
     }
@@ -88,6 +89,11 @@ describe("unlockAudio surviving a backgrounded PWA", () => {
     resume() {
       this.resumeCalls++;
       this.state = "running";
+      return Promise.resolve();
+    }
+    close() {
+      this.closeCalls++;
+      this.state = "closed";
       return Promise.resolve();
     }
   }
@@ -101,19 +107,35 @@ describe("unlockAudio surviving a backgrounded PWA", () => {
     delete (globalThis as { window?: unknown }).window;
   });
 
-  it("resumes the existing context in place, e.g. after Safari marks it interrupted", async () => {
+  it("resumes a plainly suspended context in place", async () => {
     vi.resetModules();
     const mod = await import("./audio");
     mod.unlockAudio();
     expect(FakeAudioContext.instances).toHaveLength(1);
     expect(FakeAudioContext.instances[0].resumeCalls).toBe(1);
 
+    // A benign suspend (the normal case on returning) just needs resume() —
+    // no need to throw the working context away.
+    FakeAudioContext.instances[0].state = "suspended";
+    mod.unlockAudio();
+    expect(FakeAudioContext.instances).toHaveLength(1); // same instance, resumed again
+    expect(FakeAudioContext.instances[0].resumeCalls).toBe(2);
+  });
+
+  it("closes and rebuilds when Safari has marked the context interrupted", async () => {
+    vi.resetModules();
+    const mod = await import("./audio");
+    mod.unlockAudio();
+    expect(FakeAudioContext.instances).toHaveLength(1);
+
     // Non-standard WebKit state used when the audio session is interrupted
-    // (backgrounding a PWA, a phone call) — not in the DOM lib's type, hence the cast.
+    // (backgrounding a PWA, a phone call) — not in the DOM lib's type, hence
+    // the cast. resume() can't be trusted to revive it, so it's torn down.
     FakeAudioContext.instances[0].state = "interrupted" as AudioContextState;
     mod.unlockAudio();
-    expect(FakeAudioContext.instances).toHaveLength(1); // same instance, just resumed again
-    expect(FakeAudioContext.instances[0].resumeCalls).toBe(2);
+    expect(FakeAudioContext.instances[0].closeCalls).toBe(1); // dead session released
+    expect(FakeAudioContext.instances).toHaveLength(2); // fresh context built
+    expect(FakeAudioContext.instances[1].resumeCalls).toBe(1); // and started
   });
 
   it("builds a fresh context when the old one was torn down to closed", async () => {
@@ -124,6 +146,8 @@ describe("unlockAudio surviving a backgrounded PWA", () => {
 
     mod.unlockAudio();
     expect(FakeAudioContext.instances).toHaveLength(2);
+    // Already closed — no point calling close() on it again.
+    expect(FakeAudioContext.instances[0].closeCalls).toBe(0);
   });
 });
 

@@ -172,11 +172,26 @@ function audio(): AudioContext | null {
  *  AudioContext start from inside one, so the first tap buys every later beep.
  *
  *  Also the fix for going quiet after the PWA is backgrounded and returns:
- *  iOS suspends (or non-standardly marks "interrupted") the context while
- *  hidden, and can tear it down to "closed" entirely, so this both resumes
- *  and — if closed — throws it away so `audio()` builds a fresh one. */
+ *  iOS parks the context in one of two bad states while hidden — "closed"
+ *  (torn down outright) or the non-standard "interrupted" (audio session
+ *  interrupted by a call/another app/backgrounding). A plain "suspended"
+ *  revives fine with resume(), but resume() on an "interrupted" context is a
+ *  known WebKit trap: it reports success while the context stays silent. So
+ *  anything that isn't running-or-suspended gets thrown away and rebuilt —
+ *  `audio()` makes a fresh one, which then starts on this gesture (or the
+ *  next tap). Only a genuine "suspended" is resumed in place. */
 export function unlockAudio(): void {
-  if (ctx && ctx.state === "closed") {
+  if (ctx && ctx.state !== "running" && ctx.state !== "suspended") {
+    // "closed" is already gone; anything else (i.e. "interrupted") we close
+    // to release the dead audio session before dropping the reference.
+    if (ctx.state !== "closed") {
+      try {
+        void ctx.close?.().catch(() => {});
+      } catch {
+        // Already closing, or an engine too old to have close() — we're
+        // discarding this context either way.
+      }
+    }
     ctx = null;
     master = null;
   }
