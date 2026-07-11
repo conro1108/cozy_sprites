@@ -544,18 +544,19 @@ body {
 /* A quieter warning than .danger — same cream face as a secondary button, but
    a red outline and shadow so it still reads as consequential without
    jumping off the page (e.g. Status's Send to Farm, before you've reached
-   the farm screen and realize it's not a euphemism). Text stays the same
-   muted ink as the admin links below it — the red border alone carries
-   the warning, so the button doesn't outshout the stats above it. */
+   the farm screen and realize it's not a euphemism). Text matches the
+   Collection/Backup buttons below it — the red border alone carries the
+   warning, so the button doesn't outshout the stats above it. */
 .btn.danger-outline {
   background: var(--cream-2);
-  color: var(--ink-soft);
+  color: var(--wood-dark);
   border: 2px solid #c0492f;
   box-shadow: 0 2px 0 #8f3320;
 }
 
-/* Status's Send to Farm button: sized down from a standard .btn so the
-   stat list above stays the focal point of the panel. */
+/* Status's Send to Farm button, and the Collection/Backup row below it:
+   sized down from a standard .btn so the stat list above stays the
+   focal point of the panel — still buttons, just quieter ones. */
 .farm-btn {
   padding: 9px 14px;
   font-size: 0.8rem;
@@ -566,35 +567,18 @@ body {
   box-shadow: 0 2px 0 var(--wood-dark);
 }
 
-/* Status's Collection/Backup row, demoted to plain text links — they're
-   low-frequency admin actions and shouldn't compete with the stats or
-   the Send to Farm button for attention. */
-.admin-links {
+.btn-pair {
   display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 14px;
-  margin-top: 16px;
+  gap: 8px;
+  margin-top: 12px;
 }
 
-.admin-links .btn-link {
-  background: none;
-  border: none;
-  box-shadow: none;
+.btn-pair .btn {
   width: auto;
-  margin: 0;
-  padding: 4px 2px;
-  color: var(--ink-soft);
-  font-weight: 700;
-  font-size: 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-}
-
-.admin-links .link-sep {
-  color: var(--heart-empty);
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 0.72rem;
+  box-shadow: 0 2px 0 #cbb890;
 }
 
 .help-body p,

@@ -994,30 +994,27 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   farmBtn.addEventListener("click", () => (ready ? confirmWalk(ctx, p) : confirmFarm(ctx, p)));
   p.body.appendChild(farmBtn);
 
-  // Plain text links, not buttons — "Collection" (not "Collection & Farm")
-  // so the farm stays a surprise until a pet actually retires there.
+  // "Collection", not "Collection & Farm" — keeps the farm a surprise
+  // until a pet actually retires there.
   const adminRow = document.createElement("div");
-  adminRow.className = "admin-links";
+  adminRow.className = "btn-pair";
   const coll = document.createElement("button");
-  coll.className = "btn-link";
+  coll.className = "btn secondary btn-iconed";
   coll.appendChild(iconEl("book", 16));
   coll.appendChild(document.createTextNode("Collection"));
   coll.addEventListener("click", () => {
     p.close();
     openCollection(ctx);
   });
-  const sep = document.createElement("span");
-  sep.className = "link-sep";
-  sep.textContent = "·";
   const backup = document.createElement("button");
-  backup.className = "btn-link";
+  backup.className = "btn secondary btn-iconed";
   backup.appendChild(iconEl("disk", 16));
   backup.appendChild(document.createTextNode("Backup save"));
   backup.addEventListener("click", () => {
     p.close();
     openBackup(ctx);
   });
-  adminRow.append(coll, sep, backup);
+  adminRow.append(coll, backup);
   p.body.appendChild(adminRow);
 
   p.body.appendChild(soundSettings());
