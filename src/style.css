@@ -441,6 +441,10 @@ body {
 .tile .tile-name {
   font-size: 0.8rem;
   font-weight: 700;
+  /* .tile is a <button> with no explicit color, so without this it falls
+     back to the UA default button text color (iOS Safari renders that as
+     system blue) instead of matching the rest of the in-game text. */
+  color: var(--ink);
 }
 
 .tile .tile-note {
