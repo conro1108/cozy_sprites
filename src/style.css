@@ -541,10 +541,22 @@ body {
   box-shadow: 0 4px 0 #8f3320;
 }
 
+/* A quieter warning than .danger — same cream face as a secondary button, but
+   a red outline and shadow so it still reads as consequential without
+   jumping off the page (e.g. Status's Send to Farm, before you've reached
+   the farm screen and realize it's not a euphemism). */
+.btn.danger-outline {
+  background: var(--cream-2);
+  color: #c0492f;
+  border: 2px solid #c0492f;
+  box-shadow: 0 4px 0 #8f3320;
+}
+
 /* Two admin buttons side by side, e.g. Status's Collection & Backup row. */
 .btn-pair {
   display: flex;
   gap: 10px;
+  margin-top: 18px;
 }
 
 .btn-pair .btn {

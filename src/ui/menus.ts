@@ -959,7 +959,7 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   // anywhere — you walk them over. Same destination, entirely different button.
   const ready = retirementPhase(pet) === "ready";
   const farmBtn = document.createElement("button");
-  farmBtn.className = ready ? "btn btn-iconed" : "btn danger btn-iconed";
+  farmBtn.className = ready ? "btn btn-iconed" : "btn danger-outline btn-iconed";
   farmBtn.appendChild(iconEl("tractor", 20));
   farmBtn.appendChild(document.createTextNode(ready ? "Walk them to the farm" : "Send to Farm…"));
   farmBtn.addEventListener("click", () => (ready ? confirmWalk(ctx, p) : confirmFarm(ctx, p)));
