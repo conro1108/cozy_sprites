@@ -32,7 +32,7 @@ export type IconName =
   | "question"
   | "pill"
   | "hand"
-  | "tractor"
+  | "barn"
   | "book"
   | "disk"
   | "egg"
@@ -573,25 +573,24 @@ const ICONS: Record<IconName, IconDef> = {
     ],
     palette: { k: K, h: "#f0c896", t: "#d9a86f" },
   },
-  tractor: {
-    // small exhaust stack beside the cab, and a bigger rear wheel than the
-    // front one — without that size difference it read as a generic boxy
-    // cart rather than a tractor.
+  barn: {
+    // a gambrel roof and hayloft door read as "the farm" at any size,
+    // where the tractor needed too many small distinguishable parts.
     rows: [
-      "..k.........",
-      "..kkkkk.....",
-      "...krrk.....",
-      "kkkkrrkkkk..",
-      "krrrrrrrrk..",
-      "krrrrrrrrkk.",
-      "kkkkkkkkkkk.",
-      ".kwk....kwk.",
-      "kwwwk..kwwwk",
-      "kwwwk...kwk.",
-      ".kwk........",
+      ".....kk.....",
+      "....kddk....",
+      "...kddddk...",
+      "..kddddddk..",
+      "..krrrrrrk..",
+      "..krrrrrrk..",
+      "..krrwwrrk..",
+      "..krrwwrrk..",
+      "..krrkkrrk..",
+      "..kkkkkkkk..",
+      "............",
       "............",
     ],
-    palette: { k: K, r: "#e05c48", w: "#8a6f57" },
+    palette: { k: K, d: "#5e3e29", r: "#c0492f", w: "#fdf3e0" },
   },
   book: {
     rows: [

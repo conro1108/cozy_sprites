@@ -1000,7 +1000,7 @@ function beginDeparture(walked: boolean): void {
     : `They left a note: “${departedNote()}”`;
   app.innerHTML = `
     <div class="hatch-screen memorial">
-      ${iconHTML("tractor", 56)}
+      ${iconHTML("barn", 56)}
       <h1>${walked ? `You walked ${p.name} to the farm.` : `${p.name} set off for the farm at dawn.`}</h1>
       <p class="muted">${detail}</p>
       <p class="muted">A good long run: ${formatAge(lived)}.</p>

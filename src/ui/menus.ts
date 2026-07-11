@@ -989,7 +989,7 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   farmBtn.className = ready
     ? "btn btn-iconed farm-btn"
     : "btn danger-outline btn-iconed farm-btn";
-  farmBtn.appendChild(iconEl("tractor", 18));
+  farmBtn.appendChild(iconEl("barn", 18));
   farmBtn.appendChild(document.createTextNode(ready ? "Walk them to the farm" : "Send to Farm…"));
   farmBtn.addEventListener("click", () => (ready ? confirmWalk(ctx, p) : confirmFarm(ctx, p)));
   p.body.appendChild(farmBtn);
@@ -1780,7 +1780,7 @@ export function openCollection(ctx: MenuCtx): void {
   const renderFarm = () => {
     farmSection.replaceChildren();
     const h = document.createElement("h2");
-    h.innerHTML = `${iconHTML("tractor", 18)} The Farm`;
+    h.innerHTML = `${iconHTML("barn", 18)} The Farm`;
     h.style.fontSize = "1.1rem";
     h.style.marginTop = "18px";
     farmSection.appendChild(h);
