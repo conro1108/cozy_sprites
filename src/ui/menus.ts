@@ -511,6 +511,15 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
   let resolved = false;
   let cleared = 0; // longest hum fully reproduced — drives the reward
 
+  // Walking away (X button, tap-outside, another nav tap) shouldn't forfeit
+  // rounds already cleared — credit whatever's banked, same scoring as a miss.
+  p.onClose(() => {
+    if (resolved) return;
+    resolved = true;
+    const won = cleared >= CUBE_HUM_TARGET;
+    ctx.finishGame("cubehum", won, cubeHumLine(won), cleared);
+  });
+
   const flash = (i: number) => {
     const el = padEls[i];
     el.classList.add("lit");
@@ -764,10 +773,9 @@ function hideSeek(ctx: MenuCtx): void {
   playSfx("hide"); // scurries off
   ctx.scene().playHide(peek, () => {
     const { el, close: rawClose } = stageOverlay(ctx);
-    // A miss (stray tap outside every hide spot) or navigating away both fall
-    // through to this same teardown, not just a real guess. Either way the
-    // creature is still off-scene, so bring it back — otherwise it's stuck
-    // invisible until the next hide & seek round happens to reveal it.
+    // Navigating away entirely (a nav tap, opening another panel) skips the
+    // guess phase without resolving it. The creature is still off-scene then,
+    // so bring it back — otherwise it's stuck invisible until the next round.
     let resolved = false;
     const close = registerActiveGame(() => {
       stageTapHandler = null;
@@ -780,8 +788,7 @@ function hideSeek(ctx: MenuCtx): void {
     const row = document.createElement("div");
     row.className = "game-choices";
 
-    const guess = (s: (typeof HIDE_SPOTS)[number]) => {
-      const won = s === spot;
+    const guess = (won: boolean) => {
       resolved = true;
       close();
       // Sound the reveal now, at the start of the ~1.4s pop-out — the
@@ -793,12 +800,13 @@ function hideSeek(ctx: MenuCtx): void {
       });
     };
 
-    // Tapping the actual hiding spot in the scene guesses it directly; the
-    // button row below covers the same ground for anyone who'd rather read.
+    // Any tap on the stage during the guess phase is itself a guess — landing
+    // on the real spot wins, landing anywhere else (a wrong spot, empty grass)
+    // just loses, the same as picking the wrong name below. It never falls
+    // through to "exit the game".
     stageTapHandler = (x, y) => {
       const s = ctx.scene().hideSpotAt(x, y);
-      if (!s) return false;
-      guess(s);
+      guess(s === spot);
       return true;
     };
 
@@ -806,7 +814,7 @@ function hideSeek(ctx: MenuCtx): void {
       const b = document.createElement("button");
       b.className = "btn secondary btn-small";
       b.textContent = s;
-      b.addEventListener("click", () => guess(s));
+      b.addEventListener("click", () => guess(s === spot));
       row.appendChild(b);
     }
     el.append(hint, row);
