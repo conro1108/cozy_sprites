@@ -875,34 +875,29 @@ export function openCare(ctx: MenuCtx): void {
   const p = openPanel("Care", "Look after your sprite.");
   const pet = ctx.pet();
 
-  const med = document.createElement("button");
-  med.className = "btn btn-iconed";
-  med.appendChild(iconEl("pill", 20));
+  const grid = document.createElement("div");
+  grid.className = "tile-grid centered";
   // Like the Food button, the label never advertises the pet's condition —
   // reading whether it's actually sick is part of the game.
-  med.appendChild(document.createTextNode("Give Medicine"));
-  med.addEventListener("click", () => {
-    ctx.medicine();
-    p.close();
-  });
-
-  const disc = document.createElement("button");
-  disc.className = "btn secondary btn-iconed";
-  disc.appendChild(iconEl("whistle", 20));
-  disc.appendChild(document.createTextNode("Discipline"));
-  disc.addEventListener("click", () => {
-    ctx.discipline();
-    p.close();
-  });
-
-  p.body.append(med, disc);
-
-  if (pet.stage === "baby" || pet.stage === "egg") {
-    const note = document.createElement("p");
-    note.className = "muted";
-    note.textContent = "Discipline has no effect this young.";
-    p.body.appendChild(note);
-  }
+  grid.appendChild(
+    tile("pill", "Give Medicine", () => {
+      ctx.medicine();
+      p.close();
+    }),
+  );
+  const young = pet.stage === "baby" || pet.stage === "egg";
+  grid.appendChild(
+    tile(
+      "whistle",
+      "Discipline",
+      () => {
+        ctx.discipline();
+        p.close();
+      },
+      young ? "No effect yet" : undefined,
+    ),
+  );
+  p.body.appendChild(grid);
 }
 
 /** The retirement walk: no danger styling, no dire warning — it asked to go. */
