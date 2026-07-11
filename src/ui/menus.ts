@@ -997,10 +997,9 @@ function notifySettings(): HTMLElement {
 
 function heartBar(v: number): HTMLElement {
   const el = document.createElement("span");
+  el.className = "heart-meter";
   const full = Math.round(v);
   el.textContent = "♥".repeat(full) + "♡".repeat(Math.max(0, MAX_HEARTS - full));
-  el.style.color = "#ff5c7a";
-  el.style.letterSpacing = "1px";
   return el;
 }
 

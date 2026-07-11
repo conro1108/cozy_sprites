@@ -467,6 +467,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* Hearts and the health/discipline bars share one width so they line up. */
+  --meter-w: 66px;
 }
 
 .stat-list .row {
@@ -482,11 +484,18 @@ body {
   color: var(--wood-dark);
 }
 
+.heart-meter {
+  display: inline-block;
+  width: var(--meter-w);
+  text-align: right;
+  color: #ff5c7a;
+  letter-spacing: 1px;
+}
+
 .bar {
-  width: 120px;
+  width: var(--meter-w);
   height: 12px;
   background: var(--heart-empty);
-  border-radius: 6px;
   overflow: hidden;
   border: 1px solid rgba(94, 62, 41, 0.3);
 }
