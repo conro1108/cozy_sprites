@@ -44,7 +44,8 @@ export type IconName =
   | "rock"
   | "paper"
   | "scissors"
-  | "fist";
+  | "fist"
+  | "whistle";
 
 interface IconDef {
   rows: string[];
@@ -572,6 +573,25 @@ const ICONS: Record<IconName, IconDef> = {
       "............",
     ],
     palette: { k: K, h: "#f0c896", t: "#d9a86f" },
+  },
+  whistle: {
+    // a coach's whistle: round chamber, an orange mouthpiece poking out the
+    // left, and the air-hole slot on top. The "that's enough" gesture, upgraded.
+    rows: [
+      "............",
+      "......kkk...",
+      ".....kdddk..",
+      "...kkkssskk.",
+      "..khsssssssk",
+      "kkkssssssssk",
+      "koossssssssk",
+      "koossssssssk",
+      "kkksssssssk.",
+      "..kssssssk..",
+      "...kkkkkk...",
+      "............",
+    ],
+    palette: { k: K, s: "#aeb7c4", h: "#e8edf3", d: "#7d8794", o: "#f0b24a" },
   },
   barn: {
     // a gambrel roof and hayloft door read as "the farm" at any size,

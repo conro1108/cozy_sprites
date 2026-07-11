@@ -888,7 +888,7 @@ export function openCare(ctx: MenuCtx): void {
 
   const disc = document.createElement("button");
   disc.className = "btn secondary btn-iconed";
-  disc.appendChild(iconEl("hand", 20));
+  disc.appendChild(iconEl("whistle", 20));
   disc.appendChild(document.createTextNode("Discipline"));
   disc.addEventListener("click", () => {
     ctx.discipline();
