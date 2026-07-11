@@ -954,6 +954,19 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   }
   p.body.appendChild(list);
 
+  // Right below Condition, before the admin buttons — this reads as a fork in
+  // the pet's fate, not a settings item. A ready retiree isn't "sent"
+  // anywhere — you walk them over. Same destination, entirely different button.
+  const ready = retirementPhase(pet) === "ready";
+  const farmBtn = document.createElement("button");
+  farmBtn.className = ready ? "btn btn-iconed" : "btn danger btn-iconed";
+  farmBtn.appendChild(iconEl("tractor", 20));
+  farmBtn.appendChild(document.createTextNode(ready ? "Walk them to the farm" : "Send to Farm…"));
+  farmBtn.addEventListener("click", () => (ready ? confirmWalk(ctx, p) : confirmFarm(ctx, p)));
+  p.body.appendChild(farmBtn);
+
+  const adminRow = document.createElement("div");
+  adminRow.className = "btn-pair";
   const coll = document.createElement("button");
   coll.className = "btn secondary btn-iconed";
   coll.appendChild(iconEl("book", 20));
@@ -970,7 +983,8 @@ export function openStatus(ctx: MenuCtx, now: number): void {
     p.close();
     openBackup(ctx);
   });
-  p.body.append(coll, backup);
+  adminRow.append(coll, backup);
+  p.body.appendChild(adminRow);
 
   p.body.appendChild(soundSettings());
   p.body.appendChild(notifySettings());
@@ -1745,20 +1759,6 @@ export function openCollection(ctx: MenuCtx): void {
     farmSection.appendChild(
       farmYard(ctx.farm(), () => confirmResetFarm(ctx, renderFarm)),
     );
-
-    // Sending the current sprite off lives under the yard it's about to join —
-    // not in Care, since it's a life-stage decision, not day-to-day upkeep.
-    // A ready retiree isn't "sent" anywhere — you walk them over. Same
-    // destination, entirely different button.
-    const pet = ctx.pet();
-    const ready = retirementPhase(pet) === "ready";
-    const farmBtn = document.createElement("button");
-    farmBtn.className = ready ? "btn btn-iconed" : "btn danger btn-iconed";
-    farmBtn.style.marginTop = "12px";
-    farmBtn.appendChild(iconEl("tractor", 20));
-    farmBtn.appendChild(document.createTextNode(ready ? "Walk them to the farm" : "Send to Farm…"));
-    farmBtn.addEventListener("click", () => (ready ? confirmWalk(ctx, p) : confirmFarm(ctx, p)));
-    farmSection.appendChild(farmBtn);
   };
   renderFarm();
 }

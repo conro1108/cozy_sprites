@@ -541,6 +541,17 @@ body {
   box-shadow: 0 4px 0 #8f3320;
 }
 
+/* Two admin buttons side by side, e.g. Status's Collection & Backup row. */
+.btn-pair {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-pair .btn {
+  width: auto;
+  flex: 1;
+}
+
 .help-body p,
 .game-body p {
   font-size: 0.9rem;
