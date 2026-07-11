@@ -277,6 +277,11 @@ function mountGame(): void {
       say("*the egg does not eat. the egg prepares.*");
       return;
     }
+    if (pet?.asleep) {
+      // Fast asleep — the bowl can wait until morning.
+      say("Zzz…");
+      return;
+    }
     openFood(ctx);
   });
   nav.play.addEventListener("click", () => {
