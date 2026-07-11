@@ -57,7 +57,7 @@ const ICONS: Record<IconName, IconDef> = {
   status: {
     // clipboard — text lines in soft brown so they read as writing, not bars
     rows: [
-      "....kkkk....",
+      "....kkkkk...",
       "..kkkccckkk.",
       "..kpppppppk.",
       "..kplllllpk.",
@@ -128,19 +128,21 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, g: "#ddd0b0", d: "#5c4a38", r: "#e05c48" },
   },
   broom: {
-    // angled wooden handle sweeping down into a full, outlined bristle fan
+    // straight handle into a widening bristle fan with a jagged, swept
+    // bottom edge — the old diagonal handle plus solid flat base read as an
+    // unidentifiable blob rather than bristles.
     rows: [
-      ".........kk.",
-      "........khk.",
-      ".......khk..",
-      "......khk...",
+      ".....kkk....",
       ".....khk....",
-      "...kkkkkk...",
-      "..kyybyyyk..",
-      "..kybyyybk..",
-      ".kyybyyybyk.",
-      ".kybyyybyyk.",
-      ".kkkkkkkkkk.",
+      ".....khk....",
+      ".....khk....",
+      "....kkkkk...",
+      "..kkkkkkkk..",
+      "..kyyybbbk..",
+      "..kyyybbbk..",
+      ".kyyyybbbbk.",
+      ".k.k.k.k.k..",
+      "............",
       "............",
     ],
     palette: { k: K, h: "#a97048", y: "#e8c06a", b: "#c9a050" },
@@ -572,9 +574,12 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, h: "#f0c896", t: "#d9a86f" },
   },
   tractor: {
+    // small exhaust stack beside the cab, and a bigger rear wheel than the
+    // front one — without that size difference it read as a generic boxy
+    // cart rather than a tractor.
     rows: [
-      "............",
-      "...kkkk.....",
+      "..k.........",
+      "..kkkkk.....",
       "...krrk.....",
       "kkkkrrkkkk..",
       "krrrrrrrrk..",
@@ -582,8 +587,8 @@ const ICONS: Record<IconName, IconDef> = {
       "kkkkkkkkkkk.",
       ".kwk....kwk.",
       "kwwwk..kwwwk",
-      ".kwk....kwk.",
-      "............",
+      "kwwwk...kwk.",
+      ".kwk........",
       "............",
     ],
     palette: { k: K, r: "#e05c48", w: "#8a6f57" },
