@@ -129,9 +129,9 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, g: "#ddd0b0", d: "#5c4a38", r: "#e05c48" },
   },
   broom: {
-    // straight handle into a widening bristle fan with a jagged, swept
-    // bottom edge — the old diagonal handle plus solid flat base read as an
-    // unidentifiable blob rather than bristles.
+    // a dustpan: same handle as before, but ending in a solid scoop with a
+    // flared flat lip and a couple of dirt flecks, instead of thin bristles
+    // that read as a sparse blob at icon size.
     rows: [
       ".....kkk....",
       ".....khk....",
@@ -139,14 +139,14 @@ const ICONS: Record<IconName, IconDef> = {
       ".....khk....",
       "....kkkkk...",
       "..kkkkkkkk..",
-      "..kyyybbbk..",
-      "..kyyybbbk..",
-      ".kyyyybbbbk.",
-      ".k.k.k.k.k..",
+      ".kbbbbbbbbk.",
+      ".kbbbdbdbbk.",
+      ".kbbbbbbbbk.",
+      "kkkkkkkkkkkk",
       "............",
       "............",
     ],
-    palette: { k: K, h: "#a97048", y: "#e8c06a", b: "#c9a050" },
+    palette: { k: K, h: "#a97048", b: "#7fb3d5", d: "#4a4038" },
   },
   bandage: {
     // a proper plaster: tan wings, pale pad, dotted texture
@@ -546,10 +546,10 @@ const ICONS: Record<IconName, IconDef> = {
       "..krrrwwwk..",
       ".krrrrwwwwk.",
       ".krrrrwwwwk.",
+      ".krrrrwwwwk.",
+      ".krrrrwwwwk.",
       "..krrrwwwk..",
       "...kkkkkk...",
-      "............",
-      "............",
       "............",
       "............",
     ],
