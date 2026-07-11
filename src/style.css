@@ -552,6 +552,13 @@ body {
   box-shadow: 0 4px 0 #8f3320;
 }
 
+/* Status's Send to Farm button: the stat list's last row already carries
+   8px of its own bottom padding, so this needs less top margin than a
+   plain .btn to land even with the 18px gap below (from .btn-pair). */
+.farm-btn {
+  margin-top: 10px;
+}
+
 /* Two admin buttons side by side, e.g. Status's Collection & Backup row. */
 .btn-pair {
   display: flex;
