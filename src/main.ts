@@ -13,6 +13,8 @@ import {
   tap,
   pat as patPet,
   toggleLight,
+  tooSickToPlay,
+  retirementPhase,
 } from "./pet/state";
 import type { AdultForm, FoodId, GameId, PetState } from "./pet/types";
 import { ADULTS } from "./pet/roster";
@@ -31,6 +33,8 @@ import {
   attentionSatisfiedLine,
   attentionSpoiledLine,
   attentionWrongLine,
+  retirementLine,
+  departedNote,
 } from "./pet/dialogue";
 import type { Category } from "./pet/dialogue";
 import { determineAdultForm } from "./pet/evolution";
@@ -56,12 +60,13 @@ import { randomName } from "./pet/names";
 
 const TICK_MS = 3_000;
 const BUBBLE_MS = 4_000;
-const IDLE_MIN_MS = 90_000; // demo cadence (prod wants 10–20 min)
-const IDLE_MAX_MS = 180_000;
-// The rare "easter egg" flourish. Demo-paced so it's actually discoverable;
-// production wants something closer to once an hour.
-const FLOURISH_MIN_MS = 5 * 60_000;
-const FLOURISH_MAX_MS = 10 * 60_000;
+// Real-clock cadence: chatty enough that a check-in visit usually catches a
+// line, quiet enough that a tab left open isn't a ticker.
+const IDLE_MIN_MS = 5 * 60_000;
+const IDLE_MAX_MS = 12 * 60_000;
+// The rare "easter egg" flourish — roughly once an hour.
+const FLOURISH_MIN_MS = 30 * 60_000;
+const FLOURISH_MAX_MS = 60 * 60_000;
 // The egg gets exactly one unprompted line during incubation (not a chatty
 // countdown) — timed to land well before it hatches (TIMING.egg = 60s).
 const EGG_BROOD_MIN_MS = 15_000;
@@ -114,6 +119,9 @@ function boot(): void {
   } else if (pet.deadAt !== null) {
     // Died while we were away — no animation replay, straight to the memorial.
     mountMemorial();
+  } else if (pet.departedAt !== null) {
+    // Walked itself to the farm at a dawn we slept through.
+    beginDeparture(false);
   } else {
     // Mount first so the scene/HUD exist, then catch up — this way an evolution
     // or hatch that completed while the app was closed still plays its fanfare.
@@ -282,8 +290,9 @@ function mountGame(): void {
       say("Zzz…");
       return;
     }
-    if (pet?.sick) {
-      // Too unwell to play — medicine first, games after.
+    if (pet && tooSickToPlay(pet)) {
+      // Some illnesses are too much for games — medicine first, glory after.
+      // (The milder ones — sniffles, a bad tummy — don't stop playtime.)
       say(SICK_PLAY_LINES[Math.floor(Math.random() * SICK_PLAY_LINES.length)]);
       return;
     }
@@ -642,6 +651,7 @@ function feedCategory(food: FoodId, note?: string): Category {
   if (food === "cube") return "cube";
   if (food === "cake") return "cake";
   if (food === "carrot") return "carrot";
+  if (food === "soup") return "soup";
   return "feed";
 }
 
@@ -673,6 +683,10 @@ function doMedicine(): void {
     // Plague: one shot down, one to go.
     sayCat("dose");
     playSfx("medicine");
+  } else if (note === "toosoon") {
+    // Plague pacing: the second dose needs the first to settle in.
+    say("The last dose is still negotiating. Give it an hour.");
+    playSfx("refuse");
   } else if (note === "notneeded") {
     say("I'm not sick. But thank you, I guess.");
     playSfx("refuse");
@@ -748,6 +762,11 @@ function doFinishGame(game: GameId, won: boolean, line?: string, reach = 0): voi
 
 function doSendToFarm(): void {
   if (!pet) return;
+  // A ready retiree gets walked over properly — farewell screen, the works.
+  if (retirementPhase(pet) === "ready") {
+    beginDeparture(true);
+    return;
+  }
   farm = retireToFarm(pet, Date.now());
   pet = null;
   mountHatch();
@@ -785,6 +804,8 @@ function stepPet(now: number, withEvents: boolean): boolean {
   const prevHunger = pet.hunger;
   const prevAsleep = pet.asleep;
   const wasDead = pet.deadAt !== null;
+  const wasNight = isNight(pet.lastUpdated);
+  const prevPhase = retirementPhase(pet);
   const elapsed = now - pet.lastUpdated;
   pet = applyElapsedDecay(pet, now);
   let events: string[] = [];
@@ -800,9 +821,22 @@ function stepPet(now: number, withEvents: boolean): boolean {
     return false;
   }
 
+  // A ready retiree we kept waiting finally left with the sunrise.
+  if (pet.departedAt !== null) {
+    beginDeparture(false);
+    return false;
+  }
+
+  const phase = retirementPhase(pet);
   const changed = pet.stage !== prevStage;
   if (changed) {
     handleStageChange(prevStage, pet.stage);
+  } else if (phase !== prevPhase && phase === "ready") {
+    // The long goodbye reaches its door. From here the Care menu offers the walk.
+    say(retirementLine("ready"));
+    notify("care", "Cozy Sprites", `${pet.name} is ready for the farm.`);
+  } else if (phase !== prevPhase && phase === "restless") {
+    say(retirementLine("restless"));
   } else if (events.includes("sick")) {
     // The Oregon Trail moment. Always announced, never diluted.
     if (pet.illness) say(illnessAnnouncement(pet.name, pet.illness));
@@ -820,6 +854,11 @@ function stepPet(now: number, withEvents: boolean): boolean {
   } else if (prevAsleep && !pet.asleep && pet.lightsOn) {
     // The lantern relit itself with the dawn — nobody touched the switch.
     sayCat("wake");
+  } else if (!wasNight && isNight(now) && !pet.asleep && pet.stage !== "egg") {
+    // Dusk with the lantern still lit: the bedtime nudge. Sleeping through the
+    // night is worth health; missing it entirely is a care mistake at dawn.
+    say("*yawns* The lantern is very on.");
+    notify("care", "Cozy Sprites", `${pet.name} is sleepy — lights out?`);
   }
 
   if (prevHunger > 1 && pet.hunger <= 1) {
@@ -848,6 +887,37 @@ function beginDeath(): void {
   } else {
     mountMemorial();
   }
+}
+
+/**
+ * The retirement send-off, shared by the escorted walk and the dawn
+ * self-departure. Retires the pet into the farm archive immediately (so a
+ * closed tab can't resurrect it), then shows the farewell screen.
+ */
+function beginDeparture(walked: boolean): void {
+  if (!pet) return;
+  const p = pet;
+  farm = retireToFarm(p, Date.now());
+  pet = null;
+  stopTick();
+  stopAnchorLoop();
+  scene?.stop();
+  scene = null;
+  els = null;
+  dying = false;
+  const lived = (p.departedAt ?? Date.now()) - p.createdAt;
+  const detail = walked
+    ? "They waved until you couldn't see them anymore. Then, presumably, fields."
+    : `They left a note: “${departedNote()}”`;
+  app.innerHTML = `
+    <div class="hatch-screen memorial">
+      ${iconHTML("tractor", 56)}
+      <h1>${walked ? `You walked ${p.name} to the farm.` : `${p.name} set off for the farm at dawn.`}</h1>
+      <p class="muted">${detail}</p>
+      <p class="muted">A good long run: ${formatAge(lived)}.</p>
+      <button class="btn" id="departbtn">${walked ? "Wave goodbye" : "Keep the note"}</button>
+    </div>`;
+  app.querySelector("#departbtn")!.addEventListener("click", () => mountHatch());
 }
 
 function tick(): void {
@@ -909,6 +979,13 @@ function maybeIdleLine(now: number): void {
     // circumstance, and comes more often than idle small talk.
     say(dyingLine(pet));
     nextIdleAt = now + rand(IDLE_MIN_MS / 3, IDLE_MAX_MS / 3);
+    return;
+  }
+  const phase = retirementPhase(pet);
+  if (phase !== "none" && Math.random() < 0.4) {
+    // The long goodbye colors the small talk: fields, fences, horizons.
+    say(retirementLine(phase));
+    nextIdleAt = now + rand(IDLE_MIN_MS, IDLE_MAX_MS);
     return;
   }
   if (pet.stage === "teen" && Math.random() < 0.35) {

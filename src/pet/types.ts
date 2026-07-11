@@ -16,7 +16,7 @@ export type AdultForm =
   | "humcube"
   | "carrot";
 
-export type FoodId = "burger" | "cake" | "carrot" | "noodles" | "cube";
+export type FoodId = "burger" | "cake" | "carrot" | "noodles" | "cube" | "soup";
 
 /** What an attention call is actually about. Fake calls pick one too — the con
  *  only works if it sounds exactly like a real request. */
@@ -45,15 +45,61 @@ export interface IllnessDef {
   label: string;
   /** Medicine doses required to cure. Only the plague needs two. */
   doses: number;
+  /** Health lost per awake daytime hour while this goes untreated. Halved
+   *  overnight — evening illness matters but can never kill before morning. */
+  drainPerHour: number;
+  /** Happiness decays this much faster while sick (misery multiplier). */
+  happinessDecayMult: number;
+  /** True → too weak for mini-games (feeding still allowed). */
+  blocksPlay: boolean;
+  /** True → the pet is unresponsive: pats land but pay nothing. */
+  patMute: boolean;
+  /** Fraction of a meal's hunger value that actually sticks (dysentery: it
+   *  runs right through). 1 for everything else. */
+  foodEfficiency: number;
+  /** Clears on its own after this much daytime, no medicine needed. */
+  selfResolveMs: number | null;
+  /** True → also curable by a ≥1h daytime lights-off nap (the vapors). */
+  napCure: boolean;
+  /** Whether leaving it untreated counts as neglect (care mistakes). The
+   *  sniffles are too mild to hold against anyone. */
+  neglect: boolean;
 }
 
+const HOUR = 3_600_000;
+
+// Severity ladder: the announcement name tells you how urgently to respond.
 export const ILLNESSES: Record<IllnessId, IllnessDef> = {
-  sniffles: { id: "sniffles", label: "the sniffles", doses: 1 },
-  dysentery: { id: "dysentery", label: "dysentery", doses: 1 },
-  goblinflu: { id: "goblinflu", label: "goblin flu", doses: 1 },
-  vapors: { id: "vapors", label: "the vapors", doses: 1 },
-  trimethylaminuria: { id: "trimethylaminuria", label: "trimethylaminuria", doses: 1 },
-  plague: { id: "plague", label: "the plague", doses: 2 },
+  sniffles: {
+    id: "sniffles", label: "the sniffles", doses: 1,
+    drainPerHour: 0, happinessDecayMult: 1.5, blocksPlay: false, patMute: false,
+    foodEfficiency: 1, selfResolveMs: 4 * HOUR, napCure: false, neglect: false,
+  },
+  dysentery: {
+    id: "dysentery", label: "dysentery", doses: 1,
+    drainPerHour: 8, happinessDecayMult: 1, blocksPlay: false, patMute: false,
+    foodEfficiency: 0.5, selfResolveMs: null, napCure: false, neglect: true,
+  },
+  goblinflu: {
+    id: "goblinflu", label: "goblin flu", doses: 1,
+    drainPerHour: 10, happinessDecayMult: 1.25, blocksPlay: true, patMute: false,
+    foodEfficiency: 1, selfResolveMs: null, napCure: false, neglect: true,
+  },
+  vapors: {
+    id: "vapors", label: "the vapors", doses: 1,
+    drainPerHour: 6, happinessDecayMult: 1, blocksPlay: true, patMute: true,
+    foodEfficiency: 1, selfResolveMs: null, napCure: true, neglect: true,
+  },
+  trimethylaminuria: {
+    id: "trimethylaminuria", label: "trimethylaminuria", doses: 1,
+    drainPerHour: 0, happinessDecayMult: 1.5, blocksPlay: false, patMute: true,
+    foodEfficiency: 1, selfResolveMs: null, napCure: false, neglect: true,
+  },
+  plague: {
+    id: "plague", label: "the plague", doses: 2,
+    drainPerHour: 14, happinessDecayMult: 1.25, blocksPlay: true, patMute: false,
+    foodEfficiency: 1, selfResolveMs: null, napCure: false, neglect: true,
+  },
 };
 
 /** Hidden stats the player never sees directly. */
@@ -100,16 +146,43 @@ export interface PetState {
   illness: IllnessId | null;
   /** Medicine doses already given toward the current illness. */
   dosesGiven: number;
+  /** When the last dose landed — the plague's second shot needs ≥1h spacing. */
+  lastDoseAt: number | null;
+  /** Daytime elapsed with the current illness (drives sniffles self-resolve). */
+  illnessMs: number;
+  /** Continuous daytime lights-off span — a ≥1h nap cures the vapors. */
+  napMs: number;
   poops: number; // count of uncleaned messes on the floor
   /** Digestive backlog from fiber eaten. Crosses 1.0 → a poop fires (see
    *  stepEvents). Deterministic, not a dice roll — that's the mechanic. */
   poopPressure: number;
 
-  /** Sustained time (ms) spent at zero health — the road to death. */
+  /** Daytime spent with an empty stomach. Penalties (health drain, care
+   *  mistakes) only start past a grace window — a briefly-empty bowl is not
+   *  neglect, an hour-empty one is. Resets the moment hunger rises. */
+  hungerZeroMs: number;
+  /** Same accumulator for happiness at zero (shorter grace, no health drain). */
+  happinessZeroMs: number;
+
+  /** Time awake / asleep since dusk. Evaluated at dawn: a full night awake is
+   *  a care mistake; a full night's sleep (fed, clean, well) is a health bonus.
+   *  Both reset at dawn. */
+  nightAwakeMs: number;
+  nightSleepMs: number;
+
+  /** Sustained daytime (ms) spent at zero health — the road to death. The doom
+   *  clock pauses overnight: nothing dies while its keeper sleeps. */
   zeroHealthMs: number;
   /** Set when the pet dies. The game shows a memorial and starts over. */
   deadAt: number | null;
   causeOfDeath: string | null;
+
+  /** Awake-daytime accrued as an adult, scaled by care quality (thriving pets
+   *  age toward retirement slower). Drives the restless → ready → departed
+   *  retirement arc. */
+  adultLifeMs: number;
+  /** Set when a ready adult finally walks itself to the farm at dawn. */
+  departedAt: number | null;
 
   /** True when the pet is making a genuine or fake attention call. */
   wantsAttention: boolean;
@@ -117,6 +190,9 @@ export interface PetState {
   fakeCall: boolean;
   /** What the current call is asking for. Null when no call is active. */
   attentionWant: AttentionWant | null;
+  /** When the current call started. Unanswered calls expire after a while —
+   *  a genuine one that times out is a care mistake. */
+  callStartedAt: number | null;
 
   hidden: HiddenStats;
 

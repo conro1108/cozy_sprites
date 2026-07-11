@@ -7,8 +7,8 @@ import type { FoodId, GameId, PetState, FarmEntry, AdultForm } from "../pet/type
 import { ILLNESSES } from "../pet/types";
 import { FOODS, FOOD_ORDER, ADULTS, ADULT_ORDER } from "../pet/roster";
 import { ageLabel } from "../pet/format";
-import { MAX_HEARTS } from "../pet/state";
-import { farmConfirmLine } from "../pet/dialogue";
+import { MAX_HEARTS, retirementPhase } from "../pet/state";
+import { farmConfirmLine, farewellWalkLine } from "../pet/dialogue";
 import {
   judgeHigherLower,
   judgeRps,
@@ -188,6 +188,7 @@ const FOOD_ICONS: Record<FoodId, IconName> = {
   carrot: "carrot",
   noodles: "noodles",
   cube: "cube",
+  soup: "soup",
 };
 
 export function openFood(ctx: MenuCtx): void {
@@ -766,11 +767,14 @@ export function openCare(ctx: MenuCtx): void {
     p.close();
   });
 
+  // A ready retiree isn't "sent" anywhere — you walk them over. Same
+  // destination, entirely different button.
+  const ready = retirementPhase(pet) === "ready";
   const farm = document.createElement("button");
-  farm.className = "btn danger btn-iconed";
+  farm.className = ready ? "btn btn-iconed" : "btn danger btn-iconed";
   farm.appendChild(iconEl("tractor", 20));
-  farm.appendChild(document.createTextNode("Send to Farm…"));
-  farm.addEventListener("click", () => confirmFarm(ctx, p));
+  farm.appendChild(document.createTextNode(ready ? "Walk them to the farm" : "Send to Farm…"));
+  farm.addEventListener("click", () => (ready ? confirmWalk(ctx, p) : confirmFarm(ctx, p)));
 
   p.body.append(med, disc, farm);
 
@@ -780,6 +784,28 @@ export function openCare(ctx: MenuCtx): void {
     note.textContent = "Discipline has no effect this young.";
     p.body.appendChild(note);
   }
+}
+
+/** The retirement walk: no danger styling, no dire warning — it asked to go. */
+function confirmWalk(ctx: MenuCtx, p: Panel): void {
+  const pet = ctx.pet();
+  p.setTitle("Walk them to the farm?", `${pet.name} is ready. They've been ready.`);
+  p.body.innerHTML = "";
+  const line = document.createElement("p");
+  line.textContent = farewellWalkLine();
+  line.style.fontStyle = "italic";
+  const confirm = document.createElement("button");
+  confirm.className = "btn";
+  confirm.textContent = "Walk together";
+  confirm.addEventListener("click", () => {
+    ctx.sendToFarm();
+    p.close();
+  });
+  const cancel = document.createElement("button");
+  cancel.className = "btn secondary";
+  cancel.textContent = "One more day";
+  cancel.addEventListener("click", p.close);
+  p.body.append(line, confirm, cancel);
 }
 
 function confirmFarm(ctx: MenuCtx, p: Panel): void {

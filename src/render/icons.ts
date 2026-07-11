@@ -16,6 +16,7 @@ export type IconName =
   | "carrot"
   | "noodles"
   | "cube"
+  | "soup"
   | "dice"
   | "dice1"
   | "dice2"
@@ -83,6 +84,24 @@ const ICONS: Record<IconName, IconDef> = {
       "............",
     ],
     palette: { k: K, b: "#eeb060", s: "#fbe6b6", L: "#7fc45e", t: "#e05c48", m: "#8a5030" },
+  },
+  soup: {
+    // a warm bowl: steam curls over a golden broth with a veg fleck
+    rows: [
+      "...t..t.....",
+      "....t..t....",
+      "...t..t.....",
+      "............",
+      ".kkkkkkkkkk.",
+      "kssssnsssssk",
+      "kbbbbbbbbbbk",
+      "kbbbbbbbbbbk",
+      ".kbbbbbbbbk.",
+      "..kbbbbbbk..",
+      "...kkkkkk...",
+      "............",
+    ],
+    palette: { k: K, t: "#e8e0d0", s: "#f0b840", n: "#e05c48", b: "#c05848" },
   },
   play: {
     // a little gamepad: d-pad left, button diamond right

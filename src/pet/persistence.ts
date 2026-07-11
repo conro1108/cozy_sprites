@@ -55,6 +55,20 @@ export function migratePet(p: PetState): PetState {
     ...p,
     illness: p.illness ?? (p.sick ? "sniffles" : null),
     dosesGiven: p.dosesGiven ?? 0,
+    lastDoseAt: p.lastDoseAt ?? null,
+    illnessMs: p.illnessMs ?? 0,
+    napMs: p.napMs ?? 0,
+    // Real-clock fields (grace windows, night ledger, retirement). Zero is the
+    // gentle default for every accumulator: no penalty inherited retroactively.
+    hungerZeroMs: p.hungerZeroMs ?? 0,
+    happinessZeroMs: p.happinessZeroMs ?? 0,
+    nightAwakeMs: p.nightAwakeMs ?? 0,
+    nightSleepMs: p.nightSleepMs ?? 0,
+    adultLifeMs: p.adultLifeMs ?? 0,
+    departedAt: p.departedAt ?? null,
+    // An in-flight call from a pre-expiry save starts its clock at its last
+    // update rather than being judged stale on arrival.
+    callStartedAt: p.callStartedAt ?? (p.wantsAttention ? p.lastUpdated ?? null : null),
     // Pre-fiber saves have no poopPressure; without this it'd be undefined and
     // every `+=` would go NaN, jamming pooping shut forever.
     poopPressure: p.poopPressure ?? 0,
@@ -121,15 +135,17 @@ export function wipeFarm(discovered: AdultForm[]): void {
 }
 
 /** Retire the active pet into the farm archive and return the new archive.
- *  Dead pets get a memorial entry instead of a retirement one. */
+ *  Dead pets get a memorial entry instead of a retirement one; a pet that
+ *  departed on its own at dawn is dated to the sunrise it left with. */
 export function retireToFarm(state: PetState, now: number): FarmEntry[] {
+  const endedAt = state.deadAt ?? state.departedAt ?? now;
   const entry: FarmEntry = {
     name: state.name,
     form: state.form,
     finalStage: state.stage,
-    ageMs: ageMs(state, state.deadAt ?? now),
+    ageMs: ageMs(state, endedAt),
     hatchedAt: state.createdAt,
-    retiredAt: state.deadAt ?? now,
+    retiredAt: endedAt,
     passedAway: state.deadAt !== null,
     cause: state.causeOfDeath,
   };

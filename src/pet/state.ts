@@ -1,6 +1,15 @@
 // Core stat + lifecycle engine. Pure functions, no DOM, no globals.
 // Deterministic math lives in applyElapsedDecay; anything random lives in
 // stepEvents and takes an injectable rng so it stays unit-testable.
+//
+// REAL-CLOCK MODE: the pet lives on the wall clock. It sleeps 8pm–8am local
+// time, stages take real days, and the care cadence is tuned around three
+// player archetypes — loving (hourly visits), average (every 2–3h), and bare
+// minimum (every ~6h). The design rule that shapes most of the night math:
+// NOTHING CATASTROPHIC HAPPENS OVERNIGHT. Penalties, starvation drain, and the
+// death clock all pause while the world is dark, so no one wakes up to a
+// corpse. The one exception is untreated illness, which keeps draining at half
+// pace — ignoring a sick pet at bedtime means a dramatic morning, not a grave.
 
 import { ILLNESSES, MAX_HEARTS, emptyHidden } from "./types";
 import type {
@@ -18,14 +27,17 @@ import { cubeHumCredit } from "./games";
 
 export { MAX_HEARTS };
 
+const HOUR = 3_600_000;
+
 // --- Timing -----------------------------------------------------------------
-// Demo-tuned so the whole Egg→Adult arc is reachable in a single sitting.
-// Real-length cadence is in the trailing comments; swap these in for prod.
+// Awake-time budgets per stage (sleep doesn't count, see SLEEP_AGE_RATE).
+// Egg + baby are same-sitting: you hatch it, you supervise its hectic infancy.
+// Child/teen are measured in awake-days (12h of awake time ≈ one real day).
 export const TIMING: Record<Exclude<Stage, "adult">, number> = {
-  egg: 60_000, //  prod: 5 min
-  baby: 3 * 60_000, //  prod: 30 min
-  child: 5 * 60_000, //  prod: 24–48 h
-  teen: 5 * 60_000, //  prod: 24–48 h
+  egg: 60_000, // 1 min — it hatches while you watch
+  baby: 30 * 60_000, // 30 min — hatch-day supervision, deliberately needy
+  child: 24 * HOUR, // 2 awake-days
+  teen: 36 * HOUR, // 3 awake-days
 };
 
 const STAGE_ORDER: Stage[] = ["egg", "baby", "child", "teen", "adult"];
@@ -33,18 +45,16 @@ const STAGE_ORDER: Stage[] = ["egg", "baby", "child", "teen", "adult"];
 /**
  * Fraction of elapsed time that counts toward growing up while ASLEEP.
  *   0   → sleep freezes aging entirely (a pet only grows while awake).
- *   0.1 → sleep still ages it, but "greatly slowed".
- * In production a pet sleeps ~12h/day, so this governs whether roughly half its
- * life ages or not — not a rounding detail. Deliberately trivial to tune.
+ * A pet sleeps ~12h/day, so this governs whether roughly half its life ages.
  */
 export const SLEEP_AGE_RATE = 0;
 
-// --- Decay rates (per millisecond) -----------------------------------------
-// Demo-tuned to match the compressed stage timers above: needs must actually
-// move during a ~15-minute play session or feeding/playing feels like it does
-// nothing. Spec-paced values (for real-length stages): 1♥/20min and 1♥/30min.
-const HUNGER_DECAY = 1 / (4 * 60_000); // ~1 heart / 4 min baseline
-const HAPPINESS_DECAY = 1 / (6 * 60_000); // ~1 heart / 6 min baseline
+// --- Decay rates (per millisecond, awake daytime baseline) -------------------
+// A full hunger meter lasts ~3.5h awake; happiness ~2.5h. Tuned so a loving
+// player (hourly) never sees zero, an average one (2–3h) grazes it harmlessly,
+// and a bare-minimum one (6h) eats about an hour of starvation penalty per gap.
+const HUNGER_DECAY = MAX_HEARTS / (3.5 * HOUR);
+const HAPPINESS_DECAY = MAX_HEARTS / (2.5 * HOUR);
 
 // Baby is deliberately hectic: needs drop faster.
 const STAGE_DECAY_MULT: Record<Stage, number> = {
@@ -54,6 +64,31 @@ const STAGE_DECAY_MULT: Record<Stage, number> = {
   teen: 1.1,
   adult: 1,
 };
+
+// Sleep nearly freezes the meters (sleeping is contentment); hunger still
+// creeps so the 8am breakfast is a ritual, not a rescue. A pet kept awake at
+// night decays slower than by day but pays a health toll for the lost sleep.
+const SLEEP_HUNGER_MULT = 0.12;
+const SLEEP_HAPPY_MULT = 0.05;
+const NIGHT_AWAKE_MULT = 0.3;
+
+// --- Grace windows -----------------------------------------------------------
+// A stat sitting at zero is only NEGLECT once it's been there a while. This is
+// what separates the average player (bowl briefly empty, no harm done) from
+// the bare-minimum one (empty for hours — that's on you).
+export const STARVING_GRACE_MS = 1.5 * HOUR;
+export const SAD_GRACE_MS = 1 * HOUR;
+
+// --- Health economy (points per awake daytime hour, 0..100 scale) -----------
+const GOOD_CARE_REGEN = 5;
+const STARVE_DRAIN = 15;
+const POOP_DRAIN = 3; // per mess, up to 3
+const NIGHT_AWAKE_DRAIN = 1; // being up all night is slightly bad for you
+
+// Weight thresholds — see feed()/applyGameResult(). Baseline weight is ~5.
+export const OVERWEIGHT = 12; // raises sickness pressure, dulls game joy
+export const UNDERWEIGHT = 2.5; // blocks health regen until fed back up
+const WEIGHT_DRIFT_PER_HOUR = 0.15; // daytime metabolism
 
 // Babies digest faster (and mess more), adults are sedate. Scales how much a
 // meal's fiber adds to poopPressure — mirrors the stage decay tempo.
@@ -68,10 +103,53 @@ const STAGE_DIGEST_MULT: Record<Stage, number> = {
 /** Most poops a pet can have queued up in its gut, waiting on the floor to clear. */
 const MAX_POOP_PRESSURE = 2;
 
-const MISTAKE_INTERVAL_MS = 60_000; // one care mistake per minute of neglect
+const MISTAKE_INTERVAL_MS = 30 * 60_000; // one care mistake per 30min of neglect
 
-/** How long a pet survives at zero health before dying (demo-paced). */
-export const DEATH_AFTER_ZERO_HEALTH_MS = 6 * 60_000;
+/** How long a pet survives at zero health before dying. The clock only runs in
+ *  daylight — combined with the drain rates above, total abandonment kills in
+ *  roughly 10–12 awake hours, never overnight. */
+export const DEATH_AFTER_ZERO_HEALTH_MS = 2 * HOUR;
+
+// --- Night ledger ------------------------------------------------------------
+export const ALL_NIGHTER_MS = 10 * HOUR; // awake ≥10h of the night = a mistake
+const FULL_NIGHT_SLEEP_MS = 8 * HOUR;
+const BEDTIME_BONUS = 8; // health, for a full night's sleep gone to bed well
+
+// --- Attention calls ----------------------------------------------------------
+/** An unanswered call goes stale after this long. A genuine one that expires
+ *  is a care mistake (it needed you); a fake one just gives up on the bit. */
+export const CALL_EXPIRE_MS = 30 * 60_000;
+
+// --- Illness particulars ------------------------------------------------------
+export const NAP_CURE_MS = 1 * HOUR; // the vapors: a proper daytime lie-down
+export const DOSE_SPACING_MS = 1 * HOUR; // plague's second shot needs an hour
+
+// --- Retirement ---------------------------------------------------------------
+// Adults accrue awake-daytime toward retirement, scaled by how they're doing:
+// a thriving pet's clock runs slow (~10+ awake-days of adulthood), a scruffy
+// one's runs fast (~5). At RESTLESS the dialogue turns wistful; at full it's
+// ready and waits to be walked to the farm; left waiting long enough, it slips
+// away by itself at dawn, gracefully.
+export const ADULT_LIFESPAN_MS = 7 * 12 * HOUR; // 7 awake-days at pace 1×
+const RESTLESS_FRACTION = 0.7;
+export const AUTO_LEAVE_EXTRA_MS = 18 * HOUR; // 1.5 awake-days of waiting
+
+export type RetirementPhase = "none" | "restless" | "ready";
+
+export function retirementPhase(s: PetState): RetirementPhase {
+  if (s.stage !== "adult" || s.deadAt !== null || s.departedAt !== null) return "none";
+  if (s.adultLifeMs >= ADULT_LIFESPAN_MS) return "ready";
+  if (s.adultLifeMs >= ADULT_LIFESPAN_MS * RESTLESS_FRACTION) return "restless";
+  return "none";
+}
+
+/** How fast the retirement clock runs right now. Thriving slows it down —
+ *  "healthy happy fellas stick around longer". */
+function retirementPace(s: PetState): number {
+  if (s.health >= 80 && s.happiness >= 3) return 0.65;
+  if (s.health < 40 || s.happiness < 1) return 1.4;
+  return 1;
+}
 
 // --- Construction -----------------------------------------------------------
 export function createPet(name: string, now: number): PetState {
@@ -96,14 +174,24 @@ export function createPet(name: string, now: number): PetState {
     sick: false,
     illness: null,
     dosesGiven: 0,
+    lastDoseAt: null,
+    illnessMs: 0,
+    napMs: 0,
     poops: 0,
     poopPressure: 0,
+    hungerZeroMs: 0,
+    happinessZeroMs: 0,
+    nightAwakeMs: 0,
+    nightSleepMs: 0,
     zeroHealthMs: 0,
     deadAt: null,
     causeOfDeath: null,
+    adultLifeMs: 0,
+    departedAt: null,
     wantsAttention: false,
     fakeCall: false,
     attentionWant: null,
+    callStartedAt: null,
     hidden: emptyHidden(),
     recentTaps: [],
     recentPats: [],
@@ -120,25 +208,29 @@ function clamp100(v: number): number {
   return Math.max(0, Math.min(100, v));
 }
 
-// Demo-paced day/night: a full cycle every 10 minutes (7 day + 3 night) so a
-// real sleep happens inside the compressed Egg→Adult arc above. Spec (§5)
-// wants the real clock instead: night 21:00–06:59 local.
-export const DAY_CYCLE_MS = 10 * 60_000;
-const NIGHT_START_MS = 7 * 60_000;
+// Real clock: night runs 8pm–8am LOCAL time. Drives sleep, the Light button,
+// the scene sky, and every "nothing bad happens overnight" rule in this file.
+export const NIGHT_START_HOUR = 20;
+export const NIGHT_END_HOUR = 8;
 
 /** Whether it's night. Drives sleep, the Light button, and the scene sky. */
 export function isNight(now: number): boolean {
-  return now % DAY_CYCLE_MS >= NIGHT_START_MS;
+  const h = new Date(now).getHours();
+  return h >= NIGHT_START_HOUR || h < NIGHT_END_HOUR;
 }
 
 /** The next dusk or dawn strictly after `t`. Lets applyElapsedDecay cut the
  *  elapsed span at day/night edges so each chunk is uniformly awake or asleep
- *  (and thus ages at one constant rate). */
+ *  (and thus ages at one constant rate). Built with the Date constructor so
+ *  local DST shifts land where the wall clock says they should. */
 function nextDayNightBoundary(t: number): number {
-  const cycleStart = Math.floor(t / DAY_CYCLE_MS) * DAY_CYCLE_MS;
-  const dusk = cycleStart + NIGHT_START_MS;
-  // In the day half → next edge is dusk; in the night half → next edge is dawn.
-  return t < dusk ? dusk : cycleStart + DAY_CYCLE_MS;
+  const d = new Date(t);
+  const h = d.getHours();
+  // Before 8am → today's dawn; 8am–7:59pm → today's dusk; 8pm+ → tomorrow's
+  // dawn (hour 32 rolls over correctly in the Date constructor).
+  const boundaryHour =
+    h < NIGHT_END_HOUR ? NIGHT_END_HOUR : h < NIGHT_START_HOUR ? NIGHT_START_HOUR : NIGHT_END_HOUR + 24;
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), boundaryHour, 0, 0, 0).getTime();
 }
 
 export function ageMs(state: PetState, now: number): number {
@@ -156,24 +248,40 @@ export function needsCare(state: PetState): boolean {
   );
 }
 
+/** Too weak for mini-games right now. The UI checks this before offering a
+ *  game; applyGameResult enforces it as the authoritative backstop. */
+export function tooSickToPlay(state: PetState): boolean {
+  return state.sick && state.illness !== null && ILLNESSES[state.illness].blocksPlay;
+}
+
 // --- The deterministic tick -------------------------------------------------
+/** Upper bound on one decay chunk. Keeps the grace-window accumulators and
+ *  drain transitions honest during long offline catch-ups (a 3-day absence is
+ *  ~300 cheap iterations, not one 72h mega-step). */
+const MAX_SEG_MS = 15 * 60_000;
+
 /**
  * Advance stats + life stage from lastUpdated up to `now`. The elapsed span is
- * processed in chunks that break at BOTH stage boundaries and day/night edges,
- * so each chunk is uniform in stage (its own decay rate) and in awake/asleep
- * state (its own aging rate). Aging is an awake-time accumulator: awake time
- * counts at 1×, asleep time at SLEEP_AGE_RATE — a sleeping pet barely grows,
- * which matters because in production a pet sleeps ~12h/day.
+ * processed in chunks that break at stage boundaries, day/night edges, and
+ * MAX_SEG_MS, so each chunk is uniform in stage and awake/asleep state. Aging
+ * is an awake-time accumulator: awake time counts at 1×, asleep at
+ * SLEEP_AGE_RATE — a sleeping pet doesn't grow.
  */
 export function applyElapsedDecay(state: PetState, now: number): PetState {
   if (now <= state.lastUpdated) return state;
-  if (state.deadAt !== null) return { ...state, lastUpdated: now };
+  if (state.deadAt !== null || state.departedAt !== null) {
+    return { ...state, lastUpdated: now };
+  }
   const wasAsleep = state.asleep;
   const s: PetState = { ...state, hidden: { ...state.hidden } };
   let cursor = s.lastUpdated;
 
-  while (cursor < now && s.deadAt === null) {
-    let segEnd = now;
+  // Legacy saves: an in-flight call from before call expiry existed starts its
+  // clock now rather than being judged retroactively.
+  if (s.wantsAttention && s.callStartedAt === null) s.callStartedAt = cursor;
+
+  while (cursor < now && s.deadAt === null && s.departedAt === null) {
+    let segEnd = Math.min(now, cursor + MAX_SEG_MS);
 
     // 1) Cut at the next day/night edge so the chunk is uniformly awake or
     //    asleep. Sample isNight at the START — segEnd may land exactly on an
@@ -199,12 +307,29 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
       if (s.stage !== "adult") s.stageElapsedMs += seg * ageRate;
     }
     cursor = segEnd;
+
+    // Stale attention call: a genuine ask that timed out is a care mistake;
+    // a fake one just gives up the bit for free.
+    if (
+      s.wantsAttention &&
+      s.callStartedAt !== null &&
+      cursor - s.callStartedAt >= CALL_EXPIRE_MS
+    ) {
+      if (!s.fakeCall) s.hidden.careMistakes += 1;
+      clearCall(s);
+    }
+
+    // A night chunk that ran all the way to its boundary just hit dawn.
+    if (night && cursor === boundary && cursor <= now) {
+      dawnHook(s, cursor);
+    }
+
     if (s.stage !== "adult" && s.stageElapsedMs >= TIMING[s.stage]) {
       advanceOne(s, segEnd);
     }
   }
 
-  if (s.deadAt === null) {
+  if (s.deadAt === null && s.departedAt === null) {
     const stillNight = isNight(now);
     // Dawn: nobody relights the lantern by hand every morning — it comes back
     // on by itself, and that's what wakes it up.
@@ -215,49 +340,160 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
   return s;
 }
 
+/** Settle the night's accounts. Runs exactly once per dawn crossing. */
+function dawnHook(s: PetState, at: number): void {
+  if (s.stage !== "egg" && s.deadAt === null) {
+    // Kept up all night — whoever left the lantern burning owns this one.
+    if (s.nightAwakeMs >= ALL_NIGHTER_MS) {
+      s.hidden.careMistakes += 1;
+    }
+    // A full night's sleep, gone to bed fed / clean / well: wake up restored.
+    if (
+      s.nightSleepMs >= FULL_NIGHT_SLEEP_MS &&
+      !s.sick &&
+      s.poops === 0 &&
+      s.hunger > 0.5
+    ) {
+      s.health = clamp100(s.health + BEDTIME_BONUS);
+    }
+    // A ready adult that's been kept waiting long enough leaves with the
+    // sunrise. Gently. It left a note.
+    if (
+      s.stage === "adult" &&
+      s.departedAt === null &&
+      s.adultLifeMs >= ADULT_LIFESPAN_MS + AUTO_LEAVE_EXTRA_MS
+    ) {
+      s.departedAt = at;
+      s.asleep = false;
+      clearCall(s);
+    }
+  }
+  s.nightAwakeMs = 0;
+  s.nightSleepMs = 0;
+}
+
+/** Wipe any active attention call. Mutates `s`. */
+function clearCall(s: PetState): void {
+  s.wantsAttention = false;
+  s.fakeCall = false;
+  s.attentionWant = null;
+  s.callStartedAt = null;
+}
+
+/** Cure the current illness (medicine, nap, or time) with a health bump. */
+function cureIllness(s: PetState, healthBonus: number): void {
+  s.sick = false;
+  s.illness = null;
+  s.dosesGiven = 0;
+  s.lastDoseAt = null;
+  s.illnessMs = 0;
+  if (healthBonus > 0) s.health = clamp100(s.health + healthBonus);
+}
+
 /** Apply `seg` ms of decay at the current stage's rates. Mutates `s`. `night`
  *  is precomputed by the caller (sampled at the chunk's start, since the chunk
  *  is uniform in day/night) — do NOT re-derive it from segTime, which may sit
  *  on an edge. */
 function decaySegment(s: PetState, seg: number, segTime: number, night: boolean): void {
   const asleep = night && !s.lightsOn && s.stage !== "egg";
+  const day = !night;
+  const hours = seg / HOUR;
+  const fx = s.sick && s.illness ? ILLNESSES[s.illness] : null;
 
-  const decayMult = STAGE_DECAY_MULT[s.stage] * (asleep ? 0.3 : 1);
-  s.hunger = clampHearts(s.hunger - seg * HUNGER_DECAY * decayMult);
-  s.happiness = clampHearts(s.happiness - seg * HAPPINESS_DECAY * decayMult);
+  // --- Meters ---------------------------------------------------------------
+  const stageMult = STAGE_DECAY_MULT[s.stage];
+  let hungerMult = stageMult;
+  let happyMult = stageMult * (fx ? fx.happinessDecayMult : 1);
+  if (asleep) {
+    hungerMult *= SLEEP_HUNGER_MULT;
+    happyMult *= SLEEP_HAPPY_MULT;
+  } else if (night) {
+    hungerMult *= NIGHT_AWAKE_MULT;
+    happyMult *= NIGHT_AWAKE_MULT;
+  }
+  s.hunger = clampHearts(s.hunger - seg * HUNGER_DECAY * hungerMult);
+  s.happiness = clampHearts(s.happiness - seg * HAPPINESS_DECAY * happyMult);
 
-  // Keeping the lights on at night is bad for happiness (can't sleep).
-  if (night && s.lightsOn && s.stage !== "egg") {
-    s.happiness = clampHearts(s.happiness - seg * HAPPINESS_DECAY * 0.5);
+  // --- Zero-stat grace clocks (daytime only; night is quiet time) -----------
+  if (day && s.stage !== "egg") {
+    s.hungerZeroMs = s.hunger <= 0 ? s.hungerZeroMs + seg : 0;
+    s.happinessZeroMs = s.happiness <= 0 ? s.happinessZeroMs + seg : 0;
+  } else {
+    if (s.hunger > 0) s.hungerZeroMs = 0;
+    if (s.happiness > 0) s.happinessZeroMs = 0;
   }
 
-  const minutes = seg / 60_000;
+  // --- Illness bookkeeping ---------------------------------------------------
+  if (fx && day) {
+    s.illnessMs += seg;
+    if (fx.selfResolveMs !== null && s.illnessMs >= fx.selfResolveMs) {
+      cureIllness(s, 0); // the sniffles pass on their own
+    }
+  }
+  // Daytime lights-off is a nap; a proper one shakes off the vapors.
+  if (day && !s.lightsOn && s.stage !== "egg") {
+    s.napMs += seg;
+    if (s.sick && s.illness && ILLNESSES[s.illness].napCure && s.napMs >= NAP_CURE_MS) {
+      cureIllness(s, 6);
+    }
+  } else {
+    s.napMs = 0;
+  }
+
+  // --- Health ----------------------------------------------------------------
+  // Re-derive sickness: the bookkeeping above may have just cured it.
+  const fx2 = s.sick && s.illness ? ILLNESSES[s.illness] : null;
   let healthDelta = 0;
-  const goodCare = s.hunger > 2 && s.happiness > 2 && s.poops === 0 && !s.sick;
-  if (goodCare) healthDelta += 0.6 * minutes;
-  if (s.hunger <= 0) healthDelta -= 1.2 * minutes;
-  if (s.sick) healthDelta -= 1.5 * minutes;
-  healthDelta -= Math.min(s.poops, 3) * 0.5 * minutes;
+  if (day) {
+    const starving = s.hungerZeroMs > STARVING_GRACE_MS;
+    const goodCare =
+      s.hunger > 2 &&
+      s.happiness > 2 &&
+      s.poops === 0 &&
+      !s.sick &&
+      s.weight > UNDERWEIGHT;
+    if (goodCare) healthDelta += GOOD_CARE_REGEN * hours;
+    if (starving) healthDelta -= STARVE_DRAIN * hours;
+    healthDelta -= Math.min(s.poops, 3) * POOP_DRAIN * hours;
+    if (fx2) healthDelta -= fx2.drainPerHour * hours;
+  } else {
+    // Overnight: only illness (at half pace) and lost sleep touch health.
+    if (fx2) healthDelta -= (fx2.drainPerHour / 2) * hours;
+    if (!asleep && s.stage !== "egg") healthDelta -= NIGHT_AWAKE_DRAIN * hours;
+  }
   s.health = clamp100(s.health + healthDelta);
 
-  let neglect = 0;
-  if (s.hunger <= 0) neglect++;
-  if (s.happiness <= 0) neglect++;
-  if (s.poops >= 2) neglect++;
-  if (s.sick) neglect++;
-  if (neglect > 0) s.hidden.careMistakes += (seg / MISTAKE_INTERVAL_MS) * neglect;
+  // --- Care mistakes (daytime neglect; the all-nighter is charged at dawn) ---
+  if (day && s.stage !== "egg") {
+    let neglect = 0;
+    if (s.hungerZeroMs > STARVING_GRACE_MS) neglect++;
+    if (s.happinessZeroMs > SAD_GRACE_MS) neglect++;
+    if (s.poops >= 2) neglect++;
+    if (fx2 && fx2.neglect) neglect++;
+    if (neglect > 0) s.hidden.careMistakes += (seg / MISTAKE_INTERVAL_MS) * neglect;
+  }
 
-  s.weight = Math.max(1, s.weight - 0.02 * minutes);
+  // --- Night ledger, metabolism, retirement ----------------------------------
+  if (night && s.stage !== "egg") {
+    if (asleep) s.nightSleepMs += seg;
+    else s.nightAwakeMs += seg;
+  }
+  if (day) {
+    s.weight = Math.max(1, s.weight - WEIGHT_DRIFT_PER_HOUR * hours);
+    if (s.stage === "adult") s.adultLifeMs += seg * retirementPace(s);
+  }
 
-  // Death: sustained neglect at zero health, past the egg stage. Eggs can't die.
+  // --- Death: sustained neglect at zero health, past the egg stage. Eggs
+  // can't die, and the doom clock only runs in daylight — see file header.
   if (s.stage !== "egg" && s.health <= 0) {
-    s.zeroHealthMs += seg;
-    if (s.zeroHealthMs >= DEATH_AFTER_ZERO_HEALTH_MS) {
-      s.deadAt = segTime;
-      s.causeOfDeath = causeOfDeath(s);
-      s.asleep = false;
-      s.wantsAttention = false;
-      s.attentionWant = null;
+    if (day) {
+      s.zeroHealthMs += seg;
+      if (s.zeroHealthMs >= DEATH_AFTER_ZERO_HEALTH_MS) {
+        s.deadAt = segTime;
+        s.causeOfDeath = causeOfDeath(s);
+        s.asleep = false;
+        clearCall(s);
+      }
     }
   } else if (s.health > 10) {
     s.zeroHealthMs = 0; // meaningfully recovered — reset the doom clock
@@ -284,8 +520,7 @@ function advanceOne(s: PetState, at: number): void {
   s.stageStartedAt = at;
   s.stage = next;
   if (next === "baby") {
-    s.wantsAttention = false;
-    s.attentionWant = null;
+    clearCall(s);
     // Baby is deliberately hectic: it hatches already hungry so care
     // matters immediately and the player learns the controls right away.
     s.hunger = Math.min(s.hunger, 2);
@@ -335,9 +570,7 @@ function resolveCall(
   unjustified: boolean,
 ): "satisfied" | "spoiled" | undefined {
   if (!s.wantsAttention || (s.attentionWant ?? "pat") !== want) return undefined;
-  s.wantsAttention = false;
-  s.fakeCall = false;
-  s.attentionWant = null;
+  clearCall(s);
   if (unjustified) {
     // You placated a demand it didn't need — the lazy calm. It's thrilled;
     // the ledger is not. Disciplining would have been the other option.
@@ -349,9 +582,14 @@ function resolveCall(
   return "satisfied";
 }
 
+/** Shared gate: an egg, a sleeper, the departed, or the dead can't act. */
+function cannotAct(s: PetState): boolean {
+  return s.stage === "egg" || s.asleep || s.deadAt !== null || s.departedAt !== null;
+}
+
 export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   let s = applyElapsedDecay(state, now);
-  if (s.stage === "egg" || s.asleep || s.deadAt !== null) {
+  if (cannotAct(s)) {
     return { state: s, note: "cant" };
   }
   s = { ...s, hidden: { ...s.hidden } };
@@ -378,7 +616,9 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
     note = "disliked";
   }
 
-  s.hunger = clampHearts(s.hunger + def.hunger);
+  // Dysentery: it runs right through — meals only half stick.
+  const efficiency = s.sick && s.illness ? ILLNESSES[s.illness].foodEfficiency : 1;
+  s.hunger = clampHearts(s.hunger + def.hunger * efficiency);
   s.happiness = clampHearts(s.happiness + def.happiness + happyBonus);
   s.weight = s.weight + def.weight;
   // What goes in must come out. Fiber builds digestive pressure that stepEvents
@@ -404,6 +644,11 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
     s.hidden.carrotEaten++;
     s.health = clamp100(s.health + 4);
   }
+  if (food === "soup") {
+    // The comfort food: it actively heals, doubly so on a sickbed.
+    s.health = clamp100(s.health + (s.sick ? 6 : 2));
+    if (!note && s.sick) note = "soup";
+  }
 
   const call = resolveCall(s, "snack", unjustified);
   return { state: s, note, call };
@@ -424,14 +669,21 @@ export function applyGameResult(
   // Without this a game finished after the pet dozed off would still bank its
   // happiness reward. The UI blocks starting a game while asleep; this is the
   // authoritative backstop for a game that outlasts nightfall.
-  if (s.stage === "egg" || s.asleep || s.deadAt !== null) {
+  if (cannotAct(s)) {
     return { state: s, note: "cant" };
+  }
+  // Same story for an illness that blocks play (the UI checks tooSickToPlay
+  // before offering games; this backstops an illness that struck mid-game).
+  if (tooSickToPlay(s)) {
+    return { state: s, note: "toosick" };
   }
   s = { ...s, hidden: { ...s.hidden, gamePlays: { ...s.hidden.gamePlays } } };
   // Judge the call before the game lifts happiness, or every play reads justified.
   const unjustified = callUnjustified(s);
   s.hidden.gamePlays[game]++;
-  const gain = game === "cubehum" ? cubeHumCredit(reach) : won ? 1.5 : 0.4;
+  let gain = game === "cubehum" ? cubeHumCredit(reach) : won ? 1.5 : 0.4;
+  // Carrying extra weight takes some of the joy out of running around.
+  if (s.weight >= OVERWEIGHT) gain *= 0.7;
   s.happiness = clampHearts(s.happiness + gain);
   s.hunger = clampHearts(s.hunger - 0.2);
   s.weight = Math.max(1, s.weight - 0.3);
@@ -457,15 +709,20 @@ export function giveMedicine(state: PetState, now: number): ActionResult {
     s = { ...s, hidden: { ...s.hidden, careMistakes: s.hidden.careMistakes + 1 } };
     return { state: s, note: "notneeded" };
   }
-  // The plague takes two shots; everything else one (same mechanic otherwise).
+  // The plague takes two shots, and the second only lands after the first has
+  // had an hour to work — a genuine return visit.
   const needed = s.illness ? ILLNESSES[s.illness].doses : 1;
+  if (s.dosesGiven > 0 && s.lastDoseAt !== null && now - s.lastDoseAt < DOSE_SPACING_MS) {
+    return { state: s, note: "toosoon" };
+  }
   const given = s.dosesGiven + 1;
   if (given < needed) {
-    s = { ...s, dosesGiven: given, health: clamp100(s.health + 4) };
+    s = { ...s, dosesGiven: given, lastDoseAt: now, health: clamp100(s.health + 4) };
     if (!s.lightsOn) s.hidden = { ...s.hidden, nightCare: s.hidden.nightCare + 1 };
     return { state: s, note: "dose" };
   }
-  s = { ...s, sick: false, illness: null, dosesGiven: 0, health: clamp100(s.health + 12) };
+  s = { ...s };
+  cureIllness(s, 12);
   if (!s.lightsOn) s.hidden = { ...s.hidden, nightCare: s.hidden.nightCare + 1 };
   return { state: s, note: "cured" };
 }
@@ -486,9 +743,7 @@ export function discipline(state: PetState, now: number): ActionResult {
     // Teen discipline carries more weight.
     s.hidden.discipline += s.stage === "teen" ? 12 : 8;
     s.discipline = clamp100(s.discipline + (s.stage === "teen" ? 12 : 8));
-    s.wantsAttention = false;
-    s.fakeCall = false;
-    s.attentionWant = null;
+    clearCall(s);
     return { state: s, note: "correct" };
   }
   s.hidden.careMistakes += 1;
@@ -536,6 +791,10 @@ export interface TapResult {
 
 export function tap(state: PetState, now: number): TapResult {
   const s = applyElapsedDecay(state, now);
+  // The vapors: fainted dead away. A poke gets nothing, not even offense.
+  if (s.sick && s.illness === "vapors") {
+    return { state: s, reaction: "ignore", want: null };
+  }
   // Quiet means every previous poke has aged out of the window — that's what
   // earns a fresh "react" instead of continuing the ignore/annoyed streak.
   const wasQuiet = s.recentTaps.every((t) => now - t >= TAP_WINDOW_MS);
@@ -610,7 +869,8 @@ const PAT_HAPPINESS = 0.3;
 export function pat(state: PetState, now: number): PatResult {
   const base = applyElapsedDecay(state, now);
   // Same gate as feed(): an egg, a sleeper, or the departed can't be patted.
-  if (base.stage === "egg" || base.asleep || base.deadAt !== null) {
+  // The vapors count too — it's fainted dead away and doesn't feel the hand.
+  if (cannotAct(base) || (base.sick && base.illness === "vapors")) {
     return { state: base, reaction: "cant" };
   }
   const s: PetState = { ...base, hidden: { ...base.hidden } };
@@ -629,7 +889,11 @@ export function pat(state: PetState, now: number): PatResult {
     return { state: s, reaction: "enough" };
   }
 
-  s.happiness = clampHearts(s.happiness + PAT_HAPPINESS * patAffinity(s.form));
+  // Trimethylaminuria: it enjoys the pat, it just doesn't help. (It smells.)
+  const mute = s.sick && s.illness ? ILLNESSES[s.illness].patMute : false;
+  if (!mute) {
+    s.happiness = clampHearts(s.happiness + PAT_HAPPINESS * patAffinity(s.form));
+  }
   return { state: s, reaction: "enjoyed" };
 }
 
@@ -639,9 +903,16 @@ export interface EventResult {
   events: string[]; // e.g. ["poop", "sick", "call"]
 }
 
+/** Simulate stochastic events in slices this long, so an 8-hour absence rolls
+ *  the dice ~32 times and produces a plausible scene (several messes, maybe an
+ *  illness) instead of a single scaled mega-roll. */
+const EVENT_CHUNK_MS = 15 * 60_000;
+
 /**
- * Advance random world events over `elapsed` ms. Probabilities scale with time
- * so the cadence is frame-rate independent. rng defaults to Math.random.
+ * Advance random world events over `elapsed` ms (ending at state.lastUpdated —
+ * callers run applyElapsedDecay first). Time is replayed in EVENT_CHUNK_MS
+ * slices; slices that fall in the night are skipped (night is quiet time).
+ * rng defaults to Math.random.
  */
 export function stepEvents(
   state: PetState,
@@ -649,58 +920,82 @@ export function stepEvents(
   rng: () => number = Math.random,
 ): EventResult {
   const events: string[] = [];
-  if (state.stage === "egg" || state.asleep || state.deadAt !== null) {
+  if (
+    state.stage === "egg" ||
+    state.asleep ||
+    state.deadAt !== null ||
+    state.departedAt !== null
+  ) {
     return { state, events };
   }
-  let s: PetState = { ...state, hidden: { ...state.hidden } };
-  const perMin = elapsed / 60_000;
+  const s: PetState = { ...state, hidden: { ...state.hidden } };
+  const start = s.lastUpdated - elapsed;
+  let offset = 0;
 
-  // Pooping. Two paths, but at most one mess per tick.
-  //  1) Digestion: fiber eaten crossed the threshold. Deterministic — that's
-  //     the whole point of the mechanic. Subtract 1.0 and keep the remainder so
-  //     a fibrous binge queues the next poop instead of losing it.
-  //  2) Ambient: even a pet that hasn't eaten eventually goes; babies sooner.
-  if (s.poops < 4) {
-    if (s.poopPressure >= 1) {
-      s.poopPressure -= 1;
-      s.poops++;
-      events.push("poop");
-    } else {
-      let ambientRate = s.stage === "baby" ? 0.2 : 0.06;
-      // Dysentery is the runs — the floor floods far faster than nature's pace.
-      if (s.sick && s.illness === "dysentery") ambientRate += 0.9;
-      if (rng() < ambientRate * perMin) {
+  while (offset < elapsed) {
+    const chunk = Math.min(EVENT_CHUNK_MS, elapsed - offset);
+    const chunkStart = start + offset;
+    offset += chunk;
+    if (isNight(chunkStart)) continue;
+    const perHour = chunk / HOUR;
+
+    // Pooping. Two paths, but at most one mess per slice.
+    //  1) Digestion: fiber eaten crossed the threshold. Deterministic — that's
+    //     the whole point of the mechanic. Subtract 1.0 and keep the remainder
+    //     so a fibrous binge queues the next poop instead of losing it.
+    //  2) Ambient: even a pet that hasn't eaten eventually goes; babies sooner.
+    if (s.poops < 4) {
+      if (s.poopPressure >= 1) {
+        s.poopPressure -= 1;
         s.poops++;
         events.push("poop");
+      } else {
+        let ambientPerHour = s.stage === "baby" ? 1.2 : 0.25;
+        // Dysentery is the runs — the floor floods far faster than nature's pace.
+        if (s.sick && s.illness === "dysentery") ambientPerHour += 1.5;
+        if (rng() < ambientPerHour * perHour) {
+          s.poops++;
+          events.push("poop");
+        }
       }
     }
-  }
 
-  // Falling ill — pressure from low health, junk food, and lingering mess.
-  if (!s.sick) {
-    let sickRate = 0.03;
-    if (s.health < 40) sickRate += 0.15;
-    if (s.poops >= 2) sickRate += 0.08;
-    if (s.hidden.cakeEaten > 6) sickRate += 0.05;
-    if (rng() < sickRate * perMin) {
-      s.sick = true;
-      s.illness = rollIllness(rng);
-      s.dosesGiven = 0;
-      events.push("sick");
+    // Falling ill — pressure from low health, lingering mess, and extra weight.
+    if (!s.sick) {
+      let sickPerHour = 0.01;
+      if (s.health < 40) sickPerHour += 0.04;
+      if (s.poops >= 2) sickPerHour += 0.02;
+      if (s.weight >= OVERWEIGHT) sickPerHour += 0.015;
+      if (rng() < sickPerHour * perHour) {
+        s.sick = true;
+        s.illness = rollIllness(rng);
+        s.dosesGiven = 0;
+        s.lastDoseAt = null;
+        s.illnessMs = 0;
+        events.push("sick");
+      }
     }
-  }
 
-  // Attention calls. From teen on, some are fake (boundary-testing).
-  // Teens call noticeably more — at demo pace the teen window is short, and
-  // it's the main place discipline opportunities come from.
-  const callRate = s.stage === "teen" ? 0.5 : 0.25;
-  if (!s.wantsAttention && rng() < callRate * perMin) {
-    s.wantsAttention = true;
-    const fakeChance = s.stage === "teen" ? 0.6 : s.stage === "adult" ? 0.45 : 0;
-    s.fakeCall = rng() < fakeChance;
-    const wants: AttentionWant[] = ["pat", "play", "snack"];
-    s.attentionWant = wants[Math.floor(rng() * wants.length)];
-    events.push(s.fakeCall ? "fakecall" : "call");
+    // Attention calls. From teen on, some are fake (boundary-testing). Teens
+    // call noticeably more — it's the main source of discipline opportunities.
+    // A call rolled during a long absence that would already have gone stale is
+    // charged directly: a genuine cry with nobody home is a care mistake.
+    const callPerHour = s.stage === "teen" ? 0.8 : 0.4;
+    if (!s.wantsAttention && rng() < callPerHour * perHour) {
+      const startedAt = chunkStart + chunk;
+      const fake =
+        rng() < (s.stage === "teen" ? 0.6 : s.stage === "adult" ? 0.45 : 0);
+      if (s.lastUpdated - startedAt >= CALL_EXPIRE_MS) {
+        if (!fake) s.hidden.careMistakes += 1;
+      } else {
+        s.wantsAttention = true;
+        s.fakeCall = fake;
+        const wants: AttentionWant[] = ["pat", "play", "snack"];
+        s.attentionWant = wants[Math.floor(rng() * wants.length)];
+        s.callStartedAt = startedAt;
+        events.push(fake ? "fakecall" : "call");
+      }
+    }
   }
 
   return { state: s, events };

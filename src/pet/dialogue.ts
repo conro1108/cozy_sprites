@@ -20,6 +20,7 @@ export type Category =
   | "cake"
   | "carrot"
   | "cube"
+  | "soup"
   | "medicine"
   | "dose" // first plague shot: cured of nothing yet
   | "clean"
@@ -230,6 +231,14 @@ const GENERAL: Bank = {
     "More geometry.",
     "It tasted like a low sound.",
     "I saw something in there.",
+  ],
+  soup: [
+    "Warm. Governmental.",
+    "The broth forgives.",
+    "I feel repaired. Structurally.",
+    "Someone's grandmother made this. Somewhere. Somehow.",
+    "This is medicine with better publicity.",
+    "*holds the bowl with both everything*",
   ],
   full: [
     "I am full.",
@@ -808,6 +817,61 @@ export function farmConfirmLine(
 ): string {
   const lines = FARM_CONFIRM[stage];
   return lines[Math.floor(rng() * lines.length)];
+}
+
+// --- Retirement (the long goodbye) -------------------------------------------
+// Adults don't die of old age here — they get restless, then ready, then one
+// dawn they walk to the farm. The dialogue does most of the storytelling.
+
+const RESTLESS_LINES = [
+  "I've been thinking about fields.",
+  "Do you ever wonder what's past the fence? I do. Professionally, now.",
+  "I dreamed of a pasture. It knew my name.",
+  "I'm not leaving. I'm just looking at the horizon more than usual.",
+  "The wind smells like hay lately. I don't hate it.",
+  "Somewhere out there is a gate with my name on it. Metaphorically. I checked.",
+];
+
+const READY_LINES = [
+  "It's time, I think. Nearly.",
+  "The farm is calling. It has my number somehow.",
+  "I'm ready. Take your time. But I'm ready.",
+  "Walk me over when you can. No rush. Some rush.",
+  "I've packed. I own nothing. It went quickly.",
+  "One more good day here, then the fields. Deal?",
+];
+
+export function retirementLine(
+  phase: "restless" | "ready",
+  rng: () => number = Math.random,
+): string {
+  const lines = phase === "ready" ? READY_LINES : RESTLESS_LINES;
+  return lines[Math.floor(rng() * lines.length)];
+}
+
+/** Said on the walk over, when the player escorts a ready adult themselves. */
+const FAREWELL_WALK_LINES = [
+  "*takes one last look around* Good rectangle. Good you.",
+  "Walk slow. I want to remember the route.",
+  "This is not goodbye. It is agriculture.",
+  "Thank you for all the soup. And the rest of it.",
+];
+
+export function farewellWalkLine(rng: () => number = Math.random): string {
+  return FAREWELL_WALK_LINES[Math.floor(rng() * FAREWELL_WALK_LINES.length)];
+}
+
+/** The note left behind when a ready adult finally walks itself at dawn. */
+const DEPARTED_NOTES = [
+  "Went to the farm. The grass said hi first.",
+  "Took the sunrise. Left you everything else.",
+  "You were the best giant face I ever knew. Visit.",
+  "Gone to be horizontal in a field. It's a career now.",
+  "Do not water my opinions. They are perennial.",
+];
+
+export function departedNote(rng: () => number = Math.random): string {
+  return DEPARTED_NOTES[Math.floor(rng() * DEPARTED_NOTES.length)];
 }
 
 // --- Memorial copy ------------------------------------------------------------
