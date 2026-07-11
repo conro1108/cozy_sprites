@@ -57,7 +57,7 @@ export interface IllnessDef {
   blocksPlay: boolean;
   /** True → the pet is unresponsive: pats land but pay nothing. */
   patMute: boolean;
-  /** Fraction of a meal's hunger value that actually sticks (dysentery: it
+  /** Fraction of a meal's energy value that actually sticks (dysentery: it
    *  runs right through). 1 for everything else. */
   foodEfficiency: number;
   /** Clears on its own after this much daytime, no medicine needed. */
@@ -136,7 +136,7 @@ export interface PetState {
   form: AdultForm | null;
 
   // Visible stats (0..MAX_HEARTS for meters; health/discipline 0..100).
-  hunger: number;
+  energy: number;
   happiness: number;
   health: number; // 0..100
   discipline: number; // 0..100, visible on Status
@@ -162,8 +162,8 @@ export interface PetState {
 
   /** Daytime spent with an empty stomach. Penalties (health drain, care
    *  mistakes) only start past a grace window — a briefly-empty bowl is not
-   *  neglect, an hour-empty one is. Resets the moment hunger rises. */
-  hungerZeroMs: number;
+   *  neglect, an hour-empty one is. Resets the moment energy rises. */
+  energyZeroMs: number;
   /** Same accumulator for happiness at zero (shorter grace, no health drain). */
   happinessZeroMs: number;
 

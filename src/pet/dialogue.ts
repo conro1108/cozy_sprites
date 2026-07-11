@@ -787,7 +787,7 @@ export function dyingLine(
 ): string {
   const bank = state.sick
     ? DYING_SICK
-    : state.hunger <= 0.5
+    : state.energy <= 0.5
       ? DYING_HUNGRY
       : state.happiness <= 0.5
         ? DYING_LONELY
@@ -965,7 +965,7 @@ export function describeCondition(pet: PetState, now: number): string {
       "Off with the fairies", "Dreaming of snacks",
     ]);
   }
-  if (pet.hunger <= 0) {
+  if (pet.energy <= 0) {
     return pick("starving", ["Starving", "Famished", "Running on empty", "Absolutely ravenous"]);
   }
   if (pet.happiness <= 0) {
@@ -974,7 +974,7 @@ export function describeCondition(pet: PetState, now: number): string {
   if (pet.health < 40) {
     return pick("rundown", ["Run down", "Under the weather", "Peaky", "A bit fragile"]);
   }
-  if (pet.hunger <= 1) {
+  if (pet.energy <= 1) {
     return pick("hungry", ["Hungry", "Rumbly", "Thinking about lunch", "Bowl-eyed"]);
   }
   if (pet.happiness <= 1) {
@@ -989,7 +989,7 @@ export function describeCondition(pet: PetState, now: number): string {
   if (pet.poops >= 2) {
     return pick("messy", ["Living in filth", "Surrounded by mess", "Unimpressed by the floor"]);
   }
-  if (pet.hunger <= 2) {
+  if (pet.energy <= 2) {
     return pick("peckish", ["Peckish", "Could eat", "Snackish", "Slightly rumbly"]);
   }
   if (pet.weight >= CONDITION_OVERWEIGHT) {

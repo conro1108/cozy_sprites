@@ -67,31 +67,31 @@ describe("describeCondition", () => {
   });
 
   it("is deterministic for a given pet and moment", () => {
-    const p = awake({ hunger: 0 });
+    const p = awake({ energy: 0 });
     expect(describeCondition(p, T0)).toBe(describeCondition(p, T0));
   });
 
   it("names the illness, and it outranks an empty bowl", () => {
-    const p = awake({ sick: true, illness: "plague", hunger: 0 });
+    const p = awake({ sick: true, illness: "plague", energy: 0 });
     expect(describeCondition(p, T0)).toContain("the plague");
   });
 
   it("an egg reads as forming even with empty meters", () => {
-    const egg = awake({ stage: "egg", hunger: 0, happiness: 0 });
-    const starving = awake({ stage: "baby", hunger: 0, happiness: 0 });
-    // Egg branch wins over the hunger/mood branches.
+    const egg = awake({ stage: "egg", energy: 0, happiness: 0 });
+    const starving = awake({ stage: "baby", energy: 0, happiness: 0 });
+    // Egg branch wins over the energy/mood branches.
     expect(describeCondition(egg, T0)).not.toBe(describeCondition(starving, T0));
   });
 
   it("an empty bowl reads differently from a thriving pet", () => {
-    const starving = awake({ hunger: 0, happiness: 4, health: 100 });
-    const thriving = awake({ hunger: 4, happiness: 4, health: 100 });
+    const starving = awake({ energy: 0, happiness: 4, health: 100 });
+    const thriving = awake({ energy: 4, happiness: 4, health: 100 });
     expect(describeCondition(starving, T0)).not.toBe(describeCondition(thriving, T0));
   });
 
   it("sleep outranks a peckish stomach", () => {
-    const asleep = awake({ asleep: true, hunger: 2, happiness: 4, health: 100 });
-    const up = awake({ asleep: false, hunger: 2, happiness: 4, health: 100 });
+    const asleep = awake({ asleep: true, energy: 2, happiness: 4, health: 100 });
+    const up = awake({ asleep: false, energy: 2, happiness: 4, health: 100 });
     expect(describeCondition(asleep, T0)).not.toBe(describeCondition(up, T0));
   });
 
@@ -103,14 +103,14 @@ describe("describeCondition", () => {
   ];
 
   it("the zoomies read distinctly from an ordinary good mood", () => {
-    const zooming = awake({ zoomies: true, hunger: 4, happiness: 4, health: 100 });
-    const calm = awake({ zoomies: false, hunger: 4, happiness: 4, health: 100 });
+    const zooming = awake({ zoomies: true, energy: 4, happiness: 4, health: 100 });
+    const calm = awake({ zoomies: false, energy: 4, happiness: 4, health: 100 });
     expect(ZOOMIES_LABELS).toContain(describeCondition(zooming, T0));
     expect(describeCondition(zooming, T0)).not.toBe(describeCondition(calm, T0));
   });
 
   it("being sick outranks the zoomies", () => {
-    const p = awake({ zoomies: true, sick: true, illness: "sniffles", hunger: 4, happiness: 4 });
+    const p = awake({ zoomies: true, sick: true, illness: "sniffles", energy: 4, happiness: 4 });
     expect(ZOOMIES_LABELS).not.toContain(describeCondition(p, T0));
   });
 });
@@ -131,16 +131,16 @@ describe("dying dialogue", () => {
     expect(isDying({ ...petAt("adult"), health: 0, deadAt: T0 })).toBe(false);
   });
 
-  it("names the circumstance — sickness beats hunger beats loneliness", () => {
+  it("names the circumstance — sickness beats energy beats loneliness", () => {
     const base = { ...petAt("adult"), health: 5 };
-    expect(dyingLine({ ...base, sick: true, hunger: 0 }, () => 0)).toBe(
+    expect(dyingLine({ ...base, sick: true, energy: 0 }, () => 0)).toBe(
       "The end is near.",
     );
-    expect(dyingLine({ ...base, hunger: 0 }, () => 0)).toBe("So... hungry...");
-    expect(dyingLine({ ...base, hunger: 3, happiness: 0 }, () => 0)).toBe(
+    expect(dyingLine({ ...base, energy: 0 }, () => 0)).toBe("So... hungry...");
+    expect(dyingLine({ ...base, energy: 3, happiness: 0 }, () => 0)).toBe(
       "It's so quiet...",
     );
-    expect(dyingLine({ ...base, hunger: 3, happiness: 3 }, () => 0)).toBe(
+    expect(dyingLine({ ...base, energy: 3, happiness: 3 }, () => 0)).toBe(
       "The end is near.",
     );
   });

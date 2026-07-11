@@ -50,15 +50,15 @@ const STAGE_ORDER: Stage[] = ["egg", "baby", "child", "teen", "adult"];
 export const SLEEP_AGE_RATE = 0;
 
 // --- Decay rates (per millisecond, awake daytime baseline) -------------------
-// A full hunger meter lasts ~3.5h awake; happiness ~2.5h. Tuned so a loving
+// A full energy meter lasts ~3.5h awake; happiness ~2.5h. Tuned so a loving
 // player (hourly) never sees zero, an average one (2–3h) grazes it harmlessly,
 // and a bare-minimum one (6h) eats about an hour of starvation penalty per gap.
-const HUNGER_DECAY = MAX_HEARTS / (3.5 * HOUR);
+const ENERGY_DECAY = MAX_HEARTS / (3.5 * HOUR);
 const HAPPINESS_DECAY = MAX_HEARTS / (2.5 * HOUR);
 
-// Baby is deliberately relentless: a full heart (of hunger or happiness) burns
+// Baby is deliberately relentless: a full heart (of energy or happiness) burns
 // off in about twenty seconds awake, so hatch-day is nonstop care.
-const STAGE_HUNGER_MULT: Record<Stage, number> = {
+const STAGE_ENERGY_MULT: Record<Stage, number> = {
   egg: 0,
   baby: 157.5,
   child: 1.3,
@@ -73,10 +73,10 @@ const STAGE_HAPPY_MULT: Record<Stage, number> = {
   adult: 1,
 };
 
-// Sleep nearly freezes the meters (sleeping is contentment); hunger still
+// Sleep nearly freezes the meters (sleeping is contentment); energy still
 // creeps so the 8am breakfast is a ritual, not a rescue. A pet kept awake at
 // night decays slower than by day but pays a health toll for the lost sleep.
-const SLEEP_HUNGER_MULT = 0.12;
+const SLEEP_ENERGY_MULT = 0.12;
 const SLEEP_HAPPY_MULT = 0.05;
 const NIGHT_AWAKE_MULT = 0.3;
 
@@ -178,7 +178,7 @@ export function createPet(name: string, now: number): PetState {
     // Start with a little headroom so the first feed/play visibly moves a
     // heart instead of hitting an already-full meter (reads as "nothing
     // happens"). The egg freezes these until it hatches.
-    hunger: 3,
+    energy: 3,
     happiness: 3,
     health: 100,
     discipline: 0,
@@ -193,7 +193,7 @@ export function createPet(name: string, now: number): PetState {
     napMs: 0,
     poops: 0,
     poopPressure: 0,
-    hungerZeroMs: 0,
+    energyZeroMs: 0,
     happinessZeroMs: 0,
     nightAwakeMs: 0,
     nightSleepMs: 0,
@@ -256,7 +256,7 @@ export function ageMs(state: PetState, now: number): number {
 /** A pet is "in trouble" (needs care right now) — surfaced to the UI. */
 export function needsCare(state: PetState): boolean {
   return (
-    state.hunger <= 0.5 ||
+    state.energy <= 0.5 ||
     state.happiness <= 0.5 ||
     state.sick ||
     state.poops > 0 ||
@@ -378,7 +378,7 @@ function dawnHook(s: PetState, at: number): void {
       s.nightSleepMs >= FULL_NIGHT_SLEEP_MS &&
       !s.sick &&
       s.poops === 0 &&
-      s.hunger > 0.5
+      s.energy > 0.5
     ) {
       s.health = clamp100(s.health + BEDTIME_BONUS);
     }
@@ -427,24 +427,24 @@ function decaySegment(s: PetState, seg: number, segTime: number, night: boolean)
   const fx = s.sick && s.illness ? ILLNESSES[s.illness] : null;
 
   // --- Meters ---------------------------------------------------------------
-  let hungerMult = STAGE_HUNGER_MULT[s.stage];
+  let energyMult = STAGE_ENERGY_MULT[s.stage];
   let happyMult = STAGE_HAPPY_MULT[s.stage] * (fx ? fx.happinessDecayMult : 1);
   if (asleep) {
-    hungerMult *= SLEEP_HUNGER_MULT;
+    energyMult *= SLEEP_ENERGY_MULT;
     happyMult *= SLEEP_HAPPY_MULT;
   } else if (night) {
-    hungerMult *= NIGHT_AWAKE_MULT;
+    energyMult *= NIGHT_AWAKE_MULT;
     happyMult *= NIGHT_AWAKE_MULT;
   }
-  s.hunger = clampHearts(s.hunger - seg * HUNGER_DECAY * hungerMult);
+  s.energy = clampHearts(s.energy - seg * ENERGY_DECAY * energyMult);
   s.happiness = clampHearts(s.happiness - seg * HAPPINESS_DECAY * happyMult);
 
   // --- Zero-stat grace clocks (daytime only; night is quiet time) -----------
   if (day && s.stage !== "egg") {
-    s.hungerZeroMs = s.hunger <= 0 ? s.hungerZeroMs + seg : 0;
+    s.energyZeroMs = s.energy <= 0 ? s.energyZeroMs + seg : 0;
     s.happinessZeroMs = s.happiness <= 0 ? s.happinessZeroMs + seg : 0;
   } else {
-    if (s.hunger > 0) s.hungerZeroMs = 0;
+    if (s.energy > 0) s.energyZeroMs = 0;
     if (s.happiness > 0) s.happinessZeroMs = 0;
   }
 
@@ -470,9 +470,9 @@ function decaySegment(s: PetState, seg: number, segTime: number, night: boolean)
   const fx2 = s.sick && s.illness ? ILLNESSES[s.illness] : null;
   let healthDelta = 0;
   if (day) {
-    const starving = s.hungerZeroMs > STARVING_GRACE_MS;
+    const starving = s.energyZeroMs > STARVING_GRACE_MS;
     const goodCare =
-      s.hunger > 2 &&
+      s.energy > 2 &&
       s.happiness > 2 &&
       s.poops === 0 &&
       !s.sick &&
@@ -491,7 +491,7 @@ function decaySegment(s: PetState, seg: number, segTime: number, night: boolean)
   // --- Care mistakes (daytime neglect; the all-nighter is charged at dawn) ---
   if (day && s.stage !== "egg") {
     let neglect = 0;
-    if (s.hungerZeroMs > STARVING_GRACE_MS) neglect++;
+    if (s.energyZeroMs > STARVING_GRACE_MS) neglect++;
     if (s.happinessZeroMs > SAD_GRACE_MS) neglect++;
     if (s.poops >= 2) neglect++;
     if (fx2 && fx2.neglect) neglect++;
@@ -529,7 +529,7 @@ function decaySegment(s: PetState, seg: number, segTime: number, night: boolean)
 function causeOfDeath(s: PetState): string {
   if (s.sick && s.illness) return ILLNESSES[s.illness].label;
   if (s.sick) return "a mysterious ailment";
-  if (s.hunger <= 0) return "an empty bowl";
+  if (s.energy <= 0) return "an empty bowl";
   if (s.happiness <= 0) return "a broken heart";
   return "general neglect";
 }
@@ -548,7 +548,7 @@ function advanceOne(s: PetState, at: number): void {
     clearCall(s);
     // Baby is deliberately hectic: it hatches already hungry so care
     // matters immediately and the player learns the controls right away.
-    s.hunger = Math.min(s.hunger, 2);
+    s.energy = Math.min(s.energy, 2);
     s.happiness = Math.min(s.happiness, 2);
   }
   if (next === "adult") s.form = determineAdultForm(s.hidden, s.health);
@@ -578,7 +578,7 @@ function callUnjustified(s: PetState): boolean {
   if (s.fakeCall) return true;
   switch (s.attentionWant ?? "pat") {
     case "snack":
-      return s.hunger >= FULL_HEART;
+      return s.energy >= FULL_HEART;
     case "play":
       return s.happiness >= FULL_HEART;
     default:
@@ -627,14 +627,14 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
     return { state: s, note: "cant" };
   }
   s = { ...s, hidden: { ...s.hidden } };
-  // Judge the call before the food lands, or we'd be judging post-feed hunger.
+  // Judge the call before the food lands, or we'd be judging post-feed energy.
   const unjustified = callUnjustified(s);
   const def = FOODS[food];
 
   // Refuse proper meals when already full (classic Tamagotchi behaviour);
   // treats (cake/cube — anything with real happiness value) are always taken.
   const isTreat = def.happiness >= 0.5;
-  if (!isTreat && s.hunger >= MAX_HEARTS - 0.05) {
+  if (!isTreat && s.energy >= MAX_HEARTS - 0.05) {
     return { state: s, note: "full" };
   }
 
@@ -652,7 +652,7 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
 
   // Dysentery: it runs right through — meals only half stick.
   const efficiency = s.sick && s.illness ? ILLNESSES[s.illness].foodEfficiency : 1;
-  s.hunger = clampHearts(s.hunger + def.hunger * efficiency);
+  s.energy = clampHearts(s.energy + def.energy * efficiency);
   s.happiness = clampHearts(s.happiness + def.happiness + happyBonus);
   s.weight = s.weight + def.weight;
   // What goes in must come out. Fiber builds digestive pressure that stepEvents
@@ -719,7 +719,7 @@ export function applyGameResult(
   // Carrying extra weight takes some of the joy out of running around.
   if (s.weight >= OVERWEIGHT) gain *= 0.7;
   s.happiness = clampHearts(s.happiness + gain);
-  s.hunger = clampHearts(s.hunger - 0.2);
+  s.energy = clampHearts(s.energy - 0.2);
   s.weight = Math.max(1, s.weight - 0.3);
   const call = resolveCall(s, "play", unjustified);
   return { state: s, call };

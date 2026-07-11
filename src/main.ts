@@ -109,7 +109,7 @@ let els: {
   name: HTMLDivElement;
   sub: HTMLDivElement;
   sick: HTMLDivElement;
-  hunger: HTMLDivElement;
+  energy: HTMLDivElement;
   happy: HTMLDivElement;
   health: HTMLDivElement;
   nav: Record<string, HTMLButtonElement>;
@@ -235,7 +235,7 @@ function mountGame(): void {
   app.innerHTML = `
     <div class="hud">
       <div class="meters">
-        <div class="meter-row">${iconHTML("burger", 16)}<div class="hearts" data-hunger></div></div>
+        <div class="meter-row">${iconHTML("burger", 16)}<div class="hearts" data-energy></div></div>
         <div class="meter-row">${iconHTML("smiley", 16)}<div class="hearts" data-happy></div></div>
         <div class="meter-row">${iconHTML("medcross", 16)}<div class="health-bar"><div class="fill" data-health></div></div></div>
       </div>
@@ -270,7 +270,7 @@ function mountGame(): void {
     name: app.querySelector("[data-name]")!,
     sub: app.querySelector("[data-sub]")!,
     sick: app.querySelector("[data-sick]")!,
-    hunger: app.querySelector("[data-hunger]")!,
+    energy: app.querySelector("[data-energy]")!,
     happy: app.querySelector("[data-happy]")!,
     health: app.querySelector("[data-health]")!,
     nav,
@@ -353,7 +353,7 @@ function mountGame(): void {
 function render(): void {
   if (!pet || !els || !scene) return;
   const now = Date.now();
-  renderHearts(els.hunger, pet.hunger);
+  renderHearts(els.energy, pet.energy);
   renderHearts(els.happy, pet.happiness);
   els.health.style.width = `${pet.health}%`;
   els.name.textContent = pet.name;
@@ -370,7 +370,7 @@ function render(): void {
   const zoomies = pet.zoomies && !dying;
 
   // Nav alert cues (never reveals hidden state — just surfaces visible needs).
-  toggleAlert(els.nav.food, pet.hunger <= 1);
+  toggleAlert(els.nav.food, pet.energy <= 1);
   toggleAlert(els.nav.play, pet.happiness <= 1);
   toggleAlert(els.nav.clean, pet.poops > 0);
   toggleAlert(els.nav.care, pet.sick);
@@ -430,7 +430,7 @@ function toggleAlert(btn: HTMLButtonElement, on: boolean): void {
 
 function moodOf(p: PetState): Mood {
   if (p.asleep) return "sleep";
-  if (p.sick || p.hunger <= 1 || p.happiness <= 1) return "sad";
+  if (p.sick || p.energy <= 1 || p.happiness <= 1) return "sad";
   if (p.happiness >= 3.5 && p.health > 60) return "happy";
   return "neutral";
 }
@@ -905,7 +905,7 @@ function stopTick(): void {
 function stepPet(now: number, withEvents: boolean): boolean {
   if (!pet || dying) return false;
   const prevStage = pet.stage;
-  const prevHunger = pet.hunger;
+  const prevEnergy = pet.energy;
   const prevAsleep = pet.asleep;
   const wasDead = pet.deadAt !== null;
   const wasNight = isNight(pet.lastUpdated);
@@ -965,7 +965,7 @@ function stepPet(now: number, withEvents: boolean): boolean {
     notify("care", "Cozy Sprites", `${pet.name} is sleepy — lights out?`);
   }
 
-  if (prevHunger > 1 && pet.hunger <= 1) {
+  if (prevEnergy > 1 && pet.energy <= 1) {
     notify("care", "Cozy Sprites", `${pet.name} is getting hungry.`);
   }
   if (pet.health <= 15 && pet.health > 0 && !pet.sick && Math.random() < 0.2) {

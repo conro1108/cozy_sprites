@@ -1,7 +1,7 @@
 // Local notification preferences + dispatch. Three levels, user-toggled:
 //   off  — never notify
 //   dire — only emergencies (illness, near-death, death)
-//   all  — any care drop (hunger, mess, attention calls) too
+//   all  — any care drop (energy, mess, attention calls) too
 // Notifications only fire while the tab is hidden — if you're looking at the
 // pet, the pet can tell you itself.
 

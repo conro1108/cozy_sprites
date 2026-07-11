@@ -6,7 +6,7 @@ export interface FoodDef {
   id: FoodId;
   name: string;
   icon: string; // emoji used on the Food menu buttons
-  hunger: number; // hearts restored
+  energy: number; // hearts restored
   happiness: number; // hearts restored
   weight: number; // weight delta
   fiber: number; // roughage → poop pressure. What goes in must come out.
@@ -18,14 +18,14 @@ export interface FoodDef {
 // against the real-clock metabolism (~0.15/awake-hour drift + games): a varied
 // diet hovers near the baseline, a cake habit visibly does not.
 export const FOODS: Record<FoodId, FoodDef> = {
-  burger: { id: "burger", name: "Burger", icon: "🍔", hunger: 2, happiness: 0.2, weight: 1, fiber: 0.35 },
-  cake: { id: "cake", name: "Cake", icon: "🍰", hunger: 1, happiness: 1, weight: 1.5, fiber: 0.15 },
-  carrot: { id: "carrot", name: "Carrot", icon: "🥕", hunger: 1, happiness: 0, weight: 0.2, fiber: 0.6 },
-  noodles: { id: "noodles", name: "Noodles", icon: "🍜", hunger: 2, happiness: 0.3, weight: 1.2, fiber: 0.4 },
-  cube: { id: "cube", name: "Cube", icon: "🧊", hunger: 1, happiness: 0.5, weight: 0.4, fiber: 0.12 },
+  burger: { id: "burger", name: "Burger", icon: "🍔", energy: 2, happiness: 0.2, weight: 1, fiber: 0.35 },
+  cake: { id: "cake", name: "Cake", icon: "🍰", energy: 1, happiness: 1, weight: 1.5, fiber: 0.15 },
+  carrot: { id: "carrot", name: "Carrot", icon: "🥕", energy: 1, happiness: 0, weight: 0.2, fiber: 0.6 },
+  noodles: { id: "noodles", name: "Noodles", icon: "🍜", energy: 2, happiness: 0.3, weight: 1.2, fiber: 0.4 },
+  cube: { id: "cube", name: "Cube", icon: "🧊", energy: 1, happiness: 0.5, weight: 0.4, fiber: 0.12 },
   // The comfort food: light, warm, and the one dish that actively heals —
   // doubly so when sick. Even a fainted pet will take soup.
-  soup: { id: "soup", name: "Soup", icon: "🍲", hunger: 1.5, happiness: 0.4, weight: 0.5, fiber: 0.3 },
+  soup: { id: "soup", name: "Soup", icon: "🍲", energy: 1.5, happiness: 0.4, weight: 0.5, fiber: 0.3 },
 };
 
 export const FOOD_ORDER: FoodId[] = ["burger", "cake", "carrot", "noodles", "cube", "soup"];

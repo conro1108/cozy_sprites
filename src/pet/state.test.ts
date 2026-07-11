@@ -65,27 +65,27 @@ describe("applyElapsedDecay", () => {
   it("freezes stats during the egg stage", () => {
     const pet = createPet("Milo", T0);
     const later = applyElapsedDecay(pet, T0 + 30_000);
-    expect(later.hunger).toBe(pet.hunger);
+    expect(later.energy).toBe(pet.energy);
   });
 
-  it("decays hunger over time once hatched", () => {
+  it("decays energy over time once hatched", () => {
     const pet = asStage(createPet("Milo", T0), "child");
     const later = applyElapsedDecay(pet, T0 + 30 * 60_000);
-    expect(later.hunger).toBeLessThan(pet.hunger);
+    expect(later.energy).toBeLessThan(pet.energy);
   });
 
   it("empties a full bowl in roughly 3.5 awake hours (adult)", () => {
-    const pet = asStage({ ...createPet("Milo", T0), hunger: MAX_HEARTS }, "adult");
+    const pet = asStage({ ...createPet("Milo", T0), energy: MAX_HEARTS }, "adult");
     const nearly = applyElapsedDecay(pet, T0 + 3.4 * HOUR);
-    expect(nearly.hunger).toBeGreaterThan(0);
+    expect(nearly.energy).toBeGreaterThan(0);
     const done = applyElapsedDecay(pet, T0 + 3.6 * HOUR);
-    expect(done.hunger).toBe(0);
+    expect(done.energy).toBe(0);
   });
 
   it("clamps stats at zero after a long absence", () => {
     const pet = asStage(createPet("Milo", T0), "child");
     const later = applyElapsedDecay(pet, T0 + 5 * 24 * HOUR);
-    expect(later.hunger).toBe(0);
+    expect(later.energy).toBe(0);
     expect(later.happiness).toBe(0);
     // Five ignored days is also, correctly, fatal (see the death suite).
     expect(later.deadAt).not.toBeNull();
@@ -95,17 +95,17 @@ describe("applyElapsedDecay", () => {
 describe("starvation grace window", () => {
   const emptyBowl = () =>
     asStage(
-      { ...createPet("Milo", T0), hunger: 0, happiness: 4, health: 80 },
+      { ...createPet("Milo", T0), energy: 0, happiness: 4, health: 80 },
       "adult",
     );
 
-  it("an hour at zero hunger is not yet neglect", () => {
+  it("an hour at zero energy is not yet neglect", () => {
     const later = applyElapsedDecay(emptyBowl(), T0 + 1 * HOUR);
     expect(later.health).toBe(80); // no drain, no regen — just an empty bowl
     expect(later.hidden.careMistakes).toBe(0);
   });
 
-  it("three hours at zero hunger drains health and racks mistakes", () => {
+  it("three hours at zero energy drains health and racks mistakes", () => {
     const later = applyElapsedDecay(emptyBowl(), T0 + 3 * HOUR);
     // ~1.5h past grace at −15/h.
     expect(later.health).toBeLessThan(60);
@@ -116,10 +116,10 @@ describe("starvation grace window", () => {
 
   it("feeding resets the grace clock", () => {
     const hungryAWhile = applyElapsedDecay(emptyBowl(), T0 + 1 * HOUR);
-    expect(hungryAWhile.hungerZeroMs).toBeCloseTo(1 * HOUR);
+    expect(hungryAWhile.energyZeroMs).toBeCloseTo(1 * HOUR);
     const fed = feed(hungryAWhile, "burger", T0 + 1 * HOUR + 60_000).state;
     const later = applyElapsedDecay(fed, T0 + 2 * HOUR);
-    expect(later.hungerZeroMs).toBe(0);
+    expect(later.energyZeroMs).toBe(0);
   });
 });
 
@@ -129,7 +129,7 @@ describe("night: sleep, all-nighters, and the bedtime bonus", () => {
     return asStage(
       {
         ...createPet("Milo", at(22)),
-        hunger: 4,
+        energy: 4,
         happiness: 4,
         health: 80,
         lightsOn: false,
@@ -153,7 +153,7 @@ describe("night: sleep, all-nighters, and the bedtime bonus", () => {
 
   it("sleep barely touches the meters — wakes hungry-ish, not starving", () => {
     const later = applyElapsedDecay(tuckedIn(), at(32, 5)); // 8:05am next day
-    expect(later.hunger).toBeGreaterThan(2); // breakfast ritual, not rescue
+    expect(later.energy).toBeGreaterThan(2); // breakfast ritual, not rescue
     expect(later.happiness).toBeGreaterThan(3);
   });
 
@@ -170,7 +170,7 @@ describe("night: sleep, all-nighters, and the bedtime bonus", () => {
 
   it("charges one care mistake — and some health — for a lights-on all-nighter", () => {
     const litAllNight = asStage(
-      { ...createPet("Milo", at(19, 50)), hunger: 4, happiness: 4, health: 100 },
+      { ...createPet("Milo", at(19, 50)), energy: 4, happiness: 4, health: 100 },
       "adult",
     );
     const later = applyElapsedDecay(litAllNight, at(32, 10));
@@ -203,7 +203,7 @@ describe("stage advancement", () => {
   it("hatches into a needy baby so care is immediately meaningful", () => {
     const pet = createPet("Milo", T0);
     const later = applyElapsedDecay(pet, T0 + 61_000);
-    expect(later.hunger).toBeLessThanOrEqual(2);
+    expect(later.energy).toBeLessThanOrEqual(2);
     expect(later.happiness).toBeLessThanOrEqual(2);
   });
 
@@ -211,7 +211,7 @@ describe("stage advancement", () => {
     const pet = createPet("Milo", T0);
     const past = applyElapsedDecay(pet, T0 + 61_000 + 60_000);
     expect(past.stage).toBe("baby");
-    expect(past.hunger).toBeLessThan(MAX_HEARTS);
+    expect(past.energy).toBeLessThan(MAX_HEARTS);
   });
 
   it("graduates baby → child after its half-hour", () => {
@@ -265,10 +265,10 @@ describe("aging pauses while asleep", () => {
 });
 
 describe("feed", () => {
-  it("restores hunger, clamped to max", () => {
-    const pet = asStage({ ...createPet("Milo", T0), hunger: 1 }, "child");
+  it("restores energy, clamped to max", () => {
+    const pet = asStage({ ...createPet("Milo", T0), energy: 1 }, "child");
     const { state } = feed(pet, "burger", T0);
-    expect(state.hunger).toBe(3);
+    expect(state.energy).toBe(3);
   });
 
   it("cannot feed during the egg stage", () => {
@@ -284,10 +284,10 @@ describe("feed", () => {
   });
 
   it("refuses a proper meal when already full", () => {
-    const pet = asStage({ ...createPet("Milo", T0), hunger: MAX_HEARTS }, "child");
+    const pet = asStage({ ...createPet("Milo", T0), energy: MAX_HEARTS }, "child");
     const { state, note } = feed(pet, "burger", T0);
     expect(note).toBe("full");
-    expect(state.hunger).toBe(MAX_HEARTS);
+    expect(state.energy).toBe(MAX_HEARTS);
     expect(state.weight).toBe(pet.weight);
   });
 
@@ -301,15 +301,15 @@ describe("feed", () => {
 
 describe("soup, the comfort food", () => {
   it("heals a little when well", () => {
-    const pet = asStage({ ...createPet("Milo", T0), hunger: 1, health: 50 }, "child");
+    const pet = asStage({ ...createPet("Milo", T0), energy: 1, health: 50 }, "child");
     const { state } = feed(pet, "soup", T0);
     expect(state.health).toBe(52);
-    expect(state.hunger).toBeCloseTo(2.5);
+    expect(state.energy).toBeCloseTo(2.5);
   });
 
   it("heals properly on a sickbed", () => {
     const pet = asStage(
-      { ...createPet("Milo", T0), hunger: 1, health: 50, sick: true, illness: "goblinflu" as const },
+      { ...createPet("Milo", T0), energy: 1, health: 50, sick: true, illness: "goblinflu" as const },
       "child",
     );
     const { state } = feed(pet, "soup", T0);
@@ -319,10 +319,10 @@ describe("soup, the comfort food", () => {
 
 describe("illness particulars", () => {
   it("dysentery: meals only half stick", () => {
-    const well = asStage({ ...createPet("Milo", T0), hunger: 1 }, "adult");
-    expect(feed(well, "burger", T0).state.hunger).toBe(3);
+    const well = asStage({ ...createPet("Milo", T0), energy: 1 }, "adult");
+    expect(feed(well, "burger", T0).state.energy).toBe(3);
     const runs = { ...well, sick: true, illness: "dysentery" as const };
-    expect(feed(runs, "burger", T0).state.hunger).toBe(2);
+    expect(feed(runs, "burger", T0).state.energy).toBe(2);
   });
 
   it("goblin flu blocks games — and banks no reward", () => {
@@ -347,7 +347,7 @@ describe("illness particulars", () => {
 
   it("the sniffles pass on their own within the day", () => {
     const sniffly = asStage(
-      { ...createPet("Milo", T0), hunger: 4, sick: true, illness: "sniffles" as const },
+      { ...createPet("Milo", T0), energy: 4, sick: true, illness: "sniffles" as const },
       "adult",
     );
     const later = applyElapsedDecay(sniffly, T0 + 4.5 * HOUR);
@@ -357,7 +357,7 @@ describe("illness particulars", () => {
 
   it("the sniffles are too mild to count as neglect", () => {
     const sniffly = asStage(
-      { ...createPet("Milo", T0), hunger: 4, happiness: 4, sick: true, illness: "sniffles" as const },
+      { ...createPet("Milo", T0), energy: 4, happiness: 4, sick: true, illness: "sniffles" as const },
       "adult",
     );
     const later = applyElapsedDecay(sniffly, T0 + 1 * HOUR);
@@ -366,7 +366,7 @@ describe("illness particulars", () => {
 
   it("untreated dysentery IS neglect", () => {
     const runs = asStage(
-      { ...createPet("Milo", T0), hunger: 4, happiness: 4, sick: true, illness: "dysentery" as const },
+      { ...createPet("Milo", T0), energy: 4, happiness: 4, sick: true, illness: "dysentery" as const },
       "adult",
     );
     const later = applyElapsedDecay(runs, T0 + 1 * HOUR);
@@ -384,7 +384,7 @@ describe("illness particulars", () => {
 
   it("the vapors: a proper daytime lie-down cures them", () => {
     const fainted = asStage(
-      { ...createPet("Milo", T0), hunger: 4, lightsOn: false, sick: true, illness: "vapors" as const },
+      { ...createPet("Milo", T0), energy: 4, lightsOn: false, sick: true, illness: "vapors" as const },
       "adult",
     );
     const rested = applyElapsedDecay(fainted, T0 + 90 * 60_000);
@@ -504,7 +504,7 @@ describe("weight consequences", () => {
 
   it("underweight blocks health regen until fed back up", () => {
     const wellFed = asStage(
-      { ...createPet("Milo", T0), hunger: 4, happiness: 4, health: 50 },
+      { ...createPet("Milo", T0), energy: 4, happiness: 4, health: 50 },
       "adult",
     );
     const skinny = { ...wellFed, weight: 2 };
@@ -516,7 +516,7 @@ describe("weight consequences", () => {
 describe("death", () => {
   function doomed(t = T0): PetState {
     return asStage(
-      { ...createPet("Milo", t), health: 0, hunger: 0, happiness: 0 },
+      { ...createPet("Milo", t), health: 0, energy: 0, happiness: 0 },
       "child",
     );
   }
@@ -542,7 +542,7 @@ describe("death", () => {
 
   it("total decay-only abandonment takes roughly a waking day", () => {
     const abandoned = asStage(
-      { ...createPet("Milo", at(8, 30)), hunger: 4, happiness: 4, health: 100 },
+      { ...createPet("Milo", at(8, 30)), energy: 4, happiness: 4, health: 100 },
       "adult",
     );
     // Starves by noon, grace till ~13:30, health gone by evening — but night
@@ -577,7 +577,7 @@ describe("death", () => {
 describe("retirement", () => {
   const adult = (t = T0) =>
     asStage(
-      { ...createPet("Old Sport", t), hunger: 4, happiness: 4, health: 100 },
+      { ...createPet("Old Sport", t), energy: 4, happiness: 4, health: 100 },
       "adult",
     );
 
@@ -629,7 +629,7 @@ describe("attention call expiry", () => {
     asStage(
       {
         ...createPet("Milo", T0),
-        hunger: 4,
+        energy: 4,
         happiness: 4,
         wantsAttention: true,
         fakeCall: fake,
@@ -723,7 +723,7 @@ describe("discipline", () => {
 
   it("rewards disciplining a demand the pet doesn't need", () => {
     const pet = asStage(
-      { ...createPet("Milo", T0), hunger: 3, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
+      { ...createPet("Milo", T0), energy: 3, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
       "teen",
     );
     const { state, note } = discipline(pet, T0);
@@ -734,7 +734,7 @@ describe("discipline", () => {
 
   it("penalises disciplining a genuine need", () => {
     const pet = asStage(
-      { ...createPet("Milo", T0), hunger: 0.5, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
+      { ...createPet("Milo", T0), energy: 0.5, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
       "teen",
     );
     const { state, note } = discipline(pet, T0);
@@ -965,7 +965,7 @@ describe("pat", () => {
 describe("attention wants", () => {
   it("feeding satisfies a genuine snack call", () => {
     const pet = asStage(
-      { ...createPet("Milo", T0), hunger: 0.5, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
+      { ...createPet("Milo", T0), energy: 0.5, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
       "child",
     );
     const { state, call } = feed(pet, "burger", T0);
@@ -975,7 +975,7 @@ describe("attention wants", () => {
 
   it("feeding a fake snack call rewards the con", () => {
     const pet = asStage(
-      { ...createPet("Milo", T0), hunger: 1, wantsAttention: true, fakeCall: true, attentionWant: "snack" as const },
+      { ...createPet("Milo", T0), energy: 1, wantsAttention: true, fakeCall: true, attentionWant: "snack" as const },
       "teen",
     );
     const { state, call } = feed(pet, "burger", T0);
@@ -1004,7 +1004,7 @@ describe("attention wants", () => {
     const pet = asStage(
       {
         ...createPet("Milo", T0),
-        hunger: 3,
+        energy: 3,
         discipline: 50,
         wantsAttention: true,
         fakeCall: false,
@@ -1041,7 +1041,7 @@ describe("attention wants", () => {
     const pet = asStage(
       {
         ...createPet("Milo", T0),
-        hunger: 3,
+        energy: 3,
         discipline: 50,
         wantsAttention: true,
         fakeCall: true,
@@ -1249,7 +1249,7 @@ describe("save migration", () => {
 
   it("backfills every real-clock field on a pre-real-mode save", () => {
     const {
-      hungerZeroMs: _a,
+      energyZeroMs: _a,
       happinessZeroMs: _b,
       nightAwakeMs: _c,
       nightSleepMs: _d,
@@ -1262,7 +1262,7 @@ describe("save migration", () => {
       ...legacy
     } = createPet("Ancient", T0);
     const migrated = migratePet(legacy as unknown as PetState);
-    expect(migrated.hungerZeroMs).toBe(0);
+    expect(migrated.energyZeroMs).toBe(0);
     expect(migrated.happinessZeroMs).toBe(0);
     expect(migrated.nightAwakeMs).toBe(0);
     expect(migrated.nightSleepMs).toBe(0);
@@ -1276,7 +1276,7 @@ describe("save migration", () => {
     // And the backfilled accumulators survive arithmetic — no NaN freezing
     // the grace windows shut.
     const later = applyElapsedDecay(asStage(migrated, "child"), T0 + 30 * 60_000);
-    expect(Number.isNaN(later.hungerZeroMs)).toBe(false);
+    expect(Number.isNaN(later.energyZeroMs)).toBe(false);
   });
 
   it("starts the expiry clock on an in-flight call from an old save", () => {

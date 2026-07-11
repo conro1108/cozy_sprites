@@ -972,7 +972,7 @@ export function openStatus(ctx: MenuCtx, now: number): void {
     ["Stage", pet.form ? `Adult · ${formName}` : STAGE_LABEL[pet.stage]],
     ["Age", ageLabel(now - pet.createdAt)],
     ["Weight", `${Math.round(pet.weight)}g`],
-    ["Hunger", heartBar(pet.hunger)],
+    ["Energy", heartBar(pet.energy)],
     ["Happiness", heartBar(pet.happiness)],
     ["Health", pctBar(pet.health)],
     ["Discipline", pctBar(pet.discipline, "var(--accent)")],
