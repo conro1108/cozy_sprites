@@ -989,30 +989,35 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   farmBtn.className = ready
     ? "btn btn-iconed farm-btn"
     : "btn danger-outline btn-iconed farm-btn";
-  farmBtn.appendChild(iconEl("tractor", 20));
+  farmBtn.appendChild(iconEl("tractor", 18));
   farmBtn.appendChild(document.createTextNode(ready ? "Walk them to the farm" : "Send to Farm…"));
   farmBtn.addEventListener("click", () => (ready ? confirmWalk(ctx, p) : confirmFarm(ctx, p)));
   p.body.appendChild(farmBtn);
 
+  // Plain text links, not buttons — "Collection" (not "Collection & Farm")
+  // so the farm stays a surprise until a pet actually retires there.
   const adminRow = document.createElement("div");
-  adminRow.className = "btn-pair";
+  adminRow.className = "admin-links";
   const coll = document.createElement("button");
-  coll.className = "btn secondary btn-iconed";
-  coll.appendChild(iconEl("book", 20));
-  coll.appendChild(document.createTextNode("Collection & Farm"));
+  coll.className = "btn-link";
+  coll.appendChild(iconEl("book", 16));
+  coll.appendChild(document.createTextNode("Collection"));
   coll.addEventListener("click", () => {
     p.close();
     openCollection(ctx);
   });
+  const sep = document.createElement("span");
+  sep.className = "link-sep";
+  sep.textContent = "·";
   const backup = document.createElement("button");
-  backup.className = "btn secondary btn-iconed";
-  backup.appendChild(iconEl("disk", 20));
+  backup.className = "btn-link";
+  backup.appendChild(iconEl("disk", 16));
   backup.appendChild(document.createTextNode("Backup save"));
   backup.addEventListener("click", () => {
     p.close();
     openBackup(ctx);
   });
-  adminRow.append(coll, backup);
+  adminRow.append(coll, sep, backup);
   p.body.appendChild(adminRow);
 
   p.body.appendChild(soundSettings());

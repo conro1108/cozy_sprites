@@ -544,31 +544,57 @@ body {
 /* A quieter warning than .danger — same cream face as a secondary button, but
    a red outline and shadow so it still reads as consequential without
    jumping off the page (e.g. Status's Send to Farm, before you've reached
-   the farm screen and realize it's not a euphemism). */
+   the farm screen and realize it's not a euphemism). Text stays the same
+   muted ink as the admin links below it — the red border alone carries
+   the warning, so the button doesn't outshout the stats above it. */
 .btn.danger-outline {
   background: var(--cream-2);
-  color: #c0492f;
+  color: var(--ink-soft);
   border: 2px solid #c0492f;
-  box-shadow: 0 4px 0 #8f3320;
+  box-shadow: 0 2px 0 #8f3320;
 }
 
-/* Status's Send to Farm button: the stat list's last row already carries
-   8px of its own bottom padding, so this needs less top margin than a
-   plain .btn to land even with the 18px gap below (from .btn-pair). */
+/* Status's Send to Farm button: sized down from a standard .btn so the
+   stat list above stays the focal point of the panel. */
 .farm-btn {
+  padding: 9px 14px;
+  font-size: 0.8rem;
   margin-top: 10px;
 }
 
-/* Two admin buttons side by side, e.g. Status's Collection & Backup row. */
-.btn-pair {
-  display: flex;
-  gap: 10px;
-  margin-top: 18px;
+.farm-btn.btn-iconed:not(.danger-outline) {
+  box-shadow: 0 2px 0 var(--wood-dark);
 }
 
-.btn-pair .btn {
+/* Status's Collection/Backup row, demoted to plain text links — they're
+   low-frequency admin actions and shouldn't compete with the stats or
+   the Send to Farm button for attention. */
+.admin-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.admin-links .btn-link {
+  background: none;
+  border: none;
+  box-shadow: none;
   width: auto;
-  flex: 1;
+  margin: 0;
+  padding: 4px 2px;
+  color: var(--ink-soft);
+  font-weight: 700;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.admin-links .link-sep {
+  color: var(--heart-empty);
 }
 
 .help-body p,
