@@ -560,8 +560,8 @@ body {
    and font size match .btn-pair .btn exactly so the two rows line up
    at the same height. */
 .farm-btn {
-  padding: 7px 10px;
-  font-size: 0.72rem;
+  padding: 9px 14px;
+  font-size: 0.8rem;
   margin-top: 10px;
 }
 
@@ -586,8 +586,8 @@ body {
   width: auto;
   flex: 1;
   margin-top: 0;
-  padding: 7px 10px;
-  font-size: 0.72rem;
+  padding: 9px 14px;
+  font-size: 0.8rem;
   border: 2px solid var(--wood);
   box-shadow: 0 2px 0 #cbb890;
 }

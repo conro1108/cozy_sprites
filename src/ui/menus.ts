@@ -989,7 +989,7 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   farmBtn.className = ready
     ? "btn btn-iconed farm-btn"
     : "btn danger-outline btn-iconed farm-btn";
-  farmBtn.appendChild(iconEl("tractor", 16));
+  farmBtn.appendChild(iconEl("tractor", 18));
   farmBtn.appendChild(document.createTextNode(ready ? "Walk them to the farm" : "Send to Farm…"));
   farmBtn.addEventListener("click", () => (ready ? confirmWalk(ctx, p) : confirmFarm(ctx, p)));
   p.body.appendChild(farmBtn);
@@ -1000,7 +1000,7 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   adminRow.className = "btn-pair";
   const coll = document.createElement("button");
   coll.className = "btn secondary btn-iconed";
-  coll.appendChild(iconEl("book", 16));
+  coll.appendChild(iconEl("book", 18));
   coll.appendChild(document.createTextNode("Collection"));
   coll.addEventListener("click", () => {
     p.close();
@@ -1008,7 +1008,7 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   });
   const backup = document.createElement("button");
   backup.className = "btn secondary btn-iconed";
-  backup.appendChild(iconEl("disk", 16));
+  backup.appendChild(iconEl("disk", 18));
   backup.appendChild(document.createTextNode("Backup save"));
   backup.addEventListener("click", () => {
     p.close();
