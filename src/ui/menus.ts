@@ -83,6 +83,8 @@ function openPanel(title: string, sub?: string): Panel {
     </div>`;
   const closers: (() => void)[] = [];
   const close = () => {
+    // Harmless if this panel was never a registered game (see cubeHum).
+    activeGameClose = null;
     closers.forEach((f) => f());
     overlay.remove();
   };
@@ -124,6 +126,32 @@ function tile(icon: IconName, name: string, onClick: () => void, note?: string):
   }
   el.addEventListener("click", onClick);
   return el;
+}
+
+// --- Active in-scene game tracking ------------------------------------------
+// Stage-controls games (higher/lower, fetch, rps, hide & seek, would-you) render
+// straight onto the stage with no backdrop of their own, so unlike a Panel there
+// was nothing to tap-away or to force-closed when another nav button wants the
+// stage. Every such game registers its own teardown here on start; whoever gets
+// it back (a nav icon, a background tap) just calls closeActiveGame().
+let activeGameClose: (() => void) | null = null;
+
+/** Wrap a game's close/dismiss fn so it self-deregisters on every exit path
+ *  (Done button, natural finish, or a forced close) and register it as the
+ *  currently active game. Use the returned fn in place of the raw one. */
+function registerActiveGame(close: () => void): () => void {
+  const wrapped = () => {
+    activeGameClose = null;
+    close();
+  };
+  activeGameClose = wrapped;
+  return wrapped;
+}
+
+/** Force-close whatever in-scene game is currently running, if any. Safe to
+ *  call when nothing's active. */
+export function closeActiveGame(): void {
+  activeGameClose?.();
 }
 
 /** Compact control strip overlaid on the stage for in-scene games. */
@@ -251,6 +279,10 @@ function startGame(ctx: MenuCtx, p: Panel, game: GameId): void {
     case "cubehum":
       p.body.innerHTML = "";
       p.setTitle("The Cube's Hum", "Repeat what the cube hums.");
+      // Reuses the Play panel rather than opening a stage-controls strip, but
+      // it's still a live game — register it the same way so it yields to a
+      // forced close from another nav button.
+      activeGameClose = p.close;
       cubeHum(ctx, p);
       break;
   }
@@ -267,7 +299,8 @@ const HL_ROUNDS = 5;
 function higherLower(ctx: MenuCtx): void {
   // Display (cards, pips) up top over the pet; the selector sits down at the
   // bottom within thumb reach.
-  const { top, bottom, close } = splitOverlay(ctx);
+  const { top, bottom, close: rawClose } = splitOverlay(ctx);
+  const close = registerActiveGame(rawClose);
   // A small corner close, not a full-width bar — you can bail mid-match, but the
   // match's own end screen is the usual way out.
   const closeBtn = document.createElement("button");
@@ -590,10 +623,10 @@ function fetchGame(ctx: MenuCtx): void {
     raf = requestAnimationFrame(animate);
   };
   raf = requestAnimationFrame(animate);
-  const dismiss = () => {
+  const dismiss = registerActiveGame(() => {
     cancelAnimationFrame(raf);
     close();
-  };
+  });
 
   ball.addEventListener("click", () => {
     const res = resolveFetch(pos, undefined, ctx.pet().stage, spot);
@@ -616,46 +649,93 @@ function fetchGame(ctx: MenuCtx): void {
   top.append(cornerDone(dismiss), hint, track);
 }
 
-// In-scene game: pick a move, watch the countdown play out at the sprite.
-// Loops: the chooser comes straight back after each round, one tap per throw.
+// In-scene game: pick a move down at the bottom, watch it fly up into the
+// countdown at the sprite. Loops: the chooser comes straight back after each
+// round, one tap per throw.
 function rps(ctx: MenuCtx, round = 1): void {
   const cheat = ctx.pet().form === "gremlin";
-  const { el, close } = stageOverlay(ctx);
+  // Display up top over the pet; the three moves sit in a selector strip down
+  // at the bottom, within thumb reach — same shape as higher/lower's cards
+  // and would-you-rather's answers.
+  const { top, bottom, close: rawClose } = splitOverlay(ctx);
+  const close = registerActiveGame(rawClose);
   const hint = document.createElement("p");
   hint.className = "stage-hint";
   hint.textContent = round === 1 ? "Choose your weapon." : "Again. Choose.";
   const choices = document.createElement("div");
-  choices.className = "game-choices";
+  choices.className = "rps-choices";
   const moves: { m: RpsMove; icon: IconName; label: string }[] = [
     { m: "rock", icon: "rock", label: "Rock" },
     { m: "paper", icon: "paper", label: "Paper" },
     { m: "scissors", icon: "scissors", label: "Scissors" },
   ];
+  let picked = false;
   for (const { m, icon, label } of moves) {
     const b = document.createElement("button");
-    b.className = "btn secondary btn-iconed";
-    b.appendChild(iconEl(icon, 20));
-    b.appendChild(document.createTextNode(label));
+    b.className = "rps-choice";
+    b.setAttribute("aria-label", label);
+    b.appendChild(iconEl(icon, 30));
     b.addEventListener("click", () => {
-      const ai = rpsAiMove(m, cheat);
-      const outcome = judgeRps(m, ai);
-      close();
-      ctx.scene().playRps(m as IconName, ai as IconName, outcome, () => {
-        if (outcome === "tie") {
-          ctx.finishGame("rps", false, "A tie. How embarrassing for us both.");
-        } else if (outcome === "win") {
-          ctx.finishGame("rps", true);
-        } else {
-          // The pick-after-you animation already shows the cheat; no need to
-          // confess it out loud every single round.
-          ctx.finishGame("rps", false, cheat && Math.random() < 0.3 ? "I definitely cheated." : undefined);
-        }
-        if (canReplay(ctx)) rps(ctx, round + 1);
+      if (picked) return; // one throw per round — no double-taps mid-flight
+      picked = true;
+      choices.classList.add("rps-chosen");
+      flyChoice(ctx, b, icon, () => {
+        const ai = rpsAiMove(m, cheat);
+        const outcome = judgeRps(m, ai);
+        close();
+        ctx.scene().playRps(m as IconName, ai as IconName, outcome, () => {
+          if (outcome === "tie") {
+            ctx.finishGame("rps", false, "A tie. How embarrassing for us both.");
+          } else if (outcome === "win") {
+            ctx.finishGame("rps", true);
+          } else {
+            // The pick-after-you animation already shows the cheat; no need to
+            // confess it out loud every single round.
+            ctx.finishGame("rps", false, cheat && Math.random() < 0.3 ? "I definitely cheated." : undefined);
+          }
+          if (canReplay(ctx)) rps(ctx, round + 1);
+        });
       });
     });
     choices.appendChild(b);
   }
-  el.append(hint, choices, doneButton(close));
+  top.append(hint);
+  bottom.append(choices);
+}
+
+/** Send a clone of the tapped move flying from its button up to where the rps
+ *  reveal will pick it up — the DOM hands off to the canvas act mid-flight,
+ *  so the choice reads as one continuous gesture instead of a hard cut. */
+function flyChoice(ctx: MenuCtx, fromEl: HTMLElement, icon: IconName, onDone: () => void): void {
+  const SZ = 34;
+  const startRect = fromEl.getBoundingClientRect();
+  const stageRect = ctx.stageEl().getBoundingClientRect();
+  const target = ctx.scene().rpsPlayerAnchor();
+
+  const fly = iconEl(icon, SZ);
+  fly.className = "rps-fly";
+  document.body.appendChild(fly);
+
+  const x0 = startRect.left + startRect.width / 2 - SZ / 2;
+  const y0 = startRect.top + startRect.height / 2 - SZ / 2;
+  const x1 = stageRect.left + target.x - SZ / 2;
+  const y1 = stageRect.top + target.y - SZ / 2;
+  // A little arc and a spin on the way up — cute, not just a straight slide.
+  const midX = (x0 + x1) / 2 + (Math.random() < 0.5 ? -18 : 18);
+  const midY = Math.min(y0, y1) - 46;
+
+  const anim = fly.animate(
+    [
+      { left: `${x0}px`, top: `${y0}px`, transform: "scale(1) rotate(0deg)" },
+      { left: `${midX}px`, top: `${midY}px`, transform: "scale(1.25) rotate(160deg)", offset: 0.6 },
+      { left: `${x1}px`, top: `${y1}px`, transform: "scale(0.8) rotate(300deg)" },
+    ],
+    { duration: 480, easing: "ease-in-out" },
+  );
+  anim.onfinish = () => {
+    fly.remove();
+    onDone();
+  };
 }
 
 // In-scene game: the sprite actually vanishes, then pops out of its spot.
@@ -667,7 +747,8 @@ function hideSeek(ctx: MenuCtx): void {
   const peek = Math.random() < 0.3 ? spot : null;
   playSfx("hide"); // scurries off
   ctx.scene().playHide(peek, () => {
-    const { el, close } = stageOverlay(ctx);
+    const { el, close: rawClose } = stageOverlay(ctx);
+    const close = registerActiveGame(rawClose);
     const hint = document.createElement("p");
     hint.className = "stage-hint";
     hint.textContent = "Where did it go?";
@@ -696,7 +777,8 @@ function hideSeek(ctx: MenuCtx): void {
 
 /** The between-rounds beat: hide again, or call it. */
 function hideSeekAgain(ctx: MenuCtx): void {
-  const { el, close } = stageOverlay(ctx);
+  const { el, close: rawClose } = stageOverlay(ctx);
+  const close = registerActiveGame(rawClose);
   const row = document.createElement("div");
   row.className = "game-choices";
   const again = document.createElement("button");
@@ -714,7 +796,8 @@ function hideSeekAgain(ctx: MenuCtx): void {
 // visible the moment you answer — and the next question is one tap away.
 function wouldYou(ctx: MenuCtx): void {
   // Prompt up top over the pet; the two answers sit down at the bottom, in reach.
-  const { top, bottom, close } = splitOverlay(ctx);
+  const { top, bottom, close: rawClose } = splitOverlay(ctx);
+  const close = registerActiveGame(rawClose);
   const q = randomWouldYou();
   const hint = document.createElement("p");
   hint.className = "stage-hint";

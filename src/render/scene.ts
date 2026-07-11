@@ -20,6 +20,13 @@ export const SCENE_W = 112; // fixed content width; height adapts to the stage
 const GRASS_DEPTH = 42; // grass below the horizon (floor sits this far up)
 const CREATURE_X = 56; // resting center
 
+// Rock-paper-scissors reveal geometry (see drawRps) — also exposed via
+// rpsPlayerAnchor() so the UI can land a "flying" chosen icon exactly where
+// the in-scene reveal will pick it up.
+const RPS_ICON_SZ = 20;
+const RPS_PLAYER_X = 14;
+const RPS_ICON_Y = 26;
+
 // Distant hill ridge: a gently rolling line of evenly spaced, identical
 // mounds — one soft cosine, so every peak has the same low, smooth crown.
 // Rendered as solid columns down to the floor (see draw), so it reads as one
@@ -475,17 +482,28 @@ export class Scene {
    * above the creature's head — where speech bubbles should point.
    */
   creatureAnchor(): { x: number; y: number } {
-    const rect = this.canvas.getBoundingClientRect();
-    // The canvas is displayed with object-fit: cover, so mirror cover math
-    // (max, with negative crop offsets) — contain math drifts whenever the
-    // buffer-height clamp in resize() keeps the aspect from matching exactly.
-    const scale = Math.max(rect.width / SCENE_W, rect.height / this.sh);
-    const ox = (rect.width - SCENE_W * scale) / 2;
-    const oy = (rect.height - this.sh * scale) / 2;
     const cw = CELL * 3 * this.depthScale(this.curDy);
     const sx = CREATURE_X + this.curDx;
     // Just above the sprite's head, wherever it currently roams on the plane.
     const sy = this.floorY + this.curDy + 16 - cw;
+    return this.toScreen(sx, sy);
+  }
+
+  /** CSS-pixel center of where the rps reveal will show the player's icon —
+   *  the landing point for the "your choice flies in" UI transition. */
+  rpsPlayerAnchor(): { x: number; y: number } {
+    return this.toScreen(RPS_PLAYER_X + RPS_ICON_SZ / 2, RPS_ICON_Y + RPS_ICON_SZ / 2);
+  }
+
+  /** Internal scene coords → CSS pixels relative to the canvas element.
+   *  Mirrors the canvas's object-fit: cover scaling (max, with negative crop
+   *  offsets) — contain math drifts whenever the buffer-height clamp in
+   *  resize() keeps the aspect from matching exactly. */
+  private toScreen(sx: number, sy: number): { x: number; y: number } {
+    const rect = this.canvas.getBoundingClientRect();
+    const scale = Math.max(rect.width / SCENE_W, rect.height / this.sh);
+    const ox = (rect.width - SCENE_W * scale) / 2;
+    const oy = (rect.height - this.sh * scale) / 2;
     return { x: ox + sx * scale, y: oy + sy * scale };
   }
 
@@ -1554,10 +1572,10 @@ export class Scene {
     const player = act.data.player as IconName;
     const pet = act.data.pet as IconName;
     const outcome = act.data.outcome as "win" | "lose" | "tie";
-    const SZ = 20;
-    const PX = 14; // player's side
+    const SZ = RPS_ICON_SZ;
+    const PX = RPS_PLAYER_X; // player's side
     const EX = 78; // pet's side
-    const IY = 26;
+    const IY = RPS_ICON_Y;
 
     if (p < 0.42) {
       // countdown: two fists pump in sync

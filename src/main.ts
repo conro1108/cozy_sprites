@@ -55,7 +55,15 @@ import type { Mood } from "./render/sprites";
 import { iconEl, iconHTML, iconUrl } from "./render/icons";
 import { notify } from "./ui/notifications";
 import { playSfx, playSong, unlockAudio } from "./ui/audio";
-import { initMenus, openCare, openCollection, openFood, openPlay, openStatus } from "./ui/menus";
+import {
+  initMenus,
+  openCare,
+  openCollection,
+  openFood,
+  openPlay,
+  openStatus,
+  closeActiveGame,
+} from "./ui/menus";
 import { randomName } from "./pet/names";
 
 const TICK_MS = 3_000;
@@ -282,6 +290,11 @@ function mountGame(): void {
       say("Zzz…");
       return;
     }
+    // Don't open over a running act (a fetch chase, an rps reveal…), but a
+    // live in-scene game picker (higher/lower, fetch, etc.) yields — hitting
+    // Food should stop it and open the kitchen, not silently no-op.
+    if (scene?.busy()) return;
+    closeActiveGame();
     openFood(ctx);
   });
   nav.play.addEventListener("click", () => {
@@ -301,8 +314,11 @@ function mountGame(): void {
       say(SICK_PLAY_LINES[Math.floor(Math.random() * SICK_PLAY_LINES.length)]);
       return;
     }
-    // Don't open the picker over a running act or a live in-scene game.
-    if (!scene?.busy() && !app.querySelector(".stage-controls")) openPlay(ctx);
+    // Don't open over a running act, but a live game picker yields — hitting
+    // Play again should swap to a fresh pick, not get stuck behind the old one.
+    if (scene?.busy()) return;
+    closeActiveGame();
+    openPlay(ctx);
   });
   nav.clean.addEventListener("click", doClean);
   nav.care.addEventListener("click", () => openCare(ctx));
@@ -526,6 +542,12 @@ function bindPetGestures(canvas: HTMLCanvasElement): void {
 function doPat(): void {
   if (!pet || dying || pet.deadAt !== null) return;
   if (scene?.busy()) return;
+  // A live in-scene game owns the stage — reaching past its controls to touch
+  // the pet dismisses it, same as tapping outside any other panel would.
+  if (app.querySelector(".stage-controls")) {
+    closeActiveGame();
+    return;
+  }
   const { state, reaction } = patPet(pet, Date.now());
   pet = state;
   switch (reaction) {
@@ -567,6 +589,10 @@ function doPat(): void {
 function onTapPet(): void {
   if (!pet || dying || pet.deadAt !== null) return;
   if (scene?.busy()) return;
+  if (app.querySelector(".stage-controls")) {
+    closeActiveGame();
+    return;
+  }
   const r = tap(pet, Date.now());
   pet = r.state;
   if (pet.stage === "egg") {

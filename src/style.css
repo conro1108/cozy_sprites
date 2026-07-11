@@ -1416,6 +1416,45 @@ body {
   margin: 6px 0 2px;
 }
 
+/* RPS: chunky icon-only choices at the bottom, and the flying clone that
+   carries the tapped choice from there up into the in-scene reveal. */
+.rps-choices {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  margin: 4px 0 2px;
+}
+
+.rps-choice {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid var(--wood);
+  background: #fffdf7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--panel-shadow);
+  transition: transform 0.1s ease, opacity 0.2s ease;
+}
+
+.rps-choice:active {
+  transform: scale(0.9);
+}
+
+.rps-choices.rps-chosen .rps-choice {
+  pointer-events: none;
+  opacity: 0.35;
+}
+
+.rps-fly {
+  position: fixed;
+  z-index: 950;
+  pointer-events: none;
+  filter: drop-shadow(0 3px 2px rgba(74, 53, 39, 0.4));
+}
+
 /* Buttons with a pixel icon inline */
 .btn-iconed {
   display: flex;
