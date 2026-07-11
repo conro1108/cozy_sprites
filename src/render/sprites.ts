@@ -809,10 +809,18 @@ function blit(
 
 /** The animation micro-frames every creature has. `base` is the resting pose;
  *  `blink` closes the eyes; `glanceL`/`glanceR` slide the gaze one pixel;
- *  `alt` is a per-body pose patch (the dog's tail flicked up) and falls back
- *  to `base` for bodies without one. */
-export type SpriteFrame = "base" | "blink" | "glanceL" | "glanceR" | "alt";
-export const SPRITE_FRAMES: SpriteFrame[] = ["base", "blink", "glanceL", "glanceR", "alt"];
+ *  `peek` cracks one eye open (only meaningful over the sleep mood — a poked
+ *  sleeper); `alt` is a per-body pose patch (the dog's tail flicked up) and
+ *  falls back to `base` for bodies without one. */
+export type SpriteFrame = "base" | "blink" | "glanceL" | "glanceR" | "peek" | "alt";
+export const SPRITE_FRAMES: SpriteFrame[] = [
+  "base",
+  "blink",
+  "glanceL",
+  "glanceR",
+  "peek",
+  "alt",
+];
 
 /** First row of the face grid that belongs to the mouth (not the gaze) —
  *  everything above it shifts on a glance / closes on a blink. */
@@ -864,6 +872,16 @@ export function renderPixels(
     // Borrow the sleep face's closed eyes, keep the current mood's mouth.
     const sleep = faceFor(body.face, "sleep");
     rows = rows.map((r, i) => (i < split ? (sleep[i] ?? r) : r));
+  } else if (frame === "peek") {
+    // A poke mid-sleep: splice the neutral face's open eye onto the near
+    // (left) half of each eye row, leaving the far eye shut.
+    const neutral = faceFor(body.face, "neutral");
+    rows = rows.map((r, i) => {
+      if (i >= split) return r;
+      const open = neutral[i] ?? r;
+      const mid = Math.ceil(r.length / 2);
+      return open.slice(0, mid) + r.slice(mid);
+    });
   }
   const shift = frame === "glanceL" ? -1 : frame === "glanceR" ? 1 : 0;
   if (shift === 0) {
@@ -905,7 +923,7 @@ export function buildCreatureFrames(
 ): Record<SpriteFrame, HTMLCanvasElement> {
   const base = buildCreatureCanvas(key, mood, variant, "base");
   if (key === "egg") {
-    return { base, blink: base, glanceL: base, glanceR: base, alt: base };
+    return { base, blink: base, glanceL: base, glanceR: base, peek: base, alt: base };
   }
   const body = BODIES[key] ?? BODIES.baby;
   return {
@@ -913,6 +931,7 @@ export function buildCreatureFrames(
     blink: buildCreatureCanvas(key, mood, variant, "blink"),
     glanceL: buildCreatureCanvas(key, mood, variant, "glanceL"),
     glanceR: buildCreatureCanvas(key, mood, variant, "glanceR"),
+    peek: buildCreatureCanvas(key, mood, variant, "peek"),
     alt: body.alt ? buildCreatureCanvas(key, mood, variant, "alt") : base,
   };
 }

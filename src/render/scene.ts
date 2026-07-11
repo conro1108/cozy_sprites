@@ -209,6 +209,7 @@ export class Scene {
   private forceGlance: -1 | 0 | 1 = 0; // per-frame: a quirk overrides the gaze
   private extraAlpha = 1; // per-frame: ghost flicker translucency
   private patSquintUntil = 0; // eyes held shut until this time (a savoured pat)
+  private crackEyeUntil = 0; // one eye held open until this time (poked mid-sleep)
   private settleStart = -Infinity; // last time it stopped moving → plop squish
   private raf = 0;
   private t0 = performance.now();
@@ -317,6 +318,12 @@ export class Scene {
   patSquint(): void {
     if (this.busy() || this.hidden) return;
     this.patSquintUntil = performance.now() + 750;
+  }
+
+  /** Poked while asleep: one eye cracks open for a moment, unimpressed. */
+  crackEye(): void {
+    if (this.hidden) return;
+    this.crackEyeUntil = performance.now() + 900;
   }
 
   /** Register the sound to play when the pet strikes up an idle song. Kept as
@@ -2284,7 +2291,11 @@ export class Scene {
 
     // --- Face life: quirk-driven glances only (no idle blink/glance jitter) -
     let sprite = this.creatureCanvas;
-    if (!v.asleep && v.key !== "egg") {
+    if (v.asleep) {
+      if (performance.now() < this.crackEyeUntil) {
+        sprite = this.frames.peek; // poked — one eye cracks open
+      }
+    } else if (v.key !== "egg") {
       if (performance.now() < this.patSquintUntil) {
         sprite = this.frames.blink; // eyes shut, savouring the pat
       } else if (this.altFrame) {

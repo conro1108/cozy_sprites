@@ -804,8 +804,18 @@ export const TAP_ANNOY_THRESHOLD = 4;
  *  - "answered": a genuine pat-call, satisfied. The cute payoff.
  *  - "hint": a call wants something a poke isn't (see `want`).
  *  - "spoiled": you comforted a fake tantrum. It's delighted. That's the trap.
+ *  - "peek": asleep, first poke in a while — one eye cracks open, no line.
+ *  - "shush": asleep, poked again mid-streak — it wants you to knock it off.
  */
-export type TapReaction = "react" | "ignore" | "annoyed" | "answered" | "hint" | "spoiled";
+export type TapReaction =
+  | "react"
+  | "ignore"
+  | "annoyed"
+  | "answered"
+  | "hint"
+  | "spoiled"
+  | "peek"
+  | "shush";
 
 export interface TapResult {
   state: PetState;
@@ -819,6 +829,15 @@ export function tap(state: PetState, now: number): TapResult {
   // The vapors: fainted dead away. A poke gets nothing, not even offense.
   if (s.sick && s.illness === "vapors") {
     return { state: s, reaction: "ignore", want: null };
+  }
+  // Asleep: no calls, no annoyance ledger — just a cracked eye, then a shush
+  // if you keep at it. Reuses the same streak/window fields as the awake game.
+  if (s.asleep) {
+    const wasQuiet = s.recentTaps.every((t) => now - t >= TAP_WINDOW_MS);
+    const recentTaps = [...s.recentTaps, now].filter((t) => now - t < TAP_WINDOW_MS);
+    const streakBase = wasQuiet ? 0 : s.tapStreak;
+    const next: PetState = { ...s, recentTaps, tapStreak: streakBase + 1 };
+    return { state: next, reaction: streakBase === 0 ? "peek" : "shush", want: null };
   }
   // Quiet means every previous poke has aged out of the window — that's what
   // earns a fresh "react" instead of continuing the ignore/annoyed streak.

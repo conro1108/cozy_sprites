@@ -705,6 +705,17 @@ function onTapPet(): void {
       scene?.triggerPulse("nudge");
       playSfx("tap");
       break;
+    case "peek":
+      // Asleep, first poke in a while: one eye cracks open, no line.
+      scene?.crackEye();
+      playSfx("tap");
+      break;
+    case "shush":
+      // Asleep, poked again: still cracks the eye, but now it says something.
+      scene?.crackEye();
+      sayCat("shush");
+      playSfx("tap");
+      break;
   }
   commit();
 }

@@ -11,6 +11,7 @@ export type Category =
   | "idle"
   | "tap"
   | "annoyed"
+  | "shush" // poked again while asleep — knock it off
   | "pat" // held/rubbed, not poked — always welcome
   | "pat_enough" // patted past the point of diminishing returns
   | "feed"
@@ -187,6 +188,15 @@ const GENERAL: Bank = {
     "The walls are thin.",
     "I will bite. Lovingly. But still.",
     "Boundaries. Look it up.",
+  ],
+  shush: [
+    "Shh.",
+    "Baby's sleeping.",
+    "The eye is open. The rest of me is not.",
+    "Five more minutes. I mean it this time.",
+    "Some of us have dreams to attend to.",
+    "...I saw that.",
+    "Rude. I am off duty.",
   ],
   feed: [
     "Finally.",
@@ -568,6 +578,7 @@ const ALWAYS_SPEAK: ReadonlySet<Category> = new Set([
   "lose",
   "full",
   "annoyed",
+  "shush",
   "feed_favorite",
   "feed_disliked",
   "discipline_correct",

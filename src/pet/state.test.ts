@@ -861,6 +861,40 @@ describe("tap", () => {
     expect(r.reaction).toBe("hint");
     expect(r.state.wantsAttention).toBe(true);
   });
+
+  it("peeks at the first poke while asleep, then shushes the rest of the streak", () => {
+    let pet = asStage(
+      { ...createPet("Milo", at(22)), lightsOn: false, asleep: true },
+      "child",
+    );
+    const first = tap(pet, at(22));
+    expect(first.reaction).toBe("peek");
+    pet = first.state;
+    const second = tap(pet, at(22) + 100);
+    expect(second.reaction).toBe("shush");
+    pet = second.state;
+    const third = tap(pet, at(22) + 200);
+    expect(third.reaction).toBe("shush");
+  });
+
+  it("peeks again once an asleep streak actually goes quiet", () => {
+    const pet = asStage(
+      { ...createPet("Milo", at(22)), lightsOn: false, asleep: true },
+      "child",
+    );
+    const first = tap(pet, at(22));
+    expect(first.reaction).toBe("peek");
+    const afterQuiet = tap(first.state, at(22) + TAP_WINDOW_MS);
+    expect(afterQuiet.reaction).toBe("peek");
+  });
+
+  it("still ignores a fainted (vapors) sleeper rather than peeking", () => {
+    const pet = asStage(
+      { ...createPet("Milo", at(22)), lightsOn: false, asleep: true, sick: true, illness: "vapors" as const },
+      "child",
+    );
+    expect(tap(pet, at(22)).reaction).toBe("ignore");
+  });
 });
 
 describe("pat", () => {
