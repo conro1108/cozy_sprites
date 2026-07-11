@@ -575,23 +575,24 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, h: "#f0c896", t: "#d9a86f" },
   },
   whistle: {
-    // a coach's whistle: round chamber, an orange mouthpiece poking out the
-    // left, and the air-hole slot on top. The "that's enough" gesture, upgraded.
+    // a coach's whistle in profile: a flat mouthpiece (left) with the air-hole
+    // on top, a round bell (right), and a little lanyard ring. The "that's
+    // enough" gesture, upgraded.
     rows: [
       "............",
-      "......kkk...",
-      ".....kdddk..",
-      "...kkkssskk.",
-      "..khsssssssk",
-      "kkkssssssssk",
-      "koossssssssk",
-      "koossssssssk",
-      "kkksssssssk.",
-      "..kssssssk..",
-      "...kkkkkk...",
+      ".........kk.",
+      ".......kkkk.",
+      "......ksssk.",
+      ".....ksssssk",
+      "kkkkkssssssk",
+      "kssdsssssssk",
+      "kssssssssssk",
+      "kkkkkssssssk",
+      "......ksssk.",
+      ".......kkk..",
       "............",
     ],
-    palette: { k: K, s: "#aeb7c4", h: "#e8edf3", d: "#7d8794", o: "#f0b24a" },
+    palette: { k: K, s: "#aeb7c4", d: "#7d8794" },
   },
   barn: {
     // a gambrel roof and hayloft door read as "the farm" at any size,
