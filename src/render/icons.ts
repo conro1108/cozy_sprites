@@ -12,6 +12,9 @@ export type IconName =
   | "moon"
   | "heart"
   | "heartgold"
+  | "hearthalf"
+  | "heartempty"
+  | "smiley"
   | "cake"
   | "carrot"
   | "noodles"
@@ -224,6 +227,60 @@ const ICONS: Record<IconName, IconDef> = {
       "............",
     ],
     palette: { k: K, r: "#f0b840", w: "#ffe9b0" },
+  },
+  // Half-full heart for the care meters: left lobe pink, right lobe hollow, so a
+  // half tick reads as a clean split rather than a vaguely-drained glyph.
+  hearthalf: {
+    rows: [
+      "............",
+      "..kk....kk..",
+      ".krrk..keek.",
+      "krwrrkkeeeek",
+      "krrrrreeeeek",
+      "krrrrreeeeek",
+      ".krrrreeeek.",
+      "..krrreeek..",
+      "...krreek...",
+      "....krek....",
+      ".....kk.....",
+      "............",
+    ],
+    palette: { k: K, r: "#ff5c7a", w: "#ffc2cf", e: "#d9c3a3" },
+  },
+  heartempty: {
+    rows: [
+      "............",
+      "..kk....kk..",
+      ".keek..keek.",
+      "keeeekkeeeek",
+      "keeeeeeeeeek",
+      "keeeeeeeeeek",
+      ".keeeeeeeek.",
+      "..keeeeeek..",
+      "...keeeek...",
+      "....keek....",
+      ".....kk.....",
+      "............",
+    ],
+    palette: { k: K, e: "#d9c3a3" },
+  },
+  // A round grin for the happiness meter — friendlier than a second heart.
+  smiley: {
+    rows: [
+      "............",
+      "...kkkkkk...",
+      "..kyyyyyyk..",
+      ".kyyyyyyyyk.",
+      ".kyykyykyyk.",
+      ".kyyyyyyyyk.",
+      ".kykyyyykyk.",
+      ".kyykkkkyyk.",
+      "..kyyyyyyk..",
+      "...kkkkkk...",
+      "............",
+      "............",
+    ],
+    palette: { k: K, y: "#f0b840" },
   },
   cake: {
     rows: [

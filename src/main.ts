@@ -52,7 +52,7 @@ import {
 import { Scene } from "./render/scene";
 import { creatureKey } from "./render/sprites";
 import type { Mood } from "./render/sprites";
-import { iconHTML, iconUrl } from "./render/icons";
+import { iconEl, iconHTML, iconUrl } from "./render/icons";
 import { notify } from "./ui/notifications";
 import { playSfx, playSong, unlockAudio } from "./ui/audio";
 import { initMenus, openCare, openCollection, openFood, openPlay, openStatus } from "./ui/menus";
@@ -224,7 +224,7 @@ function mountGame(): void {
     <div class="hud">
       <div class="meters">
         <div class="meter-row">${iconHTML("burger", 16)}<div class="hearts" data-hunger></div></div>
-        <div class="meter-row">${iconHTML("heartgold", 16)}<div class="hearts" data-happy></div></div>
+        <div class="meter-row">${iconHTML("smiley", 16)}<div class="hearts" data-happy></div></div>
         <div class="meter-row">${iconHTML("heart", 16)}<div class="health-bar"><div class="fill" data-health></div></div></div>
       </div>
       <div class="idcol">
@@ -378,17 +378,14 @@ function activityOf(p: PetState, now: number): number {
 
 function renderHearts(container: HTMLElement, value: number): void {
   container.innerHTML = "";
-  // Snap to half-heart steps so the meter ticks down discretely — each heart is
-  // empty, half, or full — rather than draining as a smooth continuous fill.
+  // Snap to half-heart steps so the meter ticks down discretely, then draw each
+  // slot as a hand-placed pixel heart (full / half / empty) matching the row
+  // icons — no smooth glyph fill.
   const q = Math.round(value * 2) / 2;
   for (let i = 0; i < MAX_HEARTS; i++) {
-    const heart = document.createElement("div");
-    heart.className = "heart";
-    const fill = document.createElement("div");
-    fill.className = "fill";
-    fill.style.width = `${Math.max(0, Math.min(1, q - i)) * 100}%`;
-    heart.appendChild(fill);
-    container.appendChild(heart);
+    const filled = q - i;
+    const name = filled >= 1 ? "heart" : filled >= 0.5 ? "hearthalf" : "heartempty";
+    container.appendChild(iconEl(name, 16));
   }
 }
 
