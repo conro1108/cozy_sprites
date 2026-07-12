@@ -65,7 +65,7 @@ replay hook: earning a different form (via different care) reveals a different
 home. Completing the set means living nine different lives.
 
 **No separate "places" screen** — a room is 1:1 with a form, so it just becomes
-part of that form's existing entry in the **Collection** (the nine-form grid we
+part of that form's existing entry in the **Collection** (the ten-form grid we
 already have). Discovering the form reveals its room as one more facet of who
 they are, next to the portrait and blurb — maybe a room thumbnail on the tile,
 or a fuller view when you tap it. This also means rooms inherit the form's own

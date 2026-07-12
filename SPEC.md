@@ -7,7 +7,7 @@ tour of how the game actually works today — not a design wishlist (see
 ## The arc
 
 **Egg → Baby → Child → Teen → Adult.** One straight line, no branching stage
-tree — the *branching* all happens in which of nine adult personalities you
+tree — the *branching* all happens in which of ten adult personalities you
 land on. Each stage has its own rhythm:
 
 - **Egg** — inert. Nothing drains, nothing can go wrong. It just waits to hatch.
@@ -16,7 +16,8 @@ land on. Each stage has its own rhythm:
 - **Child / Teen** — the long middle. Needs drain at a calmer pace. Teens start
   testing boundaries: more attention calls, and a good chunk of them are fake.
 - **Adult** — the destination. Growth stops; personality is locked in and the
-  game becomes about maintaining, not raising.
+  game becomes about maintaining, not raising. Adulthood isn't forever either
+  — see Retirement, below.
 
 A pet only ages while it's awake — sleep (see below) effectively pauses the
 clock, so neglecting bedtime is the fast way through childhood, not the slow one.
@@ -36,20 +37,27 @@ when things have been good *or* bad for a while, not from a single meal.
 
 ## Mess and sickness
 
-Food isn't magic — it has fiber, and fiber becomes a poop on a short digestive
-delay. Leave poop on the floor and it drags on health and raises the odds of
-falling sick. Sickness itself is random but weighted: bad health, an unclean
-floor, and a heavy cake habit all load the dice. Medicine cures it — most
-ailments in one dose, the plague takes two. Giving medicine when nothing's
-wrong is a small ding against you (don't cry wolf with the medicine cabinet).
+Poop shows up on its own regular schedule per life stage — it's not something
+food triggers directly. What food's fiber content decides is *quality*: a
+recent diet heavy in fiber means the next poop is a clean one that even helps
+health a little; a low-fiber run means a bad one that costs more health and
+raises the odds of falling sick. Leave any poop sitting on the floor and it
+drags on health and raises sickness odds further. Sickness itself is random
+but weighted: bad health, an unclean floor, and a heavy cake habit all load
+the dice. Medicine cures it — most ailments in one dose, the plague takes two.
+Giving medicine when nothing's wrong is a small ding against you (don't cry
+wolf with the medicine cabinet).
 
 ## Day, night, and sleep
 
 There's a day/night cycle. At night, turning the lights off lets the pet
 sleep — sleeping pets can't be fed, played with, or patted, but they also stop
-aging and their needs drain much more slowly. Leaving the lights on at night
-costs happiness (it can't sleep with them on). Morning relights the lantern on
-its own — nobody has to remember to do it.
+aging and their needs drain much more slowly. A full night of proper sleep
+(fed, clean, well) is rewarded with a small health bonus at dawn. Leaving the
+lights on at night means it stays up instead: needs still drain (just slower
+than daytime) but health chips away directly for every hour it's kept awake,
+and pulling a real all-nighter is logged as a care mistake by morning. Morning
+relights the lantern on its own — nobody has to remember to do it.
 
 Caring for the pet specifically at night, in the dark, is its own quiet thread
 — more on that below.
@@ -76,11 +84,12 @@ paying out if you overdo it.
 
 ## Feeding, playing, and favorites
 
-Five foods (burger, cake, carrot, noodles, the mysterious cube), six mini-games
-(Higher/Lower, Fetch, Rock-Paper-Scissors, Hide & Seek, Would You Rather, and
-the secret-feeling Cube's Hum). Every adult form has a favorite food (a bonus
-when fed) and usually a disliked one (a small penalty) — before adulthood,
-nobody has any opinions yet.
+Six foods across three health tiers — healthy (carrot, salad), neutral
+(soup, burger), and the treats (cake, the mysterious cube) — and six
+mini-games (Higher/Lower, Fetch, Rock-Paper-Scissors, Hide & Seek, Would You
+Rather, and the secret-feeling Cube's Hum). Every adult form has a favorite
+food (a bonus when fed) and usually a disliked one (a small penalty) —
+before adulthood, nobody has any opinions yet.
 
 ## Death
 
@@ -89,24 +98,49 @@ at rock bottom for a *sustained* stretch before the pet actually dies. A bad
 week doesn't kill it; abandoning it does. Eggs can't die at all. Death ends in
 a memorial and a fresh egg — the finished pet joins the Farm archive.
 
-## Becoming someone: the nine adult forms
+## Retirement
+
+Adults don't die of old age — they retire. Every adult quietly accrues a
+daytime "life" clock that ticks faster or slower depending on how it's doing
+(thriving pets age toward retirement slowly; a neglected one gets there
+sooner). It passes through two visible phases — **restless**, then
+**ready** — before it's actually time to go. Once ready, you can walk it to
+the farm yourself for a proper send-off; leave it waiting long enough and it
+departs on its own with the sunrise instead, gracefully, no drama. Either way
+it joins the Farm archive as a retiree rather than a memorial.
+
+The Farm itself isn't just a list — retired sprites loaf around a little
+paddock scene together, wandering and occasionally gathering, so past pets
+stay a small ongoing sight rather than a static gravestone wall.
+
+## A rare good mood: zoomies
+
+Every so often — never while sick, mid-call, or already off zooming, and only
+when happiness and health are both solidly good — the pet is seized by a
+short, joyful burst of pure energy and zooms around the screen for a few
+seconds. It's a moment to notice, not a state to manage: there's nothing to
+do about it and no penalty either way, it just runs its course and stops.
+
+## Becoming someone: the ten adult forms
 
 You are never shown a formula. The personality that emerges is a quiet read of
 *how* you raised it — what it ate, what it played, how honest you were with
 discipline, whether you ever cared for it in the dark. Six forms are visible
-from the start; three are secrets nobody tells you about until you earn one.
+from the start; three are earnable secrets nobody tells you about until you
+land one; one is a double-secret that no upbringing can earn at all.
 
 | Form | Emerges from |
 |---|---|
 | **Loyal Dog Thing** | A fetch enthusiast, consistently well cared for |
 | **Dramatic Blob** | A cake habit, plus a bit of drama and mild neglect |
-| **Gremlin** | Chaos: care mistakes, low discipline, a taste for the cube |
+| **Gremlin** | Pure chaos: a real pile of care mistakes with no discipline reining it in |
 | **Little Scholar** | High discipline, a Higher/Lower streak, and going easy on cake |
 | **Tired Office Creature** | The default — nothing about the upbringing strongly committed to anything |
 | **Fancy Little Menace** | High discipline, refined (cake-leaning) taste, very few mistakes |
 | **Quiet Ghost** *(secret)* | Raised mostly at night — care consistently given with the lights off |
 | **The Humming Cube** *(secret)* | A real cube diet paired with a devotion to the Cube's Hum game — calm, not chaotic |
 | **The Blessed Carrot** *(secret)* | Total dietary purity: carrots, every single meal, no exceptions |
+| **The Little Cosmos** *(double-secret)* | Nothing — pure luck, unconnected to how it was raised |
 
 If the upbringing genuinely didn't lean anywhere — a real toss-up between two
 paths — the game breaks the tie randomly rather than always picking the same
@@ -122,7 +156,7 @@ off the same handful of ingredients: what it ate, what it played, how good
 your discipline calls were, and whether care happened in the dark. At the
 teen→adult boundary, whichever form scored highest wins. Nothing is visible
 to the player — the table above is the honest summary, this is the fuller
-story of how the nine actually compete with each other.
+story of how the ten actually compete with each other.
 
 - **Loyal Dog Thing** wants two things at once: fetch played more than
   anything else, and a genuinely well-cared-for run (good health, discipline
@@ -135,11 +169,13 @@ story of how the nine actually compete with each other.
   its whole vibe. Too clean a record and it drifts toward Menace instead;
   too chaotic and it drifts toward Gremlin.
 
-- **Gremlin** is what happens when the cube and chaos arrive together: care
-  mistakes, low discipline, and a cube taste, with low discipline in
-  particular acting as the spark that ignites the other two. A pet that eats
-  cube calmly, with good discipline, doesn't read as a Gremlin at all — see
-  the Humming Cube below.
+- **Gremlin** is pure, undiluted chaos: a real pile of care mistakes, with a
+  bonus kick once low discipline is there too to make it structural rather
+  than incidental. Diet plays no part — the cube is a neutral food here, not
+  a bad one; eating plenty of it calmly and with good discipline doesn't read
+  as Gremlin at all, it reads as the Humming Cube below. Cube just happens to
+  be this form's favorite food once it's already a Gremlin, which is a
+  cosmetic/dialogue detail, not one of the ingredients that gets it there.
 
 - **Little Scholar** is discipline plus curiosity, expressed as vegetables:
   a strong discipline record, a Higher/Lower habit, and actively avoiding
@@ -178,7 +214,15 @@ story of how the nine actually compete with each other.
   and this path is off the table for good — there's no partial credit, which
   is what makes it worth chasing.
 
+- **The Little Cosmos** *(double-secret)* takes no part in the scoring above
+  at all — nothing you do can aim for it. After the scoring settles on a
+  winner, there's a flat, tiny chance (about 1 in 100) that the night sky
+  quietly keeps the pet instead, regardless of how it was raised. The one
+  exception is a pet that was headed for Gremlin — the sky doesn't want those.
+
 When the scoring comes out close — two or more forms within a hair of each
 other — the game treats that as a genuine toss-up and rolls between the
 near-tied candidates rather than mechanically favoring one, so the rare
-ambiguous raising doesn't always resolve to the identical adult.
+ambiguous raising doesn't always resolve to the identical adult. The Little
+Cosmos's luck-based roll happens on top of that, after a candidate has
+already been picked.
