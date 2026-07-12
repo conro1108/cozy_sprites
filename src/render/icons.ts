@@ -796,6 +796,8 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, w: "#fdf3e0", r: "#e05c48" },
   },
   rock: {
+    // Same 9-row vertical footprint as paper (1 blank row top, 2 bottom) —
+    // it used to stop after 7 rows, floating small in the top half.
     rows: [
       "............",
       "...kkkkkk...",
@@ -803,10 +805,10 @@ const ICONS: Record<IconName, IconDef> = {
       ".kswwsssssk.",
       ".kssssssssk.",
       ".kssssssssk.",
+      ".kssssssssk.",
+      ".kssssssssk.",
       "..kssssssk..",
       "...kkkkkk...",
-      "............",
-      "............",
       "............",
       "............",
     ],
