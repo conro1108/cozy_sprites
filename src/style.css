@@ -1504,6 +1504,15 @@ body {
   margin: 6px 0;
 }
 
+/* Buttons in a choice row sit side by side, not stacked — the row's own
+   margin above already provides clearance, so each button's individual
+   `.stage-controls .btn` top margin (meant for stacked buttons, e.g. a Done
+   button under a hint) only needs to be cancelled here, or it stacks on top
+   of the row's margin and pushes the row down off-center. */
+.stage-controls .game-choices .btn {
+  margin-top: 0;
+}
+
 /* RPS: chunky icon-only choices at the bottom, and the flying clone that
    carries the tapped choice from there up into the in-scene reveal. */
 .rps-choices {
