@@ -1515,9 +1515,9 @@ body {
 .rps-choice {
   width: 56px;
   height: 56px;
-  border-radius: 50%;
+  border-radius: 14px;
   border: 2px solid var(--wood);
-  background: #fffdf7;
+  background: var(--cream-2);
   display: flex;
   align-items: center;
   justify-content: center;

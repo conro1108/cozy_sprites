@@ -848,7 +848,8 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { k: K, h: "#f0c896", t: "#d9a86f" },
   },
   scissors: {
-    // blades in the outline ink itself; outlined red handle loops
+    // blades in the outline ink itself; open (transparent) handle loops so
+    // whatever's behind the icon shows through instead of a fixed fill.
     rows: [
       "............",
       ".kk......kk.",
@@ -858,12 +859,12 @@ const ICONS: Record<IconName, IconDef> = {
       ".....kk.....",
       "....kkkk....",
       "..kkk..kkk..",
-      "..krk..krk..",
-      "..krk..krk..",
+      "..k.k..k.k..",
+      "..k.k..k.k..",
       "..kkk..kkk..",
       "............",
     ],
-    palette: { k: K, r: "#e05c48" },
+    palette: { k: K },
   },
 };
 
