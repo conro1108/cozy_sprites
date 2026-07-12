@@ -929,10 +929,14 @@ function stepPet(now: number, withEvents: boolean): boolean {
   const wasNight = isNight(pet.lastUpdated);
   const prevPhase = retirementPhase(pet);
   const elapsed = now - pet.lastUpdated;
+  // Snapshot the lantern BEFORE decay: applyElapsedDecay relights it at dawn, so
+  // by the time it returns, every overnight span looks like it was spent awake.
+  // stepEvents has to judge the night by how it actually was. See its docblock.
+  const lightsOnDuringSpan = pet.lightsOn;
   pet = applyElapsedDecay(pet, now);
   let events: string[] = [];
   if (withEvents) {
-    const r = stepEvents(pet, elapsed);
+    const r = stepEvents(pet, elapsed, undefined, lightsOnDuringSpan);
     pet = r.state;
     events = r.events;
   }

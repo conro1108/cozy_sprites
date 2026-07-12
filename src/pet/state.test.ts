@@ -1473,3 +1473,148 @@ describe("save migration", () => {
     expect(migrated.callStartedAt).toBe(migrated.lastUpdated);
   });
 });
+
+// --- Regressions --------------------------------------------------------------
+// Both of these were live bugs. They are the reason the diagnostics below exist.
+
+describe("overnight event replay (a sleeping pet is not an awake one)", () => {
+  /** Reproduces the real sequence: pet tucked in at 10pm, app closed, reopened
+   *  after dawn. applyElapsedDecay relights the lantern on the way through, so
+   *  the state handed to stepEvents claims the pet is awake with the lights on.
+   *  stepEvents must still judge the night by how it actually was. */
+  function sleepThroughTheNight(rng: () => number) {
+    const bedtime = at(22);
+    // Exactly dawn: the whole span is night, so a sleeping pet should roll
+    // nothing at all. (Past 8am the pet is legitimately awake and does roll.)
+    const morning = at(32);
+    const pet: PetState = {
+      ...asStage(createPet("Milo", bedtime), "adult"),
+      lightsOn: false,
+      asleep: true,
+    };
+    const lightsOnDuringSpan = pet.lightsOn;
+    const decayed = applyElapsedDecay(pet, morning);
+    // The dawn relight is what sets the trap — assert it really happened.
+    expect(decayed.lightsOn).toBe(true);
+    expect(decayed.asleep).toBe(false);
+    return stepEvents(decayed, morning - bedtime, rng, lightsOnDuringSpan);
+  }
+
+  it("rolls no events across a night spent asleep, even with a certain rng", () => {
+    // rng() === 0 makes every probability check fire, so any unskipped chunk
+    // would poop, fall ill and place a call. The night must roll nothing at all.
+    const { state, events } = sleepThroughTheNight(() => 0);
+    expect(events).toEqual([]);
+    expect(state.poops).toBe(0);
+    expect(state.sick).toBe(false);
+  });
+
+  it("charges no care mistakes for calls a sleeping pet never made", () => {
+    const { state } = sleepThroughTheNight(() => 0);
+    expect(state.hidden.careMistakes).toBe(0);
+  });
+
+  it("still rolls events for a night the pet was left awake under the lights", () => {
+    const bedtime = at(22);
+    const morning = at(32);
+    const pet: PetState = {
+      ...asStage(createPet("Milo", bedtime), "adult"),
+      lightsOn: true,
+      asleep: false,
+    };
+    const decayed = applyElapsedDecay(pet, morning);
+    const { state } = stepEvents(decayed, morning - bedtime, () => 0, true);
+    expect(state.poops).toBeGreaterThan(0);
+  });
+});
+
+describe("the doom clock never freezes part-spent", () => {
+  /** A pet nursed back to 1-10 health used to keep its part-spent death clock
+   *  forever — the reset only fired above 10. Nothing on any screen showed it,
+   *  and the next dip to zero killed in minutes instead of two hours. */
+  it("unwinds while health sits in the fragile 1-10 band", () => {
+    const pet: PetState = {
+      ...asStage(createPet("Milo", T0), "adult"),
+      health: 8,
+      zeroHealthMs: 1.5 * HOUR,
+    };
+    const later = applyElapsedDecay(pet, T0 + HOUR);
+    expect(later.zeroHealthMs).toBeLessThan(1.5 * HOUR);
+  });
+
+  it("wipes outright once the pet is properly recovered", () => {
+    const pet: PetState = {
+      ...asStage(createPet("Milo", T0), "adult"),
+      health: 60,
+      zeroHealthMs: 1.5 * HOUR,
+    };
+    expect(applyElapsedDecay(pet, T0 + 60_000).zeroHealthMs).toBe(0);
+  });
+
+  it("still kills after a full unbroken span at zero health", () => {
+    const pet: PetState = {
+      ...asStage(createPet("Milo", T0), "adult"),
+      health: 0,
+      energy: 0,
+      happiness: 0,
+    };
+    const dead = applyElapsedDecay(pet, T0 + DEATH_AFTER_ZERO_HEALTH_MS + 60_000);
+    expect(dead.deadAt).not.toBeNull();
+  });
+
+  it("does not kill a fragile pet minutes after it dips back to zero", () => {
+    // 1h50m of clock already banked, then two hours spent at 8 health (which
+    // unwinds it), then back to zero. It must get the full two hours again.
+    const nursed: PetState = {
+      ...asStage(createPet("Milo", T0), "adult"),
+      health: 8,
+      zeroHealthMs: 1.83 * HOUR,
+    };
+    const recovered = applyElapsedDecay(nursed, T0 + 2 * HOUR);
+    expect(recovered.zeroHealthMs).toBe(0);
+    const relapsed = applyElapsedDecay(
+      { ...recovered, health: 0, energy: 0 },
+      recovered.lastUpdated + 30 * 60_000,
+    );
+    expect(relapsed.deadAt).toBeNull();
+  });
+});
+
+describe("diagnostics", () => {
+  it("samples vitals about once an hour", () => {
+    const pet = asStage(createPet("Milo", T0), "adult");
+    const later = applyElapsedDecay(pet, T0 + 5 * HOUR);
+    expect(later.vitals.length).toBeGreaterThanOrEqual(4);
+    expect(later.vitals.length).toBeLessThanOrEqual(6);
+    expect(later.vitals[0].health).toBeTypeOf("number");
+  });
+
+  it("logs the night's ledger at dawn", () => {
+    const pet: PetState = {
+      ...asStage(createPet("Milo", at(22)), "adult"),
+      lightsOn: false,
+      asleep: true,
+    };
+    const morning = applyElapsedDecay(pet, at(32, 20));
+    const dawn = morning.diag.filter((d) => d.kind === "dawn");
+    expect(dawn).toHaveLength(1);
+    expect(dawn[0].note).toMatch(/slept/);
+  });
+
+  it("records the death, with its cause", () => {
+    const pet: PetState = {
+      ...asStage(createPet("Milo", T0), "adult"),
+      health: 0,
+      energy: 0,
+    };
+    const dead = applyElapsedDecay(pet, T0 + DEATH_AFTER_ZERO_HEALTH_MS + 60_000);
+    const death = dead.diag.find((d) => d.kind === "death");
+    expect(death?.note).toBe(dead.causeOfDeath);
+  });
+
+  it("does not mutate the trail of the state it was handed", () => {
+    const pet = asStage(createPet("Milo", T0), "adult");
+    applyElapsedDecay(pet, T0 + 5 * HOUR);
+    expect(pet.vitals).toHaveLength(0);
+  });
+});

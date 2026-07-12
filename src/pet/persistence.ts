@@ -91,6 +91,11 @@ export function migratePet(p: PetState): PetState {
     stageElapsedMs:
       p.stageElapsedMs ?? Math.max(0, (p.lastUpdated ?? 0) - (p.stageStartedAt ?? 0)),
     recentPats: p.recentPats ?? [],
+    // Diagnostics. Saves from before the trail existed start it empty rather
+    // than fabricating history — an absent trail reads as "we weren't recording
+    // yet", which is the truth.
+    vitals: p.vitals ?? [],
+    diag: p.diag ?? [],
     // Backfill hidden stats + any newly-added game counters (e.g. cubehum) so an
     // old save doesn't turn gamePlays[newGame]++ into NaN and poison scoring.
     hidden: {
@@ -143,7 +148,11 @@ export function wipeFarm(discovered: AdultForm[]): void {
 
 /** Retire the active pet into the farm archive and return the new archive.
  *  Dead pets get a memorial entry instead of a retirement one; a pet that
- *  departed on its own at dawn is dated to the sunrise it left with. */
+ *  departed on its own at dawn is dated to the sunrise it left with.
+ *
+ *  The full final state rides along in `final`. Burial used to be the end of the
+ *  evidence: clearPet() wiped the only copy, so a death could never be explained
+ *  afterwards — you were left with a one-line cause and no way to check it. */
 export function retireToFarm(state: PetState, now: number): FarmEntry[] {
   const endedAt = state.deadAt ?? state.departedAt ?? now;
   const entry: FarmEntry = {
@@ -155,6 +164,7 @@ export function retireToFarm(state: PetState, now: number): FarmEntry[] {
     retiredAt: endedAt,
     passedAway: state.deadAt !== null,
     cause: state.causeOfDeath,
+    final: state,
   };
   const farm = [entry, ...loadFarm()];
   saveFarm(farm);

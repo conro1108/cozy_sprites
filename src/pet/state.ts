@@ -15,6 +15,7 @@ import { ILLNESSES, MAX_HEARTS, emptyHidden } from "./types";
 import type {
   AdultForm,
   AttentionWant,
+  DiagKind,
   FoodId,
   GameId,
   IllnessId,
@@ -160,6 +161,49 @@ const MISTAKE_INTERVAL_MS = 30 * 60_000; // one care mistake per 30min of neglec
  *  daylight — combined with the drain rates above, total abandonment kills in
  *  roughly 10–12 awake hours, never overnight. */
 export const DEATH_AFTER_ZERO_HEALTH_MS = 2 * HOUR;
+/** Health above which the doom clock is wiped outright: the pet is properly
+ *  back on its feet. Between 0 and here it isn't frozen — it unwinds (see
+ *  decaySegment). Freezing it would leave a nursed-but-fragile pet carrying a
+ *  part-spent death clock indefinitely, with nothing on screen to show it. */
+const RECOVERED_HEALTH = 10;
+
+// --- Diagnostics -------------------------------------------------------------
+// Bounded rings, oldest dropped first. Sized to hold a pet's entire life at
+// hourly resolution — an adult lasts ~7 awake-days, so a long one runs a
+// fortnight of wall clock. That's ~70KB of save, rewritten every few seconds
+// to localStorage: no network, no serialisation worth worrying about. Better
+// to keep the whole trail than to lose the one hour that explains a death.
+const VITALS_INTERVAL_MS = HOUR;
+const VITALS_CAP = 400;
+const DIAG_CAP = 400;
+
+/** Log a notable transition. Mutates `s`. */
+function logEvent(s: PetState, t: number, kind: DiagKind, detail?: string): void {
+  s.diag.push(detail === undefined ? { t, kind } : { t, kind, note: detail });
+  if (s.diag.length > DIAG_CAP) s.diag.splice(0, s.diag.length - DIAG_CAP);
+}
+
+const r1 = (v: number): number => Math.round(v * 10) / 10;
+
+/** Snapshot vitals if an hour has passed since the last sample. Mutates `s`. */
+function sampleVitals(s: PetState, t: number): void {
+  const last = s.vitals[s.vitals.length - 1];
+  if (last && t - last.t < VITALS_INTERVAL_MS) return;
+  s.vitals.push({
+    t,
+    health: r1(s.health),
+    energy: r1(s.energy),
+    happiness: r1(s.happiness),
+    weight: r1(s.weight),
+    poops: s.poops,
+    illness: s.sick ? s.illness : null,
+    asleep: s.asleep,
+    lightsOn: s.lightsOn,
+    zeroHealthMs: Math.round(s.zeroHealthMs),
+    careMistakes: r1(s.hidden.careMistakes),
+  });
+  if (s.vitals.length > VITALS_CAP) s.vitals.splice(0, s.vitals.length - VITALS_CAP);
+}
 
 // --- Night ledger ------------------------------------------------------------
 export const ALL_NIGHTER_MS = 10 * HOUR; // awake ≥10h of the night = a mistake
@@ -250,6 +294,8 @@ export function createPet(name: string, now: number): PetState {
     zoomies: false,
     zoomiesStartedAt: null,
     hidden: emptyHidden(),
+    vitals: [],
+    diag: [{ t: now, kind: "hatched" }],
     recentTaps: [],
     recentPats: [],
     tapStreak: 0,
@@ -330,7 +376,12 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
     return { ...state, lastUpdated: now };
   }
   const wasAsleep = state.asleep;
-  const s: PetState = { ...state, hidden: { ...state.hidden } };
+  const s: PetState = {
+    ...state,
+    hidden: { ...state.hidden },
+    vitals: [...state.vitals],
+    diag: [...state.diag],
+  };
   let cursor = s.lastUpdated;
 
   // Legacy saves: an in-flight call from before call expiry existed starts its
@@ -409,6 +460,15 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
 
 /** Settle the night's accounts. Runs exactly once per dawn crossing. */
 function dawnHook(s: PetState, at: number): void {
+  // The night, as it actually went — the single most useful line in the log,
+  // since it covers the hours nobody was watching.
+  logEvent(
+    s,
+    at,
+    "dawn",
+    `awake ${(s.nightAwakeMs / HOUR).toFixed(1)}h, slept ${(s.nightSleepMs / HOUR).toFixed(1)}h, ` +
+      `health ${r1(s.health)}, poops ${s.poops}`,
+  );
   if (s.stage !== "egg" && s.deadAt === null) {
     // Kept up all night — whoever left the lantern burning owns this one.
     if (s.nightAwakeMs >= ALL_NIGHTER_MS) {
@@ -448,7 +508,8 @@ function clearCall(s: PetState): void {
 }
 
 /** Cure the current illness (medicine, nap, or time) with a health bump. */
-function cureIllness(s: PetState, healthBonus: number): void {
+function cureIllness(s: PetState, healthBonus: number, at: number, via: string): void {
+  logEvent(s, at, "cured", `${s.illness ?? "ailment"} (${via})`);
   s.sick = false;
   s.illness = null;
   s.dosesGiven = 0;
@@ -493,14 +554,14 @@ function decaySegment(s: PetState, seg: number, segTime: number, night: boolean)
   if (fx && day) {
     s.illnessMs += seg;
     if (fx.selfResolveMs !== null && s.illnessMs >= fx.selfResolveMs) {
-      cureIllness(s, 0); // the sniffles pass on their own
+      cureIllness(s, 0, segTime, "ran its course"); // the sniffles pass on their own
     }
   }
   // Daytime lights-off is a nap; a proper one shakes off the vapors.
   if (day && !s.lightsOn && s.stage !== "egg") {
     s.napMs += seg;
     if (s.sick && s.illness && ILLNESSES[s.illness].napCure && s.napMs >= NAP_CURE_MS) {
-      cureIllness(s, 6);
+      cureIllness(s, 6, segTime, "nap");
     }
   } else {
     s.napMs = 0;
@@ -556,17 +617,31 @@ function decaySegment(s: PetState, seg: number, segTime: number, night: boolean)
   // can't die, and the doom clock only runs in daylight — see file header.
   if (s.stage !== "egg" && s.health <= 0) {
     if (day) {
+      if (s.zeroHealthMs === 0) logEvent(s, segTime, "zero-health");
       s.zeroHealthMs += seg;
       if (s.zeroHealthMs >= DEATH_AFTER_ZERO_HEALTH_MS) {
         s.deadAt = segTime;
         s.causeOfDeath = causeOfDeath(s);
         s.asleep = false;
         clearCall(s);
+        logEvent(s, segTime, "death", s.causeOfDeath);
+        sampleVitals(s, segTime);
       }
     }
-  } else if (s.health > 10) {
-    s.zeroHealthMs = 0; // meaningfully recovered — reset the doom clock
+  } else if (s.health > RECOVERED_HEALTH) {
+    if (s.zeroHealthMs > 0) logEvent(s, segTime, "recovered");
+    s.zeroHealthMs = 0; // properly back on its feet — wipe the doom clock
+  } else if (s.zeroHealthMs > 0) {
+    // Above zero but still fragile. The clock unwinds at the rate it wound up,
+    // so time spent off death's door genuinely buys the pet time back. It must
+    // NOT simply freeze here: that would leave a pet nursed to 1–10 health
+    // carrying a part-spent death clock forever, invisible on every screen,
+    // and the next dip to zero would kill it in minutes.
+    s.zeroHealthMs = Math.max(0, s.zeroHealthMs - seg);
+    if (s.zeroHealthMs === 0) logEvent(s, segTime, "recovered");
   }
+
+  sampleVitals(s, segTime);
 }
 
 /** What gets carved on the memorial. Illness wins; otherwise infer neglect. */
@@ -596,6 +671,7 @@ function advanceOne(s: PetState, at: number): void {
     s.happiness = Math.min(s.happiness, 2);
   }
   if (next === "adult") s.form = determineAdultForm(s.hidden, s.health);
+  logEvent(s, at, "stage", next === "adult" ? `adult (${s.form})` : next);
 }
 
 // --- Player actions ---------------------------------------------------------
@@ -670,7 +746,9 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   if (cannotAct(s)) {
     return { state: s, note: "cant" };
   }
-  s = { ...s, hidden: { ...s.hidden } };
+  // diag is cloned too: applyElapsedDecay hands back the input untouched when no
+  // time has passed, so logEvent below would otherwise push into the caller's array.
+  s = { ...s, hidden: { ...s.hidden }, diag: [...s.diag] };
   // Judge the call before the food lands, or we'd be judging post-feed energy.
   const unjustified = callUnjustified(s);
   const def = FOODS[food];
@@ -699,6 +777,8 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
     happyBonus -= 0.5;
     note = "disliked";
   }
+
+  logEvent(s, now, "fed", food);
 
   // Dysentery: it runs right through — meals only half stick.
   const efficiency = s.sick && s.illness ? ILLNESSES[s.illness].foodEfficiency : 1;
@@ -733,7 +813,7 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
     // A cure, not a tonic: it clears the illness and leaves health where it
     // found it (soup is the neutral tier — plain fuel). Overrides any
     // favorite/disliked note; the sickness lifting is the headline.
-    cureIllness(s, 0);
+    cureIllness(s, 0, now, "soup");
     note = "soupcure";
   }
 
@@ -784,7 +864,8 @@ export function applyGameResult(
 export function clean(state: PetState, now: number): ActionResult {
   const s = applyElapsedDecay(state, now);
   if (s.poops === 0) return { state: s, note: "nothing" };
-  const next = { ...s, poops: 0, hasBadPoop: false };
+  const next = { ...s, poops: 0, hasBadPoop: false, diag: [...s.diag] };
+  logEvent(next, now, "cleaned", `${s.poops} swept`);
   // Tidying up in the dark counts toward the Ghost path, like other night care.
   if (isNight(now) && !next.lightsOn) {
     next.hidden = { ...next.hidden, nightCare: next.hidden.nightCare + 1 };
@@ -807,12 +888,14 @@ export function giveMedicine(state: PetState, now: number): ActionResult {
   }
   const given = s.dosesGiven + 1;
   if (given < needed) {
-    s = { ...s, dosesGiven: given, lastDoseAt: now, health: clamp100(s.health + 4) };
+    s = { ...s, dosesGiven: given, lastDoseAt: now, health: clamp100(s.health + 4), diag: [...s.diag] };
+    logEvent(s, now, "medicine", `dose ${given}/${needed}`);
     if (!s.lightsOn) s.hidden = { ...s.hidden, nightCare: s.hidden.nightCare + 1 };
     return { state: s, note: "dose" };
   }
-  s = { ...s };
-  cureIllness(s, 12);
+  s = { ...s, diag: [...s.diag] };
+  logEvent(s, now, "medicine", `dose ${given}/${needed}`);
+  cureIllness(s, 12, now, "medicine");
   if (!s.lightsOn) s.hidden = { ...s.hidden, nightCare: s.hidden.nightCare + 1 };
   return { state: s, note: "cured" };
 }
@@ -1022,25 +1105,33 @@ const EVENT_CHUNK_MS = 15 * 60_000;
 /**
  * Advance random world events over `elapsed` ms (ending at state.lastUpdated —
  * callers run applyElapsedDecay first). Time is replayed in EVENT_CHUNK_MS
- * slices; slices where the pet is asleep are skipped (quiet time is about
+ * slices; slices where the pet was asleep are skipped (quiet time is about
  * being asleep, not the hour — an awake pet with the lights on still gets
  * messes, calls, and the odd bug at 2am). rng defaults to Math.random.
+ *
+ * `lightsOnDuringSpan` MUST be the lantern's state as it was across the span
+ * being replayed — i.e. read off the state BEFORE applyElapsedDecay touched it.
+ * This is not a nicety. applyElapsedDecay relights the lantern at dawn (see the
+ * dawn branch there), so the post-decay state says "lights on, awake" every
+ * single morning. Judging the night against that value marks all of it awake,
+ * and a pet that slept soundly gets a full night of messes, illnesses and
+ * unanswered-call care mistakes replayed onto it the moment the app is opened.
  */
 export function stepEvents(
   state: PetState,
   elapsed: number,
   rng: () => number = Math.random,
+  lightsOnDuringSpan: boolean = state.lightsOn,
 ): EventResult {
   const events: string[] = [];
   if (
     state.stage === "egg" ||
-    state.asleep ||
     state.deadAt !== null ||
     state.departedAt !== null
   ) {
     return { state, events };
   }
-  const s: PetState = { ...state, hidden: { ...state.hidden } };
+  const s: PetState = { ...state, hidden: { ...state.hidden }, diag: [...state.diag] };
   const start = s.lastUpdated - elapsed;
   let offset = 0;
 
@@ -1049,8 +1140,9 @@ export function stepEvents(
     const chunkStart = start + offset;
     offset += chunk;
     // Egg is already excluded above, so this mirrors applyElapsedDecay's own
-    // asleep test exactly: night and lights off.
-    if (isNight(chunkStart) && !s.lightsOn) continue;
+    // asleep test exactly: night and lights off. Note this reads the caller's
+    // snapshot, NOT s.lightsOn — see lightsOnDuringSpan on the signature.
+    if (isNight(chunkStart) && !lightsOnDuringSpan) continue;
     const perHour = chunk / HOUR;
 
     // Pooping happens on a regular per-stage schedule, at most one mess per
@@ -1062,6 +1154,7 @@ export function stepEvents(
       if (rng() < poopPerHour * perHour) {
         s.poops++;
         events.push("poop");
+        logEvent(s, chunkStart + chunk, "poop", `now ${s.poops} on the floor`);
         // Quality comes from recent diet — dysentery always fouls it, fiber
         // decides the rest. Neutral does nothing special; good and bad each
         // cost weight (a bad gut works harder), bad costs a lot more health
@@ -1092,6 +1185,7 @@ export function stepEvents(
         s.lastDoseAt = null;
         s.illnessMs = 0;
         events.push("sick");
+        logEvent(s, chunkStart + chunk, "sick", s.illness);
       }
     }
 

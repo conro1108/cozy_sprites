@@ -4,10 +4,14 @@ import {
   importSave,
   loadDiscoveredForms,
   loadFarm,
+  migratePet,
+  retireToFarm,
   saveDiscoveredForms,
   saveFarm,
   wipeFarm,
 } from "./persistence";
+import { createPet } from "./state";
+import type { PetState } from "./types";
 import type { AdultForm, FarmEntry } from "./types";
 
 // The test env is plain node — no localStorage. Stub the two methods
@@ -83,5 +87,49 @@ describe("export/import round trip", () => {
     const legacyCode = btoa(encodeURIComponent(JSON.stringify({ v: 1, pet: null, farm: [] })));
     expect(importSave(legacyCode)).toBe(true);
     expect(loadDiscoveredForms()).toEqual(["dog", "carrot"]);
+  });
+});
+
+describe("burial keeps the evidence", () => {
+  // Burial used to call clearPet() on the only copy of the state, so a death
+  // could never be explained after the fact — just a one-line cause, unverifiable.
+  it("carries the full final state into the farm entry", () => {
+    const pet: PetState = {
+      ...createPet("Archibald", 1000),
+      stage: "adult",
+      form: "gremlin",
+      deadAt: 5000,
+      causeOfDeath: "an empty bowl",
+      health: 0,
+      zeroHealthMs: 7_200_000,
+    };
+    const farm = retireToFarm(pet, 6000);
+    expect(farm[0].final?.zeroHealthMs).toBe(7_200_000);
+    expect(farm[0].final?.diag.some((d) => d.kind === "hatched")).toBe(true);
+    expect(farm[0].retiredAt).toBe(5000); // dated to the death, not the burial
+  });
+
+  it("survives an export/import round trip", () => {
+    const pet: PetState = {
+      ...createPet("Archibald", 1000),
+      deadAt: 5000,
+      causeOfDeath: "an empty bowl",
+    };
+    retireToFarm(pet, 6000);
+    const code = exportSave();
+    saveFarm([]);
+    expect(importSave(code)).toBe(true);
+    expect(loadFarm()[0].final?.name).toBe("Archibald");
+  });
+});
+
+describe("migratePet backfills the diagnostics trail", () => {
+  it("starts an empty trail for saves written before it existed", () => {
+    const legacy = { ...createPet("Old", 1) } as Partial<PetState>;
+    delete legacy.vitals;
+    delete legacy.diag;
+    const m = migratePet(legacy as PetState);
+    expect(m.vitals).toEqual([]);
+    expect(m.diag).toEqual([]);
   });
 });

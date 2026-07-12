@@ -218,6 +218,11 @@ export interface PetState {
 
   hidden: HiddenStats;
 
+  /** Debug trail: hourly vitals and notable transitions, both bounded rings.
+   *  See the Diagnostics block below. Never shown to the player. */
+  vitals: VitalsSample[];
+  diag: DiagEvent[];
+
   recentTaps: number[];
   /** Timestamps of recent pats, for the pat satiation window (mirrors
    *  recentTaps). A pat is never punished; past a threshold it just stops
@@ -228,6 +233,52 @@ export interface PetState {
    *  `recentTaps`'s trailing window. Resets only once the streak goes quiet. */
   tapStreak: number;
   lastIdleLineAt: number;
+}
+
+// --- Diagnostics --------------------------------------------------------------
+// A pet's final hours are the ones nobody is awake to watch, so the state alone
+// can't answer "how did it get like this". These two bounded rings record the
+// trail: hourly vitals, plus the notable transitions between them. They ride
+// along in PetState (so they persist across reloads) and are copied into the
+// FarmEntry on burial, so a death stays reconstructable after the pet is gone.
+
+/** One hourly snapshot. Floats are rounded — this is for reading, not maths. */
+export interface VitalsSample {
+  t: number;
+  health: number;
+  energy: number;
+  happiness: number;
+  weight: number;
+  poops: number;
+  illness: IllnessId | null;
+  asleep: boolean;
+  lightsOn: boolean;
+  /** The death clock. Anything nonzero here is the signal that matters most. */
+  zeroHealthMs: number;
+  careMistakes: number;
+}
+
+export type DiagKind =
+  | "hatched"
+  | "stage"
+  | "sick"
+  | "cured"
+  | "poop"
+  | "fed"
+  | "cleaned"
+  | "medicine"
+  | "played"
+  | "dawn"
+  | "zero-health"
+  | "recovered"
+  | "death";
+
+/** A notable transition, logged as it happens. `note` carries the detail —
+ *  the illness name, the food, the cause of death. */
+export interface DiagEvent {
+  t: number;
+  kind: DiagKind;
+  note?: string;
 }
 
 export interface FarmEntry {
@@ -241,6 +292,10 @@ export interface FarmEntry {
   passedAway?: boolean;
   /** e.g. "dysentery" — memorialised on the farm card. */
   cause?: string | null;
+  /** The full final state, kept for debugging. A memorial card never shows
+   *  this; it exists so a death can still be explained days later. Optional
+   *  because entries written before diagnostics existed won't have it. */
+  final?: PetState;
 }
 
 export function emptyHidden(): HiddenStats {
