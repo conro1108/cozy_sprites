@@ -39,6 +39,7 @@ import {
 } from "./pet/dialogue";
 import type { Category } from "./pet/dialogue";
 import { determineAdultForm } from "./pet/evolution";
+import { spriteWon } from "./pet/games";
 import {
   exportSave,
   importSave,
@@ -869,9 +870,12 @@ function doFinishGame(game: GameId, won: boolean, line?: string, reach = 0): voi
     scene?.triggerPulse("happy");
     playSfx("happy");
   } else {
+    // Its reaction and its bounce follow *its* result (in RPS it gloats when it
+    // beats you); the jingle stays on yours — it scores the "You win" banner.
+    const itWon = spriteWon(game, won);
     if (line) say(line);
-    else sayCat(won ? "win" : "lose");
-    if (won || game === "wouldyou") scene?.triggerPulse("happy");
+    else sayCat(itWon ? "win" : "lose");
+    if (itWon || game === "wouldyou") scene?.triggerPulse("happy");
     // Would You Rather has no verdict to sound out — it's all opinion.
     if (game !== "wouldyou") playSfx(won ? "win" : "lose");
   }

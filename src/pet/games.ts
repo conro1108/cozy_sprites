@@ -1,6 +1,20 @@
 // Mini-game logic. Kept pure and rng-injectable; the UI owns presentation.
 
-import type { Stage } from "./types";
+import type { GameId, Stage } from "./types";
+
+// --- Who won, from the sprite's side of the table ----------------------------
+// Every game reports the *player's* result (`won`), but the sprite's feelings —
+// happiness credit, its reaction line, the happy bounce — key off *its* outcome.
+// Stances: fetch is played WITH the sprite and higher/lower and the cube's hum
+// are the two of you vs. the roll/the cube, so its result is the shared one.
+// RPS and hide-and-seek are played AGAINST it, so its result is the inverse.
+// (Would You Rather has no result at all; callers pass won=false.)
+
+const AGAINST_THE_SPRITE: ReadonlySet<GameId> = new Set(["rps", "hideseek"]);
+
+export function spriteWon(game: GameId, playerWon: boolean): boolean {
+  return AGAINST_THE_SPRITE.has(game) ? !playerWon : playerWon;
+}
 
 export type RpsMove = "rock" | "paper" | "scissors";
 export type Outcome = "win" | "lose" | "tie";

@@ -23,7 +23,7 @@ import type {
 } from "./types";
 import { FOODS } from "./roster";
 import { determineAdultForm } from "./evolution";
-import { cubeHumCredit } from "./games";
+import { cubeHumCredit, spriteWon } from "./games";
 
 export { MAX_HEARTS };
 
@@ -768,7 +768,9 @@ export function applyGameResult(
   // Judge the call before the game lifts happiness, or every play reads justified.
   const unjustified = callUnjustified(s);
   s.hidden.gamePlays[game]++;
-  let gain = game === "cubehum" ? cubeHumCredit(reach) : won ? 1.5 : 0.4;
+  // The reward follows the *sprite's* result: in adversarial games (RPS,
+  // hide-and-seek) it's happiest when it beats you, not when you beat it.
+  let gain = game === "cubehum" ? cubeHumCredit(reach) : spriteWon(game, won) ? 1.5 : 0.4;
   // Carrying extra weight takes some of the joy out of running around.
   if (s.weight >= OVERWEIGHT) gain *= 0.7;
   s.happiness = clampHearts(s.happiness + gain);

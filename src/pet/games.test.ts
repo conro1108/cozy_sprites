@@ -11,8 +11,24 @@ import {
   humMatches,
   cubeHumLine,
   cubeHumCredit,
+  spriteWon,
   CUBE_FACES,
 } from "./games";
+
+describe("spriteWon", () => {
+  it("inverts the player's result in adversarial games", () => {
+    expect(spriteWon("rps", true)).toBe(false);
+    expect(spriteWon("rps", false)).toBe(true);
+    expect(spriteWon("hideseek", true)).toBe(false);
+    expect(spriteWon("hideseek", false)).toBe(true);
+  });
+  it("shares the player's result in cooperative and vs-the-world games", () => {
+    expect(spriteWon("fetch", true)).toBe(true);
+    expect(spriteWon("fetch", false)).toBe(false);
+    expect(spriteWon("higherlower", true)).toBe(true);
+    expect(spriteWon("cubehum", false)).toBe(false);
+  });
+});
 
 describe("judgeRps", () => {
   it("rock beats scissors", () => {

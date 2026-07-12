@@ -623,6 +623,17 @@ describe("weight consequences", () => {
     expect(FOODS.cube.happiness).toBeGreaterThanOrEqual(0.5);
   });
 
+  it("pays the reward off the sprite's result — in RPS it's happiest when it beats you", () => {
+    const pet = asStage({ ...createPet("Milo", T0), happiness: 1 }, "adult");
+    const playerWins = applyGameResult(pet, "rps", true, T0).state.happiness;
+    const spriteWins = applyGameResult(pet, "rps", false, T0).state.happiness;
+    expect(spriteWins).toBeGreaterThan(playerWins);
+    // Fetch is played *with* it: the shared result still decides the reward.
+    const fetchWon = applyGameResult(pet, "fetch", true, T0).state.happiness;
+    const fetchLost = applyGameResult(pet, "fetch", false, T0).state.happiness;
+    expect(fetchWon).toBeGreaterThan(fetchLost);
+  });
+
   it("fetch burns more energy and weight than other games", () => {
     const pet = asStage({ ...createPet("Milo", T0), energy: 4, weight: 10 }, "adult");
     const afterFetch = applyGameResult(pet, "fetch", true, T0).state;
