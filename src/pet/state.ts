@@ -25,6 +25,7 @@ import type {
 import { FOODS } from "./roster";
 import { determineAdultForm } from "./evolution";
 import { cubeHumCredit, spriteWon } from "./games";
+import type { MatchResult } from "./games";
 
 export { MAX_HEARTS };
 
@@ -872,7 +873,7 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
 export function applyGameResult(
   state: PetState,
   game: GameId,
-  won: boolean,
+  won: MatchResult,
   now: number,
   reach = 0,
 ): ActionResult {
@@ -894,15 +895,20 @@ export function applyGameResult(
   const unjustified = callUnjustified(s);
   s.hidden.gamePlays[game]++;
   // The reward follows the *sprite's* result: in adversarial games (RPS,
-  // hide-and-seek) it's happiest when it beats you, not when you beat it.
-  let gain = game === "cubehum" ? cubeHumCredit(reach) : spriteWon(game, won) ? 1.5 : 0.4;
+  // hide-and-seek) it's happiest when it beats you, not when you beat it. A
+  // match tie is nobody's win, so it banks the flat midpoint between the two.
+  let gain: number;
+  if (game === "cubehum") gain = cubeHumCredit(reach);
+  else if (won === "tie") gain = 0.95;
+  else gain = spriteWon(game, won) ? 1.5 : 0.4;
   // Carrying extra weight takes some of the joy out of running around.
   if (s.weight >= OVERWEIGHT) gain *= 0.7;
   s.happiness = clampHearts(s.happiness + gain);
   const exertion = GAME_EXERTION[game] ?? BASE_GAME_EXERTION;
   s.energy = clampHearts(s.energy - exertion.energy);
   s.weight = Math.max(1, s.weight - exertion.weight);
-  logEvent(s, now, "played", game === "cubehum" ? `${game} reach ${reach}` : `${game} ${won ? "win" : "loss"}`);
+  const resultLabel = won === "tie" ? "tie" : won ? "win" : "loss";
+  logEvent(s, now, "played", game === "cubehum" ? `${game} reach ${reach}` : `${game} ${resultLabel}`);
   const call = resolveCall(s, "play", unjustified, now);
   return { state: s, call };
 }

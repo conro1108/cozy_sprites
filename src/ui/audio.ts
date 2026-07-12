@@ -20,6 +20,7 @@ export type SfxName =
   | "death"
   | "win"
   | "lose"
+  | "tie" // rps: nobody took the match
   | "pat" // the soft, warm sound of being pet (not the sharp poke of "tap")
   | "throw" // fetch: the ball leaves your hand
   | "fetchback" // fetch: trots back, prize in mouth
@@ -86,6 +87,11 @@ export const SFX: Record<SfxName, Tone[]> = {
   lose: [
     { freq: 392, dur: 0.09, at: 0, type: "square", gain: 0.45 },
     { freq: 294, dur: 0.16, at: 0.09, type: "square", gain: 0.45 },
+  ],
+  // Flat, even two-note — neither the rise of a win nor the sink of a loss.
+  tie: [
+    { freq: 440, dur: 0.08, at: 0, type: "square", gain: 0.4 },
+    { freq: 440, dur: 0.12, at: 0.09, type: "square", gain: 0.4 },
   ],
   // Soft and low, a warm little rise — being pet, not poked.
   pat: [

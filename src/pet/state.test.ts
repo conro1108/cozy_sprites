@@ -637,6 +637,15 @@ describe("weight consequences", () => {
     expect(fetchWon).toBeGreaterThan(fetchLost);
   });
 
+  it("a tied match splits the happiness reward between a sprite win and a sprite loss", () => {
+    const pet = asStage({ ...createPet("Milo", T0), happiness: 1 }, "adult");
+    const tie = applyGameResult(pet, "rps", "tie", T0).state.happiness;
+    const spriteWins = applyGameResult(pet, "rps", false, T0).state.happiness;
+    const playerWins = applyGameResult(pet, "rps", true, T0).state.happiness;
+    expect(tie).toBeLessThan(spriteWins);
+    expect(tie).toBeGreaterThan(playerWins);
+  });
+
   it("fetch burns more energy and weight than other games", () => {
     const pet = asStage({ ...createPet("Milo", T0), energy: 4, weight: 10 }, "adult");
     const afterFetch = applyGameResult(pet, "fetch", true, T0).state;

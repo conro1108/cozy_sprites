@@ -696,6 +696,11 @@ body {
   box-shadow: inset 0 0 0 2px #c0492f;
 }
 
+.hl-pip.tied {
+  background: #e0b23e;
+  box-shadow: inset 0 0 0 2px #b8901f;
+}
+
 .hl-cards {
   display: flex;
   align-items: center;
@@ -792,6 +797,10 @@ body {
 
 .hl-result.lost .hl-result-text {
   color: #c0492f;
+}
+
+.hl-result.tied .hl-result-text {
+  color: #b8901f;
 }
 
 /* A compact corner close for the game strip — not a full-width Done bar. */

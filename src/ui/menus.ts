@@ -27,7 +27,7 @@ import {
   CUBE_FACES,
   CUBE_HUM_TARGET,
 } from "../pet/games";
-import type { RpsMove } from "../pet/games";
+import type { RpsMove, MatchResult } from "../pet/games";
 import { buildCreatureCanvas, type Mood } from "../render/sprites";
 import { iconEl, iconHTML, iconUrl, digitMaskUrl } from "../render/icons";
 import { propEl, propUrl, propSize, type PropName } from "../render/props";
@@ -49,7 +49,7 @@ export interface MenuCtx {
   clean(): void;
   medicine(): void;
   discipline(): void;
-  finishGame(game: GameId, won: boolean, line?: string, reach?: number): void;
+  finishGame(game: GameId, won: MatchResult, line?: string, reach?: number): void;
   sayLine(text: string): void;
   sendToFarm(): void;
   exportSave(): string;
@@ -706,13 +706,14 @@ function fetchGame(ctx: MenuCtx): void {
 }
 
 const RPS_ROUNDS = 3;
-const RPS_WINS_NEEDED = 2; // best of 3 — majority of 3 decisive rounds
+const RPS_WINS_NEEDED = 2; // best of 3 — majority of 3 rounds; short of that, the match ties
 
 // In-scene game: pick a move down at the bottom, watch it fly up into the
 // countdown at the sprite. Played as a best-of-3, same shape as
-// higher/lower — a pip per decisive round, then the pet weighs in once on
-// the whole match and you can go again. A tie doesn't consume a round; it
-// just re-prompts the same one.
+// higher/lower — a pip per round (green/red/yellow), then the pet weighs in
+// once on the whole match and you can go again. A tied round still counts:
+// if neither side reaches the win threshold across all 3 rounds, the match
+// itself is a tie.
 function rps(ctx: MenuCtx): void {
   const cheat = ctx.pet().form === "gremlin";
   // Display up top over the pet; the three moves sit in a selector strip down
@@ -725,8 +726,8 @@ function rps(ctx: MenuCtx): void {
   const hint = document.createElement("p");
   hint.className = "stage-hint";
 
-  // Best-of-3 progress: one pip per decisive round, filled green (won) or
-  // red (lost) — same component as higher/lower's match tally.
+  // Best-of-3 progress: one pip per round, filled green (won), red (lost),
+  // or yellow (tied) — same component as higher/lower's match tally.
   const pipRow = document.createElement("div");
   pipRow.className = "hl-pips";
   const pips: HTMLSpanElement[] = [];
@@ -763,8 +764,9 @@ function rps(ctx: MenuCtx): void {
   again.addEventListener("click", () => startMatch());
   resultButtons.append(again, doneButton(close));
 
-  let round = 0; // decisive rounds settled so far
+  let round = 0; // rounds settled so far, decisive or tied
   let wins = 0;
+  let losses = 0;
   let picked = false;
 
   const newRound = () => {
@@ -777,6 +779,7 @@ function rps(ctx: MenuCtx): void {
   const startMatch = () => {
     round = 0;
     wins = 0;
+    losses = 0;
     for (const pip of pips) pip.className = "hl-pip";
     result.style.display = "none";
     resultButtons.style.display = "none";
@@ -785,15 +788,19 @@ function rps(ctx: MenuCtx): void {
   };
 
   const finishMatch = () => {
-    const won = wins >= RPS_WINS_NEEDED;
+    // Neither side reaching the win threshold across all 3 rounds is a match
+    // tie — the same "splits the difference" spirit as a single tied round.
+    const won: MatchResult = wins >= RPS_WINS_NEEDED ? true : losses >= RPS_WINS_NEEDED ? false : "tie";
     choices.style.display = "none";
     hint.textContent = "";
-    resultText.textContent = won ? `You win — ${wins} of ${round}` : `Beaten — ${wins} of ${round}`;
-    result.classList.toggle("won", won);
-    result.classList.toggle("lost", !won);
+    resultText.textContent =
+      won === "tie" ? `Tied — ${wins} of ${round}` : won ? `You win — ${wins} of ${round}` : `Beaten — ${wins} of ${round}`;
+    result.classList.toggle("won", won === true);
+    result.classList.toggle("lost", won === false);
+    result.classList.toggle("tied", won === "tie");
     result.style.display = "";
     resultButtons.style.display = "";
-    playSfx(won ? "win" : "lose");
+    playSfx(won === "tie" ? "tie" : won ? "win" : "lose");
     // The pet weighs in on the whole match, not each throw — same handoff
     // every other match-shaped game uses.
     ctx.finishGame("rps", won);
@@ -813,19 +820,16 @@ function rps(ctx: MenuCtx): void {
       ctx.scene().playRps(m as IconName, ai as IconName, outcome, () => {
         if (!top.isConnected) return; // torn out mid-reveal (sleep, death, restore)
         if (outcome === "tie") {
-          // Doesn't consume a round — a quick remark, then re-throw the same one.
           ctx.sayLine("A tie. How embarrassing for us both.");
-          newRound();
-          return;
-        }
-        const wonRound = outcome === "win";
-        if (!wonRound && cheat && Math.random() < 0.3) {
+        } else if (outcome === "lose" && cheat && Math.random() < 0.3) {
           // The pick-after-you animation already shows the cheat; this is
           // just an occasional confession, not every losing round.
           ctx.sayLine("I definitely cheated.");
         }
-        pips[round].classList.add(wonRound ? "won" : "lost");
-        if (wonRound) wins++;
+        const pipClass = outcome === "tie" ? "tied" : outcome === "win" ? "won" : "lost";
+        pips[round].classList.add(pipClass);
+        if (outcome === "win") wins++;
+        else if (outcome === "lose") losses++;
         round++;
         // Play out all 3 rounds regardless of when the match is already
         // decided — same as higher/lower's full 5.

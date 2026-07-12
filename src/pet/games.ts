@@ -19,6 +19,11 @@ export function spriteWon(game: GameId, playerWon: boolean): boolean {
 export type RpsMove = "rock" | "paper" | "scissors";
 export type Outcome = "win" | "lose" | "tie";
 
+/** A finished mini-game's overall result. Every game but RPS is strictly
+ *  win/lose; RPS's best-of-N can end with neither side taking the majority,
+ *  which reads as a match tie rather than a coin-flip winner. */
+export type MatchResult = boolean | "tie";
+
 const BEATS: Record<RpsMove, RpsMove> = {
   rock: "scissors",
   paper: "rock",

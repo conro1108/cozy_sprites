@@ -40,6 +40,7 @@ import {
 import type { Category } from "./pet/dialogue";
 import { determineAdultForm } from "./pet/evolution";
 import { spriteWon } from "./pet/games";
+import type { MatchResult } from "./pet/games";
 import {
   exportSave,
   importSave,
@@ -850,7 +851,7 @@ function doLight(): void {
   commit();
 }
 
-function doFinishGame(game: GameId, won: boolean, line?: string, reach = 0): void {
+function doFinishGame(game: GameId, won: MatchResult, line?: string, reach = 0): void {
   if (!pet || dying) return;
   // Would You Rather is never win/lose — only a slight bump.
   const r = applyGameResult(pet, game, game === "wouldyou" ? false : won, Date.now(), reach);
@@ -869,6 +870,10 @@ function doFinishGame(game: GameId, won: boolean, line?: string, reach = 0): voi
     say(attentionSpoiledLine());
     scene?.triggerPulse("happy");
     playSfx("happy");
+  } else if (won === "tie") {
+    // Nobody's win, nobody's loss — no gloat, no jingle to pick a side.
+    say(line ?? "A tie. Neither of us has the upper hand.");
+    playSfx("tie");
   } else {
     // Its reaction and its bounce follow *its* result (in RPS it gloats when it
     // beats you); the jingle stays on yours — it scores the "You win" banner.
