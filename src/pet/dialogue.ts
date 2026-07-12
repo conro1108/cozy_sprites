@@ -247,9 +247,9 @@ const GENERAL: Bank = {
   soup: [
     "Warm. Governmental.",
     "The broth forgives.",
-    "I feel repaired. Structurally.",
+    "Nutritionally unremarkable. Emotionally, five stars.",
     "Someone's grandmother made this. Somewhere. Somehow.",
-    "This is medicine with better publicity.",
+    "It doesn't fix anything. It just feels like it might.",
     "*holds the bowl with both everything*",
   ],
   full: [

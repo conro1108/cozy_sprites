@@ -718,10 +718,10 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
     s.hidden.carrotEaten++;
     s.health = clamp100(s.health + 4);
   }
-  if (food === "soup") {
-    // The comfort food: it actively heals, doubly so on a sickbed.
+  if (food === "salad") {
+    // The disciplined pick: it actively heals, doubly so on a sickbed.
     s.health = clamp100(s.health + (s.sick ? 6 : 2));
-    if (!note && s.sick) note = "soup";
+    if (!note && s.sick) note = "salad";
   }
 
   const call = resolveCall(s, "snack", unjustified);

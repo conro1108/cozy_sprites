@@ -300,12 +300,12 @@ describe("feed", () => {
   });
 });
 
-describe("soup, the comfort food", () => {
+describe("salad, the disciplined pick", () => {
   it("heals a little when well", () => {
     const pet = asStage({ ...createPet("Milo", T0), energy: 1, health: 50 }, "child");
-    const { state } = feed(pet, "soup", T0);
+    const { state } = feed(pet, "salad", T0);
     expect(state.health).toBe(52);
-    expect(state.energy).toBeCloseTo(2.5);
+    expect(state.energy).toBeCloseTo(3);
   });
 
   it("heals properly on a sickbed", () => {
@@ -313,7 +313,7 @@ describe("soup, the comfort food", () => {
       { ...createPet("Milo", T0), energy: 1, health: 50, sick: true, illness: "goblinflu" as const },
       "child",
     );
-    const { state } = feed(pet, "soup", T0);
+    const { state } = feed(pet, "salad", T0);
     expect(state.health).toBe(56);
   });
 });

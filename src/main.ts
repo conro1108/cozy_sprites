@@ -389,7 +389,8 @@ function render(): void {
     tantrum,
     zoomies,
     activity: activityOf(pet, now),
-    runny: pet.sick && pet.illness === "dysentery",
+    // Same puddle art for dysentery and a bad-diet mess still on the floor.
+    runny: (pet.sick && pet.illness === "dysentery") || pet.hasBadPoop,
   });
 }
 

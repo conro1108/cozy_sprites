@@ -12,8 +12,8 @@ export interface FoodDef {
   fiber: number; // roughage → poop pressure. What goes in must come out.
 }
 
-// Six foods, two per health tier — healthy (carrot, soup) actually help the
-// body, neutral (burger, salad) are plain fuel, unhealthy (cake, cube) are
+// Six foods, two per health tier — healthy (carrot, salad) actually help the
+// body, neutral (soup, burger) are plain fuel, unhealthy (cake, cube) are
 // the treats: the only two with happiness ≥ 0.5, so they're always accepted
 // even on a full stomach (see feed()'s isTreat check). Weight-per-energy
 // climbs tier by tier (~0.1 → ~0.6/1.5) and each tier has a light and a heavy
@@ -21,17 +21,15 @@ export interface FoodDef {
 // (~0.15/awake-hour drift + games) while leaning on the unhealthy pair is what
 // visibly tips a pet overweight.
 export const FOODS: Record<FoodId, FoodDef> = {
-  // Healthy — light everyday health food vs. heartier, actively healing.
+  // Healthy — light everyday health food (carrot) vs. heartier, actively
+  // healing (salad) — doubly so when sick. Discipline works even when you
+  // feel awful; see feed()'s health bonus.
   carrot: { id: "carrot", name: "Carrot", icon: "🥕", energy: 1, happiness: 0, weight: 0.1, fiber: 0.6 },
-  // The comfort food: warm, and the one dish that actively heals — doubly so
-  // when sick. Even a fainted pet will take soup.
-  soup: { id: "soup", name: "Soup", icon: "🍲", energy: 1.5, happiness: 0.4, weight: 0.25, fiber: 0.3 },
-  // Neutral — plain fuel, no health effect either way. Salad is the heartier,
-  // more indulgent pick, somehow: same energy as a burger, more happiness,
-  // more weight to show for it. It's drenched in enough dressing and croutons
-  // to cancel out the vegetables — the fiber's real, the virtue isn't.
-  burger: { id: "burger", name: "Burger", icon: "🍔", energy: 2, happiness: 0.2, weight: 0.5, fiber: 0.35 },
   salad: { id: "salad", name: "Salad", icon: "🥗", energy: 2, happiness: 0.3, weight: 0.7, fiber: 0.4 },
+  // Neutral — plain fuel, no health effect either way. Soup's just a warm
+  // bowl now; burger's the heartier, more indulgent pick.
+  soup: { id: "soup", name: "Soup", icon: "🍲", energy: 1.5, happiness: 0.4, weight: 0.25, fiber: 0.3 },
+  burger: { id: "burger", name: "Burger", icon: "🍔", energy: 2, happiness: 0.2, weight: 0.5, fiber: 0.35 },
   // Unhealthy — both treats, both a bad idea to lean on, in different ways.
   // Cube isn't food at all — mostly vibes and a path to the Humming Cube —
   // so it actually costs energy instead of restoring any; that impracticality

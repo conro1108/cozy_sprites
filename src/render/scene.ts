@@ -86,7 +86,8 @@ export interface SceneView {
   zoomies?: boolean;
   /** 0..1 — how energetic the creature is. Old-timers rest more, walk slower. */
   activity?: number;
-  /** Dysentery: the messes render as wet diarrhea pools, not tidy coils. */
+  /** Dysentery, or a bad-diet mess still on the floor: the messes render as
+   *  wet diarrhea pools, not tidy coils. */
   runny?: boolean;
 }
 
