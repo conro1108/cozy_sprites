@@ -647,6 +647,9 @@ body {
 .game-choices .btn {
   width: auto;
   min-width: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .big-number {
