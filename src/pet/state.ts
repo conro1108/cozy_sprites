@@ -686,8 +686,6 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   }
   if (food === "cube") {
     s.hidden.cubeEaten++;
-    // Not really food. A mild, mysterious cost — nothing like cake's.
-    s.health = clamp100(s.health - 1);
     if (!note) note = "cube";
   }
   if (food === "carrot") {

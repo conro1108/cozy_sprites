@@ -525,13 +525,18 @@ describe("weight consequences", () => {
     expect(childLoss).toBeCloseTo(adultLoss * 2.5);
   });
 
-  it("weight per energy climbs from healthy to unhealthy foods", () => {
+  it("weight per energy climbs from healthy to neutral to cake", () => {
     const ratio = (food: keyof typeof FOODS) => FOODS[food].weight / FOODS[food].energy;
     expect(ratio("carrot")).toBeLessThan(ratio("soup"));
     expect(ratio("soup")).toBeLessThan(ratio("burger"));
     expect(ratio("burger")).toBeLessThan(ratio("noodles"));
-    expect(ratio("noodles")).toBeLessThan(ratio("cube"));
-    expect(ratio("cube")).toBeLessThan(ratio("cake"));
+    expect(ratio("noodles")).toBeLessThan(ratio("cake"));
+  });
+
+  it("cube costs energy instead of restoring it — a treat, not a meal", () => {
+    expect(FOODS.cube.energy).toBeLessThan(0);
+    // Still a treat: always accepted, even on a full stomach (see feed()'s isTreat check).
+    expect(FOODS.cube.happiness).toBeGreaterThanOrEqual(0.5);
   });
 
   it("fetch burns more energy and weight than other games", () => {

@@ -31,11 +31,12 @@ export const FOODS: Record<FoodId, FoodDef> = {
   // more weight to show for it.
   burger: { id: "burger", name: "Burger", icon: "🍔", energy: 2, happiness: 0.2, weight: 0.5, fiber: 0.35 },
   noodles: { id: "noodles", name: "Noodles", icon: "🍜", energy: 2, happiness: 0.3, weight: 0.7, fiber: 0.4 },
-  // Unhealthy — both treats. Cube is the mild, mysterious one: modest
-  // happiness, a small health cost, weird instead of rich. Cake is the real
-  // junk food: the biggest happiness hit in the roster, and the weight and
-  // health cost to match.
-  cube: { id: "cube", name: "Cube", icon: "🧊", energy: 1, happiness: 0.5, weight: 0.6, fiber: 0.12 },
+  // Unhealthy — both treats, both a bad idea to lean on, in different ways.
+  // Cube isn't food at all — mostly vibes and a path to the Humming Cube —
+  // so it actually costs energy instead of restoring any; that impracticality
+  // is the point, not a health penalty. Cake is the real junk food: the
+  // biggest happiness hit in the roster, with the weight and health cost to match.
+  cube: { id: "cube", name: "Cube", icon: "🧊", energy: -0.5, happiness: 0.5, weight: 0.3, fiber: 0.12 },
   cake: { id: "cake", name: "Cake", icon: "🍰", energy: 1, happiness: 1, weight: 1.5, fiber: 0.15 },
 };
 
