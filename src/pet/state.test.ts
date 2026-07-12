@@ -511,6 +511,18 @@ describe("weight consequences", () => {
     expect(applyElapsedDecay(wellFed, T0 + 1 * HOUR).health).toBeGreaterThan(50);
     expect(applyElapsedDecay(skinny, T0 + 1 * HOUR).health).toBe(50);
   });
+
+  it("a child burns off weight faster than an adult, matching its faster hunger", () => {
+    // Children eat much more often than adults (energy decays 2.5x faster),
+    // so their metabolism has to keep pace or weight only ever climbs.
+    const heavy = { ...createPet("Milo", T0), weight: 10 };
+    const child = asStage(heavy, "child");
+    const adult = asStage(heavy, "adult");
+    const childLoss = 10 - applyElapsedDecay(child, T0 + 1 * HOUR).weight;
+    const adultLoss = 10 - applyElapsedDecay(adult, T0 + 1 * HOUR).weight;
+    expect(childLoss).toBeGreaterThan(adultLoss);
+    expect(childLoss).toBeCloseTo(adultLoss * 2.5);
+  });
 });
 
 describe("death", () => {

@@ -96,11 +96,14 @@ const NIGHT_AWAKE_DRAIN = 1; // being up all night is slightly bad for you
 // Weight thresholds — see feed()/applyGameResult(). Baseline weight is ~5.
 export const OVERWEIGHT = 12; // raises sickness pressure, dulls game joy
 export const UNDERWEIGHT = 2.5; // blocks health regen until fed back up
-const WEIGHT_DRIFT_PER_HOUR = 0.15; // daytime metabolism
+const WEIGHT_DRIFT_PER_HOUR = 0.15; // daytime metabolism, at adult tempo
 
-// Babies digest faster (and mess more), adults are sedate. Scales how much a
-// meal's fiber adds to poopPressure — mirrors the stage decay tempo.
-const STAGE_DIGEST_MULT: Record<Stage, number> = {
+// Babies and children run hot — they digest (and mess) faster, and burn off
+// meals faster too, matching how much more often their energy/happiness
+// decay forces them to be fed. Adults are sedate. Without this, a stage that
+// eats more often than an adult (to keep pace with its faster hunger) would
+// gain weight far quicker than the flat drift below could ever remove.
+const STAGE_METABOLISM_MULT: Record<Stage, number> = {
   egg: 0,
   baby: 2.2,
   child: 2.5,
@@ -504,7 +507,10 @@ function decaySegment(s: PetState, seg: number, segTime: number, night: boolean)
     else s.nightAwakeMs += seg;
   }
   if (day) {
-    s.weight = Math.max(1, s.weight - WEIGHT_DRIFT_PER_HOUR * hours);
+    s.weight = Math.max(
+      1,
+      s.weight - WEIGHT_DRIFT_PER_HOUR * STAGE_METABOLISM_MULT[s.stage] * hours,
+    );
     if (s.stage === "adult") s.adultLifeMs += seg * retirementPace(s);
   }
 
@@ -661,7 +667,7 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   // re-cover the floor the instant you swept it.
   s.poopPressure = Math.min(
     MAX_POOP_PRESSURE,
-    s.poopPressure + def.fiber * STAGE_DIGEST_MULT[s.stage],
+    s.poopPressure + def.fiber * STAGE_METABOLISM_MULT[s.stage],
   );
 
   s.hidden.mealsEaten++;
