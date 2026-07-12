@@ -657,6 +657,7 @@ function fetchGame(ctx: MenuCtx): void {
     const res = resolveFetch(pos, undefined, ctx.pet().stage, spot);
     dismiss();
     playSfx("throw"); // the ball leaves your hand
+    if (ctx.pet().form === "dog") playSfx("bark"); // fetch is its favorite game — it says so
     // The chase runs ~2.5s; when it comes back with a prize, chirp partway
     // through — well before the win/lose verdict lands at the animation's end.
     if (res.success) setTimeout(() => playSfx("fetchback"), 1700);

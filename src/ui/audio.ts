@@ -27,7 +27,8 @@ export type SfxName =
   | "found" // hide & seek: there you are
   | "empty" // hide & seek: nothing here…
   | "roll" // higher/lower: the die tumbles
-  | "cubewrong"; // the cube's hum: a broken chain
+  | "cubewrong" // the cube's hum: a broken chain
+  | "bark"; // the dog thing, excited
 
 /** One oscillator beep. `at` is seconds from the start of the effect; `to`
  *  glides the pitch across `dur` (chirps up, sad slides down). */
@@ -115,6 +116,11 @@ export const SFX: Record<SfxName, Tone[]> = {
   ],
   // The cube's hum: a sour descending buzz — you broke the chain.
   cubewrong: [{ freq: 300, to: 150, dur: 0.3, at: 0, type: "sawtooth", gain: 0.5 }],
+  // A gruff two-note "woof woof" — low sawtooth so it bites instead of beeps.
+  bark: [
+    { freq: 220, to: 150, dur: 0.07, at: 0, type: "sawtooth", gain: 0.55 },
+    { freq: 210, to: 140, dur: 0.07, at: 0.11, type: "sawtooth", gain: 0.5 },
+  ],
 };
 
 // --- Mute preference ---------------------------------------------------------
