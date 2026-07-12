@@ -7,6 +7,13 @@
 //
 // The buffer height adapts to the container's aspect ratio so the scene fills
 // the stage right up to the HUD and nav — no letterbox bars.
+//
+// RENDERING RULE: never draw the creature (or any 16×16 sprite art) through
+// ctx.scale()/ctx.rotate() with non-integer factors. At this buffer size that
+// resamples the art off the pixel grid — eyes come out unequal, 1px outlines
+// double or vanish, rotation shears stray pixels. All creature deformation
+// (squash, tilt, flip) must go through drawSpriteQuantized, which keeps every
+// blit integer-aligned. See its docblock before touching any of this.
 
 import { CELL, buildCreatureFrames, type SpriteFrame } from "./sprites";
 import type { Mood } from "./sprites";
