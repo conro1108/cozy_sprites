@@ -203,6 +203,7 @@ export class Scene {
   private creatureCanvas: HTMLCanvasElement;
   private frames: Record<SpriteFrame, HTMLCanvasElement>;
   private creatureCacheKey = "";
+  private resample: HTMLCanvasElement | null = null; // scratch for quantized draws
 
   private altFrame = false; // per-frame: use the alt pose (dog's tail up)
   private forceGlance: -1 | 0 | 1 = 0; // per-frame: a quirk overrides the gaze
@@ -2360,33 +2361,107 @@ export class Scene {
     const baseY = groundY - cw + 12;
     // The egg never travels, so it never flips.
     const flip = v.key === "egg" ? 1 : this.facing;
-    ctx.save();
     // Snap the draw origin to the buffer's integer pixel grid. Drawing the
     // 3×-scaled sprite at a fractional origin makes its pixels crawl frame to
     // frame (a shimmer) — invisible while it's travelling across the scene, but
     // the *only* motion when it's idling in place, where it reads as jitter.
     const cx = Math.round(CREATURE_X + dx);
-    // ctx.scale() shrinks the image toward this translate origin on both
-    // sides. Nudge the origin down by half of what squashY trims off so the
-    // feet stay planted on the shadow — vertical squash reads as sitting
-    // into the ground instead of floating up off it.
-    const cy = Math.round(baseY + cw / 2 + bob + (cw / 2) * (1 - squashY));
-    ctx.translate(cx, cy);
-    ctx.rotate(rot);
-    ctx.scale(squashX * flip, squashY);
-    if (this.extraAlpha < 1) ctx.globalAlpha *= this.extraAlpha; // ghost flicker
-    ctx.drawImage(sprite, -cw / 2, -cw / 2, cw, cw);
+    // Anchor at the feet so vertical squash reads as sitting into the ground
+    // instead of floating up off it.
+    const feetY = Math.round(baseY + cw + bob);
+    this.drawSpriteQuantized(
+      sprite,
+      cx,
+      feetY,
+      cw * squashX,
+      cw * squashY,
+      rot,
+      flip,
+      this.extraAlpha, // ghost flicker
+    );
     // The evolve flash: a pure-white silhouette bloomed over the sprite at the
     // peak of the transform — whatever the frame, old or new, it's just white,
     // so the stage swap underneath never shows.
     const flash = this.evolveFlash();
     if (flash > 0) {
-      const a = ctx.globalAlpha;
-      ctx.globalAlpha = a * flash;
-      ctx.drawImage(this.whiteFrame(sprite), -cw / 2, -cw / 2, cw, cw);
-      ctx.globalAlpha = a;
+      this.drawSpriteQuantized(
+        this.whiteFrame(sprite),
+        cx,
+        feetY,
+        cw * squashX,
+        cw * squashY,
+        rot,
+        flip,
+        this.extraAlpha * flash,
+      );
     }
-    ctx.restore();
+  }
+
+  /**
+   * Draw a sprite frame deformed only on the pixel grid. Continuous
+   * ctx.scale/rotate resamples the 16×16 art unevenly at this buffer size —
+   * one eye lands on 3 buffer px while its twin gets 2, and rotation shears
+   * stray pixels off the outline. Instead: resample to whole source rows and
+   * columns (mx×my), render each as a uniform kx×ky block, and approximate
+   * rotation as an integer per-row shear (the pixel-art lean). Squash and
+   * tilt quantize to chunky steps, which is the aesthetic, not a bug.
+   * `cx` is the horizontal centre, `feetY` the bottom edge, `w`/`h` the
+   * desired size in buffer px.
+   */
+  private drawSpriteQuantized(
+    sprite: HTMLCanvasElement,
+    cx: number,
+    feetY: number,
+    w: number,
+    h: number,
+    rot: number,
+    flip: number,
+    alpha: number,
+  ): void {
+    const kx = Math.max(1, Math.round(w / sprite.width));
+    const ky = Math.max(1, Math.round(h / sprite.height));
+    const mx = Math.max(1, Math.round(w / kx));
+    const my = Math.max(1, Math.round(h / ky));
+
+    // Nearest-neighbour into an mx×my scratch picks one whole source
+    // row/column per cell — the uniform resample the direct draw can't do.
+    let rs = this.resample;
+    if (!rs) rs = this.resample = document.createElement("canvas");
+    if (rs.width !== mx || rs.height !== my) {
+      rs.width = mx;
+      rs.height = my;
+    }
+    const rc = rs.getContext("2d")!;
+    rc.imageSmoothingEnabled = false;
+    rc.clearRect(0, 0, mx, my);
+    rc.save();
+    if (flip < 0) {
+      rc.translate(mx, 0);
+      rc.scale(-1, 1);
+    }
+    rc.drawImage(sprite, 0, 0, mx, my);
+    rc.restore();
+
+    const ctx = this.ctx;
+    const dw = mx * kx;
+    const dh = my * ky;
+    const left = Math.round(cx - dw / 2);
+    const top = feetY - dh;
+    const prevAlpha = ctx.globalAlpha;
+    if (alpha < 1) ctx.globalAlpha = prevAlpha * alpha;
+    if (rot === 0) {
+      ctx.drawImage(rs, left, top, dw, dh);
+    } else {
+      // Small-angle rotate about the sprite centre: row at offset y from the
+      // pivot shifts by -rot·y, snapped to whole pixels.
+      const pivot = top + dh / 2;
+      for (let j = 0; j < my; j++) {
+        const y = top + j * ky;
+        const shear = Math.round(-rot * (y + ky / 2 - pivot));
+        ctx.drawImage(rs, 0, j, mx, 1, left + shear, y, dw, ky);
+      }
+    }
+    ctx.globalAlpha = prevAlpha;
   }
 
   /** Whitness of the evolve flash, 0..1, peaking as the new form springs up. */
