@@ -20,9 +20,7 @@ export const SCENE_W = 112; // fixed content width; height adapts to the stage
 const GRASS_DEPTH = 42; // grass below the horizon (floor sits this far up)
 const CREATURE_X = 56; // resting center
 
-// Rock-paper-scissors reveal geometry (see drawRps) — also exposed via
-// rpsPlayerAnchor() so the UI can land a "flying" chosen icon exactly where
-// the in-scene reveal will pick it up.
+// Rock-paper-scissors reveal geometry (see drawRps).
 const RPS_ICON_SZ = 20;
 const RPS_PLAYER_X = 14;
 const RPS_ICON_Y = 26;
@@ -543,12 +541,6 @@ export class Scene {
       }
     }
     return bestDist <= maxDist ? best : null;
-  }
-
-  /** CSS-pixel center of where the rps reveal will show the player's icon —
-   *  the landing point for the "your choice flies in" UI transition. */
-  rpsPlayerAnchor(): { x: number; y: number } {
-    return this.toScreen(RPS_PLAYER_X + RPS_ICON_SZ / 2, RPS_ICON_Y + RPS_ICON_SZ / 2);
   }
 
   /** Uniform scene→CSS scale factor and origin offset — shared by toScreen and

@@ -784,34 +784,32 @@ function rps(ctx: MenuCtx): void {
       if (picked || !top.isConnected) return; // one throw per round — no double-taps mid-flight
       picked = true;
       choices.classList.add("rps-chosen");
-      flyChoice(ctx, b, icon, () => {
-        const ai = rpsAiMove(m, cheat);
-        const outcome = judgeRps(m, ai);
-        ctx.scene().playRps(m as IconName, ai as IconName, outcome, () => {
-          if (!top.isConnected) return; // torn out mid-reveal (sleep, death, restore)
-          if (outcome === "tie") {
-            // Doesn't consume a round — a quick remark, then re-throw the same one.
-            ctx.sayLine("A tie. How embarrassing for us both.");
-            newRound();
-            return;
-          }
-          const wonRound = outcome === "win";
-          if (!wonRound && cheat && Math.random() < 0.3) {
-            // The pick-after-you animation already shows the cheat; this is
-            // just an occasional confession, not every losing round.
-            ctx.sayLine("I definitely cheated.");
-          }
-          pips[round].classList.add(wonRound ? "won" : "lost");
-          if (wonRound) wins++;
-          round++;
-          // Play out all 3 rounds regardless of when the match is already
-          // decided — same as higher/lower's full 5.
-          if (round >= RPS_ROUNDS) {
-            finishMatch();
-          } else {
-            newRound();
-          }
-        });
+      const ai = rpsAiMove(m, cheat);
+      const outcome = judgeRps(m, ai);
+      ctx.scene().playRps(m as IconName, ai as IconName, outcome, () => {
+        if (!top.isConnected) return; // torn out mid-reveal (sleep, death, restore)
+        if (outcome === "tie") {
+          // Doesn't consume a round — a quick remark, then re-throw the same one.
+          ctx.sayLine("A tie. How embarrassing for us both.");
+          newRound();
+          return;
+        }
+        const wonRound = outcome === "win";
+        if (!wonRound && cheat && Math.random() < 0.3) {
+          // The pick-after-you animation already shows the cheat; this is
+          // just an occasional confession, not every losing round.
+          ctx.sayLine("I definitely cheated.");
+        }
+        pips[round].classList.add(wonRound ? "won" : "lost");
+        if (wonRound) wins++;
+        round++;
+        // Play out all 3 rounds regardless of when the match is already
+        // decided — same as higher/lower's full 5.
+        if (round >= RPS_ROUNDS) {
+          finishMatch();
+        } else {
+          newRound();
+        }
       });
     });
     choices.appendChild(b);
@@ -820,41 +818,6 @@ function rps(ctx: MenuCtx): void {
   startMatch();
   top.append(closeBtn, hint, pipRow, result);
   bottom.append(choices, resultButtons);
-}
-
-/** Send a clone of the tapped move flying from its button up to where the rps
- *  reveal will pick it up — the DOM hands off to the canvas act mid-flight,
- *  so the choice reads as one continuous gesture instead of a hard cut. */
-function flyChoice(ctx: MenuCtx, fromEl: HTMLElement, icon: IconName, onDone: () => void): void {
-  const SZ = 34;
-  const startRect = fromEl.getBoundingClientRect();
-  const stageRect = ctx.stageEl().getBoundingClientRect();
-  const target = ctx.scene().rpsPlayerAnchor();
-
-  const fly = iconEl(icon, SZ);
-  fly.className = "rps-fly";
-  document.body.appendChild(fly);
-
-  const x0 = startRect.left + startRect.width / 2 - SZ / 2;
-  const y0 = startRect.top + startRect.height / 2 - SZ / 2;
-  const x1 = stageRect.left + target.x - SZ / 2;
-  const y1 = stageRect.top + target.y - SZ / 2;
-  // A little arc and a spin on the way up — cute, not just a straight slide.
-  const midX = (x0 + x1) / 2 + (Math.random() < 0.5 ? -18 : 18);
-  const midY = Math.min(y0, y1) - 46;
-
-  const anim = fly.animate(
-    [
-      { left: `${x0}px`, top: `${y0}px`, transform: "scale(1) rotate(0deg)" },
-      { left: `${midX}px`, top: `${midY}px`, transform: "scale(1.25) rotate(160deg)", offset: 0.6 },
-      { left: `${x1}px`, top: `${y1}px`, transform: "scale(0.8) rotate(300deg)" },
-    ],
-    { duration: 480, easing: "ease-in-out" },
-  );
-  anim.onfinish = () => {
-    fly.remove();
-    onDone();
-  };
 }
 
 // In-scene game: the sprite actually vanishes, then pops out of its spot.
