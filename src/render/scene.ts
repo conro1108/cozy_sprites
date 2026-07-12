@@ -203,7 +203,7 @@ export class Scene {
   private creatureCanvas: HTMLCanvasElement;
   private frames: Record<SpriteFrame, HTMLCanvasElement>;
   private creatureCacheKey = "";
-  private resample: HTMLCanvasElement | null = null; // scratch for quantized draws
+  private mirrorCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 
   private altFrame = false; // per-frame: use the alt pose (dog's tail up)
   private forceGlance: -1 | 0 | 1 = 0; // per-frame: a quirk overrides the gaze
@@ -2399,14 +2399,15 @@ export class Scene {
 
   /**
    * Draw a sprite frame deformed only on the pixel grid. Continuous
-   * ctx.scale/rotate resamples the 16×16 art unevenly at this buffer size —
+   * ctx.scale/rotate resamples the 16×16 art off-grid at this buffer size —
    * one eye lands on 3 buffer px while its twin gets 2, and rotation shears
-   * stray pixels off the outline. Instead: resample to whole source rows and
-   * columns (mx×my), render each as a uniform kx×ky block, and approximate
-   * rotation as an integer per-row shear (the pixel-art lean). Squash and
-   * tilt quantize to chunky steps, which is the aesthetic, not a bug.
-   * `cx` is the horizontal centre, `feetY` the bottom edge, `w`/`h` the
-   * desired size in buffer px.
+   * stray pixels off the outline. Instead, every source row is drawn as its
+   * own strip: squash varies strip heights by ±1px (no row of anatomy can
+   * ever drop out), each strip is an integer-aligned axis-aligned drawImage
+   * (nearest-neighbour sampling of those is mirror-symmetric, so paired
+   * features like eyes always come out equal), and rotation becomes an
+   * integer per-row shear — the pixel-art lean. `cx` is the horizontal
+   * centre, `feetY` the bottom edge, `w`/`h` the desired size in buffer px.
    */
   private drawSpriteQuantized(
     sprite: HTMLCanvasElement,
@@ -2418,50 +2419,49 @@ export class Scene {
     flip: number,
     alpha: number,
   ): void {
-    const kx = Math.max(1, Math.round(w / sprite.width));
-    const ky = Math.max(1, Math.round(h / sprite.height));
-    const mx = Math.max(1, Math.round(w / kx));
-    const my = Math.max(1, Math.round(h / ky));
-
-    // Nearest-neighbour into an mx×my scratch picks one whole source
-    // row/column per cell — the uniform resample the direct draw can't do.
-    let rs = this.resample;
-    if (!rs) rs = this.resample = document.createElement("canvas");
-    if (rs.width !== mx || rs.height !== my) {
-      rs.width = mx;
-      rs.height = my;
-    }
-    const rc = rs.getContext("2d")!;
-    rc.imageSmoothingEnabled = false;
-    rc.clearRect(0, 0, mx, my);
-    rc.save();
-    if (flip < 0) {
-      rc.translate(mx, 0);
-      rc.scale(-1, 1);
-    }
-    rc.drawImage(sprite, 0, 0, mx, my);
-    rc.restore();
-
     const ctx = this.ctx;
-    const dw = mx * kx;
-    const dh = my * ky;
+    const src = flip < 0 ? this.mirrorFrame(sprite) : sprite;
+    const sw = src.width;
+    const sh = src.height;
+    const dw = Math.max(1, Math.round(w));
+    const dh = Math.max(1, Math.round(h));
     const left = Math.round(cx - dw / 2);
     const top = feetY - dh;
     const prevAlpha = ctx.globalAlpha;
     if (alpha < 1) ctx.globalAlpha = prevAlpha * alpha;
-    if (rot === 0) {
-      ctx.drawImage(rs, left, top, dw, dh);
+    if (rot === 0 && dh >= sh) {
+      ctx.drawImage(src, left, top, dw, dh);
     } else {
-      // Small-angle rotate about the sprite centre: row at offset y from the
-      // pivot shifts by -rot·y, snapped to whole pixels.
+      // Rotation is world-space (never mirrored with the sprite), matching
+      // the old ctx.rotate-before-flip order — callers bake facing into rot.
       const pivot = top + dh / 2;
-      for (let j = 0; j < my; j++) {
-        const y = top + j * ky;
-        const shear = Math.round(-rot * (y + ky / 2 - pivot));
-        ctx.drawImage(rs, 0, j, mx, 1, left + shear, y, dw, ky);
+      for (let r = 0; r < sh; r++) {
+        const y0 = Math.round((r * dh) / sh);
+        const y1 = Math.round(((r + 1) * dh) / sh);
+        if (y1 <= y0) continue; // only when squashed below 1px per row
+        const shear = rot ? Math.round(-rot * (top + (y0 + y1) / 2 - pivot)) : 0;
+        ctx.drawImage(src, 0, r, sw, 1, left + shear, top + y0, dw, y1 - y0);
       }
     }
     ctx.globalAlpha = prevAlpha;
+  }
+
+  /** A horizontally mirrored copy of a sprite frame, cached per source —
+   *  flipping via a prebuilt canvas keeps the scene draw free of transforms,
+   *  so every blit stays on the integer pixel grid. */
+  private mirrorFrame(src: HTMLCanvasElement): HTMLCanvasElement {
+    let m = this.mirrorCache.get(src);
+    if (!m) {
+      m = document.createElement("canvas");
+      m.width = src.width;
+      m.height = src.height;
+      const c = m.getContext("2d")!;
+      c.translate(src.width, 0);
+      c.scale(-1, 1);
+      c.drawImage(src, 0, 0);
+      this.mirrorCache.set(src, m);
+    }
+    return m;
   }
 
   /** Whitness of the evolve flash, 0..1, peaking as the new form springs up. */
