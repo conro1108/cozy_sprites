@@ -293,13 +293,8 @@ function startGame(ctx: MenuCtx, p: Panel, game: GameId): void {
       wouldYou(ctx);
       break;
     case "cubehum":
-      p.body.innerHTML = "";
-      p.setTitle("The Cube's Hum", "Repeat what the cube hums.");
-      // Reuses the Play panel rather than opening a stage-controls strip, but
-      // it's still a live game — register it the same way so it yields to a
-      // forced close from another nav button.
-      activeGameClose = p.close;
-      cubeHum(ctx, p);
+      p.close();
+      cubeHum(ctx);
       break;
   }
 }
@@ -483,12 +478,19 @@ function makeCard(cls: string): { card: HTMLDivElement; set: (ch: string | numbe
 // game — comes out of the sprite's mouth via finishGame().
 const CUBE_PAD_COLORS = ["#8f86c4", "#d6f2fa", "#6fb8cc", "#b3abe0"];
 
-function cubeHum(ctx: MenuCtx, p: Panel): void {
-  const wrap = document.createElement("div");
-  wrap.className = "game-body";
-  p.body.appendChild(wrap);
+// In-scene game: hint and status up top over the pet, the 2x2 pad grid down
+// at the bottom within thumb reach — same shape as higher/lower, rps, and
+// would-you-rather.
+function cubeHum(ctx: MenuCtx): void {
+  const { top, bottom, close: rawClose } = splitOverlay(ctx);
+
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "hl-close";
+  closeBtn.setAttribute("aria-label", "Close");
+  closeBtn.textContent = "✕";
 
   const info = document.createElement("p");
+  info.className = "stage-hint";
   const status = document.createElement("div");
   status.className = "game-result";
   const pads = document.createElement("div");
@@ -513,12 +515,15 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
 
   // Walking away (X button, tap-outside, another nav tap) shouldn't forfeit
   // rounds already cleared — credit whatever's banked, same scoring as a miss.
-  p.onClose(() => {
-    if (resolved) return;
-    resolved = true;
-    const won = cleared >= CUBE_HUM_TARGET;
-    ctx.finishGame("cubehum", won, cubeHumLine(won), cleared);
+  const close = registerActiveGame(() => {
+    if (!resolved) {
+      resolved = true;
+      const won = cleared >= CUBE_HUM_TARGET;
+      ctx.finishGame("cubehum", won, cubeHumLine(won), cleared);
+    }
+    rawClose();
   });
+  closeBtn.addEventListener("click", close);
 
   const flash = (i: number) => {
     const el = padEls[i];
@@ -534,14 +539,14 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
     info.textContent = `A ${seq.length}-note hum.`;
     seq.forEach((face, idx) => {
       setTimeout(() => {
-        // The panel can be torn out mid-hum (close, save restore) — don't keep
-        // flashing a detached node or reopen input on a dead panel.
-        if (!wrap.isConnected || resolved) return;
+        // The strip can be torn out mid-hum (close, save restore) — don't keep
+        // flashing a detached node or reopen input on a dead overlay.
+        if (!top.isConnected || resolved) return;
         flash(face);
         playTone(face); // each face has its own pitch — the hum is a melody
         if (idx === seq.length - 1) {
           setTimeout(() => {
-            if (!wrap.isConnected || resolved) return;
+            if (!top.isConnected || resolved) return;
             accepting = true;
             status.textContent = "Hum it back.";
           }, 420);
@@ -552,7 +557,6 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
 
   const finishAndClose = () => {
     if (resolved) return;
-    resolved = true;
     accepting = false;
     // The game only ever ends on a missed note — sound the broken chain.
     playSfx("cubewrong");
@@ -560,10 +564,7 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
     // climbing with `cleared` regardless (see cubeHumCredit / applyGameResult).
     const won = cleared >= CUBE_HUM_TARGET;
     status.textContent = won ? "…" : "✕";
-    setTimeout(() => {
-      p.close();
-      ctx.finishGame("cubehum", won, cubeHumLine(won), cleared);
-    }, 520);
+    setTimeout(() => close(), 520);
   };
 
   const onTap = (face: number) => {
@@ -584,17 +585,18 @@ function cubeHum(ctx: MenuCtx, p: Panel): void {
       seq = extendHum(seq);
       setTimeout(() => {
         // Let the echoed note finish before the round-complete flourish.
-        if (wrap.isConnected && !resolved) playCubeClear(cleared);
+        if (top.isConnected && !resolved) playCubeClear(cleared);
       }, 180);
       setTimeout(() => {
-        if (wrap.isConnected && !resolved) playSeq();
+        if (top.isConnected && !resolved) playSeq();
       }, 720);
     } else {
       playTone(face); // hum back the note you just pressed, in its own pitch
     }
   };
 
-  wrap.append(info, pads, status);
+  top.append(closeBtn, info, status);
+  bottom.append(pads);
   playSeq();
 }
 
@@ -773,7 +775,9 @@ function hideSeek(ctx: MenuCtx): void {
   const peek = Math.random() < 0.3 ? spot : null;
   playSfx("hide"); // scurries off
   ctx.scene().playHide(peek, () => {
-    const { el, close: rawClose } = stageOverlay(ctx);
+    // Prompt up top over the pet; the guesses sit down at the bottom, in
+    // reach — same shape as higher/lower, rps, and would-you-rather.
+    const { top, bottom, close: rawClose } = splitOverlay(ctx);
     // Navigating away entirely (a nav tap, opening another panel) skips the
     // guess phase without resolving it. The creature is still off-scene then,
     // so bring it back — otherwise it's stuck invisible until the next round.
@@ -818,7 +822,8 @@ function hideSeek(ctx: MenuCtx): void {
       b.addEventListener("click", () => guess(s === spot));
       row.appendChild(b);
     }
-    el.append(hint, row);
+    top.append(hint);
+    bottom.append(row);
   });
 }
 
