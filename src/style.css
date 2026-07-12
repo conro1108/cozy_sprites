@@ -1500,6 +1500,15 @@ body {
   color: var(--wood-dark);
 }
 
+/* When the hint is the only thing in the strip (rps, would-you-rather, hide
+   and seek's guess screen), the trailing margin meant to separate it from
+   what follows has nothing to separate from — it just pushes the text off
+   center. Drop it so the panel's own padding is the only inset on both
+   sides. */
+.stage-hint:last-child {
+  margin-bottom: 0;
+}
+
 .stage-controls .game-choices {
   margin: 6px 0;
 }

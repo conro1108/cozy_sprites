@@ -794,6 +794,12 @@ function hideSeek(ctx: MenuCtx): void {
       rawClose();
       if (!resolved) ctx.scene().playReveal(spot);
     });
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "hl-close";
+    closeBtn.setAttribute("aria-label", "Close");
+    closeBtn.textContent = "✕";
+    closeBtn.addEventListener("click", close);
+
     const hint = document.createElement("p");
     hint.className = "stage-hint";
     hint.textContent = "Where did it go? Tap the stump, flowers, fence, or mushroom.";
@@ -819,7 +825,7 @@ function hideSeek(ctx: MenuCtx): void {
       return true;
     };
 
-    el.append(hint);
+    el.append(closeBtn, hint);
   });
 }
 
