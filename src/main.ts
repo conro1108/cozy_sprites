@@ -828,6 +828,7 @@ function doLight(): void {
   if (!pet || dying) return;
   const now = Date.now();
   pet = toggleLight(pet, now);
+  if (pet.asleep) closeActiveGame();
   // The egg stays quiet — see its dedicated brood/tap dialogue beats.
   if (pet.stage !== "egg") {
     if (pet.asleep) sayCat("sleep");
@@ -920,6 +921,10 @@ function stepPet(now: number, withEvents: boolean): boolean {
     pet = r.state;
     events = r.events;
   }
+
+  // Nightfall can put the pet to sleep on its own (lights left off) — any
+  // in-progress stage game shouldn't keep running over a sleeping pet.
+  if (!prevAsleep && pet.asleep) closeActiveGame();
 
   // Death — handled before anything else can chatter over it.
   if (!wasDead && pet.deadAt !== null) {
