@@ -758,22 +758,23 @@ const ICONS: Record<IconName, IconDef> = {
   },
   speechdots: {
     // a speech bubble with a three-dot ellipsis — "there's something to
-    // say," not an alarm. Amber dots on a cream bubble, tail bottom-left.
+    // say," not an alarm. Tail is solid ink so it reads as fused to the
+    // bubble rather than a floating chip; dots match the outline ink.
     rows: [
       "............",
       ".kkkkkkkkkk.",
       "kwwwwwwwwwwk",
       "kwwwwwwwwwwk",
-      "kwwdwwdwwdwk",
+      "kwwkwwkwwkwk",
       "kwwwwwwwwwwk",
       ".kkkkkkkkkk.",
-      "..kwk.......",
+      "..kkk.......",
       "...k........",
       "............",
       "............",
       "............",
     ],
-    palette: { k: K, w: "#fdf3e0", d: "#e8a33d" },
+    palette: { k: K, w: "#fdf3e0" },
   },
   thermometer: {
     rows: [
