@@ -208,11 +208,12 @@ function doneButton(onClick: () => void): HTMLButtonElement {
   return b;
 }
 
-/** A compact "Done" tucked in a strip corner, out of the play area. */
-function cornerDone(onClick: () => void): HTMLButtonElement {
+/** The small corner ✕ used by every in-scene game to bail mid-round. */
+function closeCorner(onClick: () => void): HTMLButtonElement {
   const b = document.createElement("button");
-  b.className = "corner-done";
-  b.textContent = "Done";
+  b.className = "hl-close";
+  b.setAttribute("aria-label", "Close");
+  b.textContent = "✕";
   b.addEventListener("click", onClick);
   return b;
 }
@@ -313,11 +314,7 @@ function higherLower(ctx: MenuCtx): void {
   const close = registerActiveGame(rawClose);
   // A small corner close, not a full-width bar — you can bail mid-match, but the
   // match's own end screen is the usual way out.
-  const closeBtn = document.createElement("button");
-  closeBtn.className = "hl-close";
-  closeBtn.setAttribute("aria-label", "Close");
-  closeBtn.textContent = "✕";
-  closeBtn.addEventListener("click", close);
+  const closeBtn = closeCorner(close);
 
   const hint = document.createElement("p");
   hint.className = "stage-hint";
@@ -681,7 +678,7 @@ function fetchGame(ctx: MenuCtx): void {
   const hint = document.createElement("p");
   hint.className = "stage-hint";
   hint.textContent = "Tap the ball on the green.";
-  top.append(cornerDone(dismiss), hint, track);
+  top.append(closeCorner(dismiss), hint, track);
 }
 
 // In-scene game: pick a move down at the bottom, watch it fly up into the
@@ -794,11 +791,7 @@ function hideSeek(ctx: MenuCtx): void {
       rawClose();
       if (!resolved) ctx.scene().playReveal(spot);
     });
-    const closeBtn = document.createElement("button");
-    closeBtn.className = "hl-close";
-    closeBtn.setAttribute("aria-label", "Close");
-    closeBtn.textContent = "✕";
-    closeBtn.addEventListener("click", close);
+    const closeBtn = closeCorner(close);
 
     const hint = document.createElement("p");
     hint.className = "stage-hint";

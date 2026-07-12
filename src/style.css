@@ -1469,25 +1469,6 @@ body {
   50% { transform: translateX(-50%) translateY(-6px); }
 }
 
-/* A compact "Done" tucked in a strip corner. */
-.corner-done {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  padding: 2px 6px;
-  border: none;
-  background: transparent;
-  color: var(--wood-dark);
-  font-size: 0.72rem;
-  font-weight: 800;
-  cursor: pointer;
-  opacity: 0.7;
-}
-
-.corner-done:active {
-  opacity: 1;
-}
-
 .stage-controls .btn {
   margin-top: 8px;
 }
