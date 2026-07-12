@@ -757,23 +757,24 @@ const ICONS: Record<IconName, IconDef> = {
     palette: { r: "#e05c48" },
   },
   megaphone: {
-    // bullhorn in profile — narrow mouthpiece flaring to a wide bell. A
-    // status update, not an emergency, so it's amber rather than alert-red.
+    // bullhorn in profile — grey grip/mouthpiece on the left, a curved bell
+    // flaring to a flat rim on the right. A status update, not an
+    // emergency, so it's amber rather than alert-red.
     rows: [
       "............",
       "........kk..",
-      ".......kyyk.",
-      ".....kyyyyk.",
+      "......kyyyk.",
+      "....kyyyyyk.",
       "...kyyyyyyk.",
-      ".kyyyyyyyyk.",
-      ".kyyyyyyyyk.",
-      "...kyyyyyyk.",
-      ".....kyyyyk.",
-      ".......kyyk.",
+      ".gkyyyyyyyk.",
+      ".gkyyyyyyyk.",
+      ".g.kyyyyyyk.",
+      ".g..kyyyyyk.",
+      "......kyyyk.",
       "........kk..",
       "............",
     ],
-    palette: { k: K, y: "#e8a33d" },
+    palette: { k: K, y: "#e8a33d", g: "#8b8f97" },
   },
   thermometer: {
     rows: [
