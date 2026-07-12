@@ -164,6 +164,10 @@ function quirk(t: number, period: number, dur: number, offset = 0): number {
   return c < dur ? c / dur : -1;
 }
 
+// Standing still should read as a quiet breathe, not constant rocking — every
+// per-form idle motion gets damped by this before it hits the canvas.
+const IDLE_WIGGLE_SCALE = 0.5;
+
 // Idle song cadence. On its own slow schedule (not tied to any one quirk), but
 // on the same order as the quirk periods so a song lands near a quirky move
 // often enough to feel like the buddy hums around its little trick.
@@ -1728,27 +1732,19 @@ export class Scene {
 
     // Older creatures dwell longer, walk slower, and flop down more often.
     const activity = v.activity ?? 1;
-    const dwellFor = () => (7000 + Math.random() * 7000) * (2 - activity);
+    const dwellFor = () => (3000 + Math.random() * 4000) * (2 - activity);
 
     switch (this.wanderPhase) {
       case "dwell": {
         if (now >= this.wanderUntil) {
-          // Idle is the default: most of the time it just keeps standing and
-          // breathing, so a wander or a quirk reads as an occasional event
-          // rather than constant motion. Calmer (low-activity) pets stay put
-          // even more; babies get up and go a little more often.
-          if (Math.random() < 0.45 + 0.25 * (1 - activity)) {
-            this.wanderUntil = now + dwellFor();
-            break;
-          }
-          if (Math.random() < 0.1 + 0.5 * (1 - activity)) {
+          if (Math.random() < 0.12 + 0.55 * (1 - activity)) {
             // Take a breather: a big yawn, then blob down for a while.
             this.wanderPhase = "yawn";
             this.phaseStart = now;
             this.wanderUntil = now + 1100;
             break;
           }
-          if (Math.random() < 0.1) {
+          if (Math.random() < 0.18) {
             // Off to perch on the stump for a spell.
             this.wanderTargetX = STUMP_SEAT_DX;
             this.wanderTargetY = 0;
@@ -2127,6 +2123,11 @@ export class Scene {
       default:
         m.bob = Math.sin(t * 2) * 1.5;
     }
+    m.bob *= IDLE_WIGGLE_SCALE;
+    m.dx *= IDLE_WIGGLE_SCALE;
+    m.rot *= IDLE_WIGGLE_SCALE;
+    m.sx = 1 + (m.sx - 1) * IDLE_WIGGLE_SCALE;
+    m.sy = 1 + (m.sy - 1) * IDLE_WIGGLE_SCALE;
     return m;
   }
 
@@ -2210,7 +2211,11 @@ export class Scene {
     const ctx = this.ctx;
     const v = this.view;
     const scale = 3 * scaleMul * this.depthScale(dy);
-    const cw = CELL * scale;
+    // Round to a whole buffer pixel like the translate origin below — dy (and
+    // so depthScale) crawls continuously while walking, and drawing a
+    // fractional-width sprite every frame is what reads as fuzzy on the move;
+    // idle rarely triggers it since dy sits still.
+    const cw = Math.round(CELL * scale);
     const isGhost = v.key === "ghost";
     const ambient = this.act === null && hopY === null;
 
