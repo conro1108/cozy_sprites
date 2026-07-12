@@ -182,6 +182,6 @@ describe("randomWouldYou", () => {
       expect(q.judgeB.length).toBeGreaterThan(0);
       seen.add(q.a);
     }
-    expect(seen.size).toBeGreaterThanOrEqual(170);
+    expect(seen.size).toBeGreaterThanOrEqual(500);
   });
 });
