@@ -681,19 +681,38 @@ function fetchGame(ctx: MenuCtx): void {
   top.append(closeCorner(dismiss), hint, track);
 }
 
+const RPS_ROUNDS = 3;
+const RPS_WINS_NEEDED = 2; // best of 3 — first to 2 decisive rounds
+
 // In-scene game: pick a move down at the bottom, watch it fly up into the
-// countdown at the sprite. Loops: the chooser comes straight back after each
-// round, one tap per throw.
-function rps(ctx: MenuCtx, round = 1): void {
+// countdown at the sprite. Played as a best-of-3, same shape as
+// higher/lower — a pip per decisive round, then the pet weighs in once on
+// the whole match and you can go again. A tie doesn't consume a round; it
+// just re-prompts the same one.
+function rps(ctx: MenuCtx): void {
   const cheat = ctx.pet().form === "gremlin";
   // Display up top over the pet; the three moves sit in a selector strip down
   // at the bottom, within thumb reach — same shape as higher/lower's cards
   // and would-you-rather's answers.
   const { top, bottom, close: rawClose } = splitOverlay(ctx);
   const close = registerActiveGame(rawClose);
+  const closeBtn = closeCorner(close);
+
   const hint = document.createElement("p");
   hint.className = "stage-hint";
-  hint.textContent = round === 1 ? "Choose your weapon." : "Again. Choose.";
+
+  // Best-of-3 progress: one pip per decisive round, filled green (won) or
+  // red (lost) — same component as higher/lower's match tally.
+  const pipRow = document.createElement("div");
+  pipRow.className = "hl-pips";
+  const pips: HTMLSpanElement[] = [];
+  for (let i = 0; i < RPS_ROUNDS; i++) {
+    const pip = document.createElement("span");
+    pip.className = "hl-pip";
+    pips.push(pip);
+    pipRow.appendChild(pip);
+  }
+
   const choices = document.createElement("div");
   choices.className = "rps-choices";
   const moves: { m: RpsMove; icon: IconName; label: string }[] = [
@@ -701,38 +720,104 @@ function rps(ctx: MenuCtx, round = 1): void {
     { m: "paper", icon: "paper", label: "Paper" },
     { m: "scissors", icon: "scissors", label: "Scissors" },
   ];
+
+  // The end-of-match beat: a verdict line up top by the pips, and two ways
+  // forward down at the bottom — same pattern as higher/lower.
+  const result = document.createElement("div");
+  result.className = "hl-result";
+  result.style.display = "none";
+  const resultText = document.createElement("p");
+  resultText.className = "stage-hint hl-result-text";
+  result.append(resultText);
+
+  const resultButtons = document.createElement("div");
+  resultButtons.className = "game-choices";
+  resultButtons.style.display = "none";
+  const again = document.createElement("button");
+  again.className = "btn btn-small";
+  again.textContent = "Play again";
+  again.addEventListener("click", () => startMatch());
+  resultButtons.append(again, doneButton(close));
+
+  let round = 0; // decisive rounds settled so far
+  let wins = 0;
   let picked = false;
+
+  const newRound = () => {
+    picked = false;
+    choices.classList.remove("rps-chosen");
+    hint.textContent =
+      round === 0 ? `Round 1 of ${RPS_ROUNDS} — choose your weapon.` : `Round ${round + 1} of ${RPS_ROUNDS} — choose again.`;
+  };
+
+  const startMatch = () => {
+    round = 0;
+    wins = 0;
+    for (const pip of pips) pip.className = "hl-pip";
+    result.style.display = "none";
+    resultButtons.style.display = "none";
+    choices.style.display = "";
+    newRound();
+  };
+
+  const finishMatch = () => {
+    const won = wins >= RPS_WINS_NEEDED;
+    choices.style.display = "none";
+    hint.textContent = "";
+    resultText.textContent = won ? `You win — ${wins} of ${round}` : `Beaten — ${wins} of ${round}`;
+    result.classList.toggle("won", won);
+    result.classList.toggle("lost", !won);
+    result.style.display = "";
+    resultButtons.style.display = "";
+    playSfx(won ? "win" : "lose");
+    // The pet weighs in on the whole match, not each throw — same handoff
+    // every other match-shaped game uses.
+    ctx.finishGame("rps", won);
+  };
+
   for (const { m, icon, label } of moves) {
     const b = document.createElement("button");
     b.className = "rps-choice";
     b.setAttribute("aria-label", label);
     b.appendChild(iconEl(icon, 30));
     b.addEventListener("click", () => {
-      if (picked) return; // one throw per round — no double-taps mid-flight
+      if (picked || !top.isConnected) return; // one throw per round — no double-taps mid-flight
       picked = true;
       choices.classList.add("rps-chosen");
       flyChoice(ctx, b, icon, () => {
         const ai = rpsAiMove(m, cheat);
         const outcome = judgeRps(m, ai);
-        close();
         ctx.scene().playRps(m as IconName, ai as IconName, outcome, () => {
+          if (!top.isConnected) return; // torn out mid-reveal (sleep, death, restore)
           if (outcome === "tie") {
-            ctx.finishGame("rps", false, "A tie. How embarrassing for us both.");
-          } else if (outcome === "win") {
-            ctx.finishGame("rps", true);
-          } else {
-            // The pick-after-you animation already shows the cheat; no need to
-            // confess it out loud every single round.
-            ctx.finishGame("rps", false, cheat && Math.random() < 0.3 ? "I definitely cheated." : undefined);
+            // Doesn't consume a round — a quick remark, then re-throw the same one.
+            ctx.sayLine("A tie. How embarrassing for us both.");
+            newRound();
+            return;
           }
-          if (canReplay(ctx)) rps(ctx, round + 1);
+          const wonRound = outcome === "win";
+          if (!wonRound && cheat && Math.random() < 0.3) {
+            // The pick-after-you animation already shows the cheat; this is
+            // just an occasional confession, not every losing round.
+            ctx.sayLine("I definitely cheated.");
+          }
+          pips[round].classList.add(wonRound ? "won" : "lost");
+          if (wonRound) wins++;
+          round++;
+          if (wins >= RPS_WINS_NEEDED || round - wins >= RPS_WINS_NEEDED) {
+            finishMatch();
+          } else {
+            newRound();
+          }
         });
       });
     });
     choices.appendChild(b);
   }
-  top.append(hint);
-  bottom.append(choices);
+
+  startMatch();
+  top.append(closeBtn, hint, pipRow, result);
+  bottom.append(choices, resultButtons);
 }
 
 /** Send a clone of the tapped move flying from its button up to where the rps
