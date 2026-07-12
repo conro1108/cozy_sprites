@@ -41,6 +41,7 @@ export type IconName =
   | "star"
   | "sparkle"
   | "alert"
+  | "megaphone"
   | "thermometer"
   | "rock"
   | "paper"
@@ -754,6 +755,25 @@ const ICONS: Record<IconName, IconDef> = {
       "............",
     ],
     palette: { r: "#e05c48" },
+  },
+  megaphone: {
+    // bullhorn in profile — narrow mouthpiece flaring to a wide bell. A
+    // status update, not an emergency, so it's amber rather than alert-red.
+    rows: [
+      "............",
+      "........kk..",
+      ".......kyyk.",
+      ".....kyyyyk.",
+      "...kyyyyyyk.",
+      ".kyyyyyyyyk.",
+      ".kyyyyyyyyk.",
+      "...kyyyyyyk.",
+      ".....kyyyyk.",
+      ".......kyyk.",
+      "........kk..",
+      "............",
+    ],
+    palette: { k: K, y: "#e8a33d" },
   },
   thermometer: {
     rows: [
