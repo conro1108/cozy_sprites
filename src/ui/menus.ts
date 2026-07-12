@@ -19,7 +19,6 @@ import {
   pickHideSpot,
   hideSeekLine,
   randomWouldYou,
-  HIDE_SPOTS,
   extendHum,
   humMatches,
   cubeHumLine,
@@ -783,9 +782,9 @@ function hideSeek(ctx: MenuCtx): void {
   const peek = Math.random() < 0.3 ? spot : null;
   playSfx("hide"); // scurries off
   ctx.scene().playHide(peek, () => {
-    // Prompt up top over the pet; the guesses sit down at the bottom, in
-    // reach — same shape as higher/lower, rps, and would-you-rather.
-    const { top, bottom, close: rawClose } = splitOverlay(ctx);
+    // Prompt up top over the pet; the guess itself is a tap on the scene, so
+    // there's nothing to anchor at the bottom.
+    const { el, close: rawClose } = stageOverlay(ctx);
     // Navigating away entirely (a nav tap, opening another panel) skips the
     // guess phase without resolving it. The creature is still off-scene then,
     // so bring it back — otherwise it's stuck invisible until the next round.
@@ -797,9 +796,7 @@ function hideSeek(ctx: MenuCtx): void {
     });
     const hint = document.createElement("p");
     hint.className = "stage-hint";
-    hint.textContent = "Where did it go? Tap the spot, or guess below.";
-    const row = document.createElement("div");
-    row.className = "game-choices";
+    hint.textContent = "Where did it go? Tap the stump, flowers, fence, or mushroom.";
 
     const guess = (won: boolean) => {
       resolved = true;
@@ -813,25 +810,16 @@ function hideSeek(ctx: MenuCtx): void {
       });
     };
 
-    // Any tap on the stage during the guess phase is itself a guess — landing
-    // on the real spot wins, landing anywhere else (a wrong spot, empty grass)
-    // just loses, the same as picking the wrong name below. It never falls
-    // through to "exit the game".
+    // Any tap on the stage is the guess — landing on the real spot wins,
+    // landing anywhere else (a wrong spot, empty grass) just loses. It never
+    // falls through to "exit the game".
     stageTapHandler = (x, y) => {
       const s = ctx.scene().hideSpotAt(x, y);
       guess(s === spot);
       return true;
     };
 
-    for (const s of HIDE_SPOTS) {
-      const b = document.createElement("button");
-      b.className = "btn secondary btn-small";
-      b.textContent = s;
-      b.addEventListener("click", () => guess(s === spot));
-      row.appendChild(b);
-    }
-    top.append(hint);
-    bottom.append(row);
+    el.append(hint);
   });
 }
 
