@@ -38,6 +38,23 @@ export function formatDebugReport(pet: PetState, now: number = Date.now()): stri
   }
   lines.push("");
   lines.push(`--- Timeline (${pet.vitals.length} vitals samples, ${pet.diag.length} events) ---`);
+  // Both rings are capped as a runaway-memory backstop (see state.ts). If a
+  // ring's lifetime total has ever exceeded what it's currently holding, the
+  // oldest entries were evicted — say so loudly rather than silently showing
+  // a trail that looks complete but isn't. Once truncated, the ring's current
+  // length IS its cap (it always trims back down to exactly that).
+  if (pet.vitalsTotal > pet.vitals.length) {
+    lines.push(
+      `⚠ vitals ring capped at ${pet.vitals.length} — ${pet.vitalsTotal} samples logged in ` +
+        `total, oldest ${pet.vitalsTotal - pet.vitals.length} dropped`,
+    );
+  }
+  if (pet.diagTotal > pet.diag.length) {
+    lines.push(
+      `⚠ diag ring capped at ${pet.diag.length} — ${pet.diagTotal} events logged in total, ` +
+        `oldest ${pet.diagTotal - pet.diag.length} dropped`,
+    );
+  }
 
   interface Row {
     t: number;

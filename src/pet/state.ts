@@ -174,19 +174,26 @@ const RECOVERED_HEALTH = 10;
 // silently lose its baby/child history before ever reaching burial, which is
 // exactly the kind of gap the diagnostics exist to prevent. Diag events also
 // now cover the full care loop (pats, taps, discipline, calls…), so the ring
-// fills faster than it used to. Sized generously so no realistic play session —
-// even a heavily-interacted pet kept for months — truncates before burial;
-// hundreds of KB to a couple MB of save is an acceptable cost for never losing
-// the trail. Completeness beats compactness here.
+// fills faster than it used to — a bored player mashing taps/pats for twenty
+// minutes can log thousands of events on its own. Sized generously so no
+// realistic single session truncates; hundreds of KB to a couple MB of save
+// is an acceptable cost for never losing the trail. If a ring ever DOES hit
+// its cap, that's not silent: vitalsTotal/diagTotal keep counting past the
+// ring's current length, and formatDebugReport (debug.ts) surfaces a warning
+// when the two diverge, rather than quietly showing a trail that looks
+// complete but isn't.
 const VITALS_INTERVAL_MS = HOUR;
-const VITALS_CAP = 4_000; // ~166 days of hourly samples
-const DIAG_CAP = 8_000;
+// Exported so tests can exercise ring truncation without hardcoding a magic
+// number that would silently drift out of sync if these are retuned.
+export const VITALS_CAP = 4_000; // ~166 days of hourly samples
+export const DIAG_CAP = 8_000;
 
 /** Log a notable transition. Mutates `s`. Exported so persistence.ts can log a
  *  final event (e.g. a player-walked retirement) onto a snapshot bound for the
  *  farm archive, without duplicating the ring-eviction logic here. */
 export function logEvent(s: PetState, t: number, kind: DiagKind, detail?: string): void {
   s.diag.push(detail === undefined ? { t, kind } : { t, kind, note: detail });
+  s.diagTotal++;
   if (s.diag.length > DIAG_CAP) s.diag.splice(0, s.diag.length - DIAG_CAP);
 }
 
@@ -209,6 +216,7 @@ function sampleVitals(s: PetState, t: number): void {
     zeroHealthMs: Math.round(s.zeroHealthMs),
     careMistakes: r1(s.hidden.careMistakes),
   });
+  s.vitalsTotal++;
   if (s.vitals.length > VITALS_CAP) s.vitals.splice(0, s.vitals.length - VITALS_CAP);
 }
 
@@ -302,7 +310,9 @@ export function createPet(name: string, now: number): PetState {
     zoomiesStartedAt: null,
     hidden: emptyHidden(),
     vitals: [],
+    vitalsTotal: 0,
     diag: [{ t: now, kind: "hatched" }],
+    diagTotal: 1,
     recentTaps: [],
     recentPats: [],
     tapStreak: 0,

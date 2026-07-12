@@ -81,4 +81,32 @@ describe("formatDebugReport", () => {
     const report = formatDebugReport(pet, T0 + HOUR);
     expect(report).toContain("0 vitals samples, 2 events");
   });
+
+  it("warns when the diag ring has evicted older events", () => {
+    const pet: PetState = {
+      ...createPet("Milo", T0),
+      diag: [{ t: T0, kind: "hatched" }],
+      diagTotal: 9_001, // far more logged over this pet's life than the ring holds
+    };
+    const report = formatDebugReport(pet, T0);
+    expect(report).toMatch(/⚠ diag ring capped at 1.*9001 events logged.*oldest 9000 dropped/);
+  });
+
+  it("warns when the vitals ring has evicted older samples", () => {
+    const pet: PetState = {
+      ...createPet("Milo", T0),
+      vitals: [
+        { t: T0, health: 100, energy: 4, happiness: 4, weight: 5, poops: 0, illness: null, asleep: false, lightsOn: true, zeroHealthMs: 0, careMistakes: 0 },
+      ],
+      vitalsTotal: 4_500,
+    };
+    const report = formatDebugReport(pet, T0);
+    expect(report).toMatch(/⚠ vitals ring capped at 1.*4500 samples logged.*oldest 4499 dropped/);
+  });
+
+  it("says nothing about capping when nothing has actually been dropped", () => {
+    const pet = createPet("Milo", T0); // diagTotal === diag.length, vitalsTotal === vitals.length
+    const report = formatDebugReport(pet, T0);
+    expect(report).not.toContain("⚠");
+  });
 });

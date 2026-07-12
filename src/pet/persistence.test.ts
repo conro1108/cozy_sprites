@@ -159,4 +159,16 @@ describe("migratePet backfills the diagnostics trail", () => {
     expect(m.vitals).toEqual([]);
     expect(m.diag).toEqual([]);
   });
+
+  it("backfills the lifetime totals to match current length, not zero", () => {
+    // A save from before vitalsTotal/diagTotal existed still has a real diag
+    // trail — assume nothing's been dropped yet rather than flagging every
+    // pre-upgrade save as truncated.
+    const legacy = { ...createPet("Old", 1) } as Partial<PetState>;
+    delete legacy.vitalsTotal;
+    delete legacy.diagTotal;
+    const m = migratePet(legacy as PetState);
+    expect(m.diagTotal).toBe(m.diag.length);
+    expect(m.vitalsTotal).toBe(m.vitals.length);
+  });
 });

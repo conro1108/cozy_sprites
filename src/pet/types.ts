@@ -222,6 +222,12 @@ export interface PetState {
    *  See the Diagnostics block below. Never shown to the player. */
   vitals: VitalsSample[];
   diag: DiagEvent[];
+  /** Lifetime count of samples/events ever logged — keeps counting past the
+   *  ring's cap, so once a ring has evicted its oldest entries this is bigger
+   *  than vitals.length/diag.length. Lets the debug report say exactly how
+   *  many were dropped instead of leaving it silent. */
+  vitalsTotal: number;
+  diagTotal: number;
 
   recentTaps: number[];
   /** Timestamps of recent pats, for the pat satiation window (mirrors

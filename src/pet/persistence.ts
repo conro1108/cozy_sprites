@@ -99,6 +99,12 @@ export function migratePet(p: PetState): PetState {
     // yet", which is the truth.
     vitals: p.vitals ?? [],
     diag: p.diag ?? [],
+    // Saves from before these lifetime counters existed have no way to know
+    // whether their ring ever evicted anything — best assume it hasn't
+    // (matches current length) rather than falsely flagging old saves as
+    // truncated.
+    vitalsTotal: p.vitalsTotal ?? p.vitals?.length ?? 0,
+    diagTotal: p.diagTotal ?? p.diag?.length ?? 0,
     // Backfill hidden stats + any newly-added game counters (e.g. cubehum) so an
     // old save doesn't turn gamePlays[newGame]++ into NaN and poison scoring.
     hidden: {

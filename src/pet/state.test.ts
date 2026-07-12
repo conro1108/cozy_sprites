@@ -4,12 +4,14 @@ import {
   AUTO_LEAVE_EXTRA_MS,
   CALL_EXPIRE_MS,
   DEATH_AFTER_ZERO_HEALTH_MS,
+  DIAG_CAP,
   MAX_HEARTS,
   OVERWEIGHT,
   PAT_SATIATION,
   TAP_ANNOY_THRESHOLD,
   TAP_WINDOW_MS,
   TIMING,
+  VITALS_CAP,
   ZOOMIES_DURATION_MS,
   applyElapsedDecay,
   applyGameResult,
@@ -1626,6 +1628,57 @@ describe("diagnostics", () => {
     const pet = asStage(createPet("Milo", T0), "adult");
     applyElapsedDecay(pet, T0 + 5 * HOUR);
     expect(pet.vitals).toHaveLength(0);
+  });
+
+  it("tracks a lifetime total alongside each ring's current length", () => {
+    const pet = asStage(createPet("Milo", T0), "adult");
+    expect(pet.diagTotal).toBe(pet.diag.length); // just "hatched" so far
+    const { state } = feed(pet, "burger", T0);
+    expect(state.diagTotal).toBe(pet.diagTotal + 1);
+    expect(state.diagTotal).toBe(state.diag.length);
+  });
+
+  it("keeps counting the lifetime total past the ring's cap once it starts evicting", () => {
+    // A diag ring already sitting at the cap, as if DIAG_CAP events have been
+    // logged over a long, heavily-interacted life. One more push should still
+    // grow the ring's length keeps at the cap while diagTotal keeps counting —
+    // the ring truncates, the total doesn't.
+    const full = Array.from({ length: DIAG_CAP }, (_, i) => ({ t: T0 + i, kind: "fed" as const }));
+    const pet: PetState = {
+      ...asStage(createPet("Milo", T0), "adult"),
+      diag: full,
+      diagTotal: DIAG_CAP,
+    };
+    const { state } = feed(pet, "burger", T0 + DIAG_CAP + 1000);
+    expect(state.diag.length).toBe(DIAG_CAP); // ring stays capped
+    expect(state.diagTotal).toBe(DIAG_CAP + 1); // but the total keeps climbing
+    expect(state.diagTotal).toBeGreaterThan(state.diag.length);
+  });
+
+  it("keeps counting the vitals lifetime total past the ring's cap too", () => {
+    const full = Array.from({ length: VITALS_CAP }, (_, i) => ({
+      t: T0 + i * HOUR,
+      health: 100,
+      energy: 4,
+      happiness: 4,
+      weight: 5,
+      poops: 0,
+      illness: null,
+      asleep: false,
+      lightsOn: true,
+      zeroHealthMs: 0,
+      careMistakes: 0,
+    }));
+    const pet: PetState = {
+      ...asStage(createPet("Milo", T0), "adult"),
+      lastUpdated: T0 + (VITALS_CAP - 1) * HOUR,
+      vitals: full,
+      vitalsTotal: VITALS_CAP,
+    };
+    const later = applyElapsedDecay(pet, pet.lastUpdated + 2 * HOUR);
+    expect(later.vitals.length).toBe(VITALS_CAP);
+    expect(later.vitalsTotal).toBeGreaterThan(VITALS_CAP);
+    expect(later.vitalsTotal).toBeGreaterThan(later.vitals.length);
   });
 });
 
