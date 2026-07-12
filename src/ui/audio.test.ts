@@ -78,6 +78,7 @@ describe("unlockAudio surviving a backgrounded PWA", () => {
   class FakeAudioContext {
     static instances: FakeAudioContext[] = [];
     state: AudioContextState = "suspended";
+    currentTime = 0;
     resumeCalls = 0;
     closeCalls = 0;
     constructor() {
@@ -148,6 +149,99 @@ describe("unlockAudio surviving a backgrounded PWA", () => {
     expect(FakeAudioContext.instances).toHaveLength(2);
     // Already closed — no point calling close() on it again.
     expect(FakeAudioContext.instances[0].closeCalls).toBe(0);
+  });
+
+  it("rebuilds an interrupted context from inside playback too", async () => {
+    // Sounds mostly fire from click handlers — a real user activation — so
+    // playback itself must recover from "interrupted", not just unlockAudio.
+    // Before this, a beep on an interrupted context was scheduled into a dead
+    // session and silently lost, which is exactly the backgrounded-iOS-PWA
+    // "sound never comes back" bug.
+    vi.resetModules();
+    const mod = await import("./audio");
+    mod.unlockAudio();
+    FakeAudioContext.instances[0].state = "interrupted" as AudioContextState;
+
+    mod.playSfx("tap"); // scheduling throws on the fake; that part is swallowed
+    expect(FakeAudioContext.instances[0].closeCalls).toBe(1);
+    expect(FakeAudioContext.instances).toHaveLength(2);
+  });
+});
+
+describe("reviveAudio on returning to the foreground", () => {
+  class FakeAudioContext {
+    static instances: FakeAudioContext[] = [];
+    state: AudioContextState = "suspended";
+    currentTime = 0;
+    closeCalls = 0;
+    constructor() {
+      FakeAudioContext.instances.push(this);
+    }
+    createGain() {
+      return { gain: { value: 0 }, connect: () => {} };
+    }
+    resume() {
+      this.state = "running";
+      return Promise.resolve();
+    }
+    close() {
+      this.closeCalls++;
+      this.state = "closed";
+      return Promise.resolve();
+    }
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    FakeAudioContext.instances = [];
+    (globalThis as { window?: unknown }).window = { AudioContext: FakeAudioContext };
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    delete (globalThis as { window?: unknown }).window;
+  });
+
+  it("discards a non-running context but builds nothing outside a gesture", async () => {
+    vi.resetModules();
+    const mod = await import("./audio");
+    mod.unlockAudio();
+    FakeAudioContext.instances[0].state = "interrupted" as AudioContextState;
+
+    mod.reviveAudio();
+    expect(FakeAudioContext.instances[0].closeCalls).toBe(1);
+    // No replacement yet — a context born without user activation would be
+    // dead on arrival on iOS. The next tap's unlockAudio builds the live one.
+    expect(FakeAudioContext.instances).toHaveLength(1);
+    mod.unlockAudio();
+    expect(FakeAudioContext.instances).toHaveLength(2);
+  });
+
+  it("leaves a genuinely running context alone", async () => {
+    vi.resetModules();
+    const mod = await import("./audio");
+    mod.unlockAudio();
+    const c = FakeAudioContext.instances[0];
+    expect(c.state).toBe("running");
+
+    mod.reviveAudio();
+    c.currentTime = 1.5; // the clock is advancing: healthy
+    vi.advanceTimersByTime(300);
+    expect(c.closeCalls).toBe(0);
+  });
+
+  it("discards a zombie that claims running while its clock is frozen", async () => {
+    vi.resetModules();
+    const mod = await import("./audio");
+    mod.unlockAudio();
+    const c = FakeAudioContext.instances[0];
+    expect(c.state).toBe("running");
+
+    mod.reviveAudio();
+    vi.advanceTimersByTime(300); // currentTime never moved — dead session
+    expect(c.closeCalls).toBe(1);
+    mod.unlockAudio();
+    expect(FakeAudioContext.instances).toHaveLength(2);
   });
 });
 

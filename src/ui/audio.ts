@@ -174,35 +174,66 @@ function audio(): AudioContext | null {
   }
 }
 
-/** Call from a real user gesture. iOS in particular will only let an
- *  AudioContext start from inside one, so the first tap buys every later beep.
- *
- *  Also the fix for going quiet after the PWA is backgrounded and returns:
- *  iOS parks the context in one of two bad states while hidden — "closed"
- *  (torn down outright) or the non-standard "interrupted" (audio session
- *  interrupted by a call/another app/backgrounding). A plain "suspended"
- *  revives fine with resume(), but resume() on an "interrupted" context is a
- *  known WebKit trap: it reports success while the context stays silent. So
- *  anything that isn't running-or-suspended gets thrown away and rebuilt —
- *  `audio()` makes a fresh one, which then starts on this gesture (or the
- *  next tap). Only a genuine "suspended" is resumed in place. */
-export function unlockAudio(): void {
-  if (ctx && ctx.state !== "running" && ctx.state !== "suspended") {
-    // "closed" is already gone; anything else (i.e. "interrupted") we close
-    // to release the dead audio session before dropping the reference.
-    if (ctx.state !== "closed") {
-      try {
-        void ctx.close?.().catch(() => {});
-      } catch {
-        // Already closing, or an engine too old to have close() — we're
-        // discarding this context either way.
-      }
+/** Throw the current context away, releasing its audio session first. */
+function discard(): void {
+  if (!ctx) return;
+  // "closed" is already gone; anything else we close to release the (possibly
+  // dead) audio session before dropping the reference.
+  if (ctx.state !== "closed") {
+    try {
+      void ctx.close?.().catch(() => {});
+    } catch {
+      // Already closing, or an engine too old to have close() — we're
+      // discarding this context either way.
     }
-    ctx = null;
-    master = null;
   }
-  const c = audio();
+  ctx = null;
+  master = null;
+}
+
+/** The context, after first discarding one that no gesture can save.
+ *  "running" and a plain "suspended" are workable; "closed" and WebKit's
+ *  non-standard "interrupted" (audio session lost to a call/another app/
+ *  backgrounding the PWA) are not — resume() on an interrupted context is a
+ *  known WebKit trap that reports success while staying silent — so those
+ *  are rebuilt from scratch. On iOS a context is only *born* alive inside a
+ *  real user activation; rebuilt anywhere else it comes up "interrupted"
+ *  again, harmlessly, and the next gesture's rebuild is the one that takes. */
+function live(): AudioContext | null {
+  if (ctx && ctx.state !== "running" && ctx.state !== "suspended") discard();
+  return audio();
+}
+
+/** Call from a real user gesture. iOS will only let an AudioContext start
+ *  from inside one — and for touch, "inside one" means at gesture *end*
+ *  (pointerup/click); a pointerdown alone doesn't carry user activation, so
+ *  wire this to both ends of the tap. The first tap buys every later beep,
+ *  and after the PWA comes back from the background this is also what
+ *  replaces the context iOS killed while we were hidden. */
+export function unlockAudio(): void {
+  const c = live();
   if (c && c.state !== "running") void c.resume();
+}
+
+/** Call when the app returns to the foreground. Not a gesture, so nothing is
+ *  created or resumed here — that has to wait for the next tap. This only
+ *  clears wreckage so that tap starts from a clean slate: a context parked in
+ *  "interrupted"/"closed" while hidden is dropped now, and one that *claims*
+ *  "running" is probed, because iOS sometimes hands back a zombie that
+ *  reports running while its clock is frozen and its audio session is gone. */
+export function reviveAudio(): void {
+  if (!ctx) return;
+  if (ctx.state !== "running") {
+    discard();
+    return;
+  }
+  const c = ctx;
+  const t = c.currentTime;
+  setTimeout(() => {
+    // A live "running" context advances its clock every few milliseconds; one
+    // that hasn't moved in 250ms is a zombie. Discard so the next tap rebuilds.
+    if (ctx === c && c.state === "running" && c.currentTime === t) discard();
+  }, 250);
 }
 
 export function playSfx(name: SfxName): void {
@@ -214,7 +245,10 @@ export function playSfx(name: SfxName): void {
  *  never throws into the caller. */
 function playTones(tones: Tone[]): void {
   if (isMuted()) return;
-  const c = audio();
+  // live(), not audio(): most sounds fire from click handlers, so this is
+  // usually a real user activation — the one place a context interrupted
+  // behind our back (backgrounded iOS PWA) can actually be rebuilt and heard.
+  const c = live();
   if (!c || !master) return;
   if (c.state === "suspended") void c.resume();
   const start = c.currentTime + 0.005; // a hair of lead time to schedule against

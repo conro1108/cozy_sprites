@@ -675,10 +675,16 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   const unjustified = callUnjustified(s);
   const def = FOODS[food];
 
+  // Soup is medicine for the folk illnesses (see IllnessDef.soupCure) — the
+  // sniffles, goblin flu, the vapors. Decided up front because a curing bowl
+  // has to get past the full-stomach refusal below: a sick pet with a full
+  // belly still gets its soup.
+  const soupCures = food === "soup" && s.sick && s.illness !== null && ILLNESSES[s.illness].soupCure;
+
   // Refuse proper meals when already full (classic Tamagotchi behaviour);
   // treats (cake/cube — anything with real happiness value) are always taken.
   const isTreat = def.happiness >= 0.5;
-  if (!isTreat && s.energy >= MAX_HEARTS - 0.05) {
+  if (!isTreat && !soupCures && s.energy >= MAX_HEARTS - 0.05) {
     return { state: s, note: "full" };
   }
 

@@ -55,7 +55,7 @@ import { creatureKey } from "./render/sprites";
 import type { Mood } from "./render/sprites";
 import { iconEl, iconHTML, iconUrl } from "./render/icons";
 import { notify } from "./ui/notifications";
-import { playSfx, playSong, unlockAudio } from "./ui/audio";
+import { playSfx, playSong, reviveAudio, unlockAudio } from "./ui/audio";
 import {
   initMenus,
   openCare,
@@ -123,7 +123,11 @@ function boot(): void {
   // Audio can only start from inside a real gesture, so every tap nudges the
   // context awake. Cheap once it's already running — not just-once, because a
   // backgrounded PWA can suspend or tear down the context before the next tap.
+  // Both ends of the tap: iOS only grants user activation (which starting
+  // audio requires) at gesture end, so pointerdown alone can't revive a
+  // context the OS killed while backgrounded — the pointerup is what takes.
   document.addEventListener("pointerdown", unlockAudio);
+  document.addEventListener("pointerup", unlockAudio);
   pet = loadPet();
   if (!pet) {
     mountHatch();
@@ -1164,7 +1168,9 @@ function pick<T>(arr: readonly T[]): T {
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") commit();
   else {
-    unlockAudio();
+    // Not a gesture — this can't start audio (iOS would hand back a dead
+    // context), it just discards whatever iOS broke so the next tap rebuilds.
+    reviveAudio();
     if (pet && !dying) {
       stepPet(Date.now(), true);
       commit();

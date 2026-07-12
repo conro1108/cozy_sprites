@@ -64,6 +64,10 @@ export interface IllnessDef {
   selfResolveMs: number | null;
   /** True → also curable by a ≥1h daytime lights-off nap (the vapors). */
   napCure: boolean;
+  /** True → also curable by a bowl of soup: the folk remedies, the ones a warm
+   *  bowl plausibly fixes. The gut-and-glands illnesses (dysentery,
+   *  trimethylaminuria) and the plague still want real medicine. */
+  soupCure: boolean;
   /** Whether leaving it untreated counts as neglect (care mistakes). The
    *  sniffles are too mild to hold against anyone. */
   neglect: boolean;
@@ -76,32 +80,38 @@ export const ILLNESSES: Record<IllnessId, IllnessDef> = {
   sniffles: {
     id: "sniffles", label: "the sniffles", doses: 1,
     drainPerHour: 0, happinessDecayMult: 1.5, blocksPlay: false, patMute: false,
-    foodEfficiency: 1, selfResolveMs: 4 * HOUR, napCure: false, neglect: false,
+    foodEfficiency: 1, selfResolveMs: 4 * HOUR, napCure: false, soupCure: true,
+    neglect: false,
   },
   dysentery: {
     id: "dysentery", label: "dysentery", doses: 1,
     drainPerHour: 8, happinessDecayMult: 1, blocksPlay: false, patMute: false,
-    foodEfficiency: 0.5, selfResolveMs: null, napCure: false, neglect: true,
+    foodEfficiency: 0.5, selfResolveMs: null, napCure: false, soupCure: false,
+    neglect: true,
   },
   goblinflu: {
     id: "goblinflu", label: "goblin flu", doses: 1,
     drainPerHour: 10, happinessDecayMult: 1.25, blocksPlay: true, patMute: false,
-    foodEfficiency: 1, selfResolveMs: null, napCure: false, neglect: true,
+    foodEfficiency: 1, selfResolveMs: null, napCure: false, soupCure: true,
+    neglect: true,
   },
   vapors: {
     id: "vapors", label: "the vapors", doses: 1,
     drainPerHour: 6, happinessDecayMult: 1, blocksPlay: true, patMute: true,
-    foodEfficiency: 1, selfResolveMs: null, napCure: true, neglect: true,
+    foodEfficiency: 1, selfResolveMs: null, napCure: true, soupCure: true,
+    neglect: true,
   },
   trimethylaminuria: {
     id: "trimethylaminuria", label: "trimethylaminuria", doses: 1,
     drainPerHour: 0, happinessDecayMult: 1.5, blocksPlay: false, patMute: true,
-    foodEfficiency: 1, selfResolveMs: null, napCure: false, neglect: true,
+    foodEfficiency: 1, selfResolveMs: null, napCure: false, soupCure: false,
+    neglect: true,
   },
   plague: {
     id: "plague", label: "the plague", doses: 2,
     drainPerHour: 14, happinessDecayMult: 1.25, blocksPlay: true, patMute: false,
-    foodEfficiency: 1, selfResolveMs: null, napCure: false, neglect: true,
+    foodEfficiency: 1, selfResolveMs: null, napCure: false, soupCure: false,
+    neglect: true,
   },
 };
 
