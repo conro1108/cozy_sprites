@@ -760,6 +760,8 @@ const ICONS: Record<IconName, IconDef> = {
     // a speech bubble with a three-dot ellipsis — "there's something to
     // say," not an alarm. Tail is solid ink so it reads as fused to the
     // bubble rather than a floating chip; dots match the outline ink.
+    // Spans rows 1-10, same as the other meter-row icons, so it doesn't
+    // look undersized next to them.
     rows: [
       "............",
       ".kkkkkkkkkk.",
@@ -767,11 +769,11 @@ const ICONS: Record<IconName, IconDef> = {
       "kwwwwwwwwwwk",
       "kwwkwwkwwkwk",
       "kwwwwwwwwwwk",
+      "kwwwwwwwwwwk",
       ".kkkkkkkkkk.",
       "..kkk.......",
-      "...k........",
-      "............",
-      "............",
+      "...kk.......",
+      "....k.......",
       "............",
     ],
     palette: { k: K, w: "#fdf3e0" },
