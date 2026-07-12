@@ -699,7 +699,7 @@ function advanceOne(s: PetState, at: number): void {
     s.energy = Math.min(s.energy, 2);
     s.happiness = Math.min(s.happiness, 2);
   }
-  if (next === "adult") s.form = determineAdultForm(s.hidden, s.health);
+  if (next === "adult") s.form = determineAdultForm(s.hidden, s.health, Math.random, s.name);
   // The adult transition is the one every player wants explained after the
   // fact ("why did it become THAT") — carry the hidden inputs that decided it
   // right onto the log line, not just the outcome.

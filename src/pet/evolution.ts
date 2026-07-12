@@ -122,7 +122,11 @@ export function determineAdultForm(
   hidden: HiddenStats,
   health: number,
   rng: () => number = Math.random,
+  name?: string,
 ): AdultForm {
+  // A pet named Poppy is always the Loyal Dog Thing — no upbringing overrides it.
+  if (name?.trim().toLowerCase() === "poppy") return "dog";
+
   const scores = scoreForms(hidden, health);
   // Sort descending so rng()=0 deterministically yields the top scorer.
   const ranked = (Object.keys(scores) as AdultForm[]).sort(

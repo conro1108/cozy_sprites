@@ -158,4 +158,22 @@ describe("determineAdultForm", () => {
   it("leaves an ordinary roll well short of the cosmic 1%", () => {
     expect(determineAdultForm(emptyHidden(), 100, () => 0.5)).toBe("office");
   });
+
+  it("a pet named Poppy is unconditionally the loyal dog thing", () => {
+    // Blank-slate upbringing would otherwise be the office default.
+    expect(determineAdultForm(emptyHidden(), 100, NO_LUCK, "Poppy")).toBe("dog");
+    // Case-insensitive, and beats even a scholar-perfect upbringing.
+    const scholarly = hidden({
+      discipline: 80,
+      cakeEaten: 0,
+      gamePlays: { ...emptyHidden().gamePlays, higherlower: 8 },
+    });
+    expect(determineAdultForm(scholarly, 90, NO_LUCK, "poppy")).toBe("dog");
+    // Overrides even the cosmic 1% luck roll.
+    expect(determineAdultForm(emptyHidden(), 100, () => 0.999, "POPPY")).toBe("dog");
+    // Stray whitespace in the name doesn't defeat the match.
+    expect(determineAdultForm(emptyHidden(), 100, NO_LUCK, " Poppy ")).toBe("dog");
+    // A different name doesn't trigger it.
+    expect(determineAdultForm(emptyHidden(), 100, NO_LUCK, "Poppyseed")).not.toBe("dog");
+  });
 });

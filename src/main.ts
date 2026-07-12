@@ -372,7 +372,7 @@ function render(): void {
   // visible tantrum (see scene). The leaning is computed deterministically so
   // the accent doesn't flicker between tied candidates frame to frame.
   const variant =
-    pet.stage === "teen" ? determineAdultForm(pet.hidden, pet.health, () => 0) : null;
+    pet.stage === "teen" ? determineAdultForm(pet.hidden, pet.health, () => 0, pet.name) : null;
   const tantrum = pet.wantsAttention && pet.fakeCall && !dying;
   const zoomies = pet.zoomies && !dying;
 
@@ -1122,7 +1122,7 @@ function maybeIdleLine(now: number): void {
   if (pet.stage === "teen" && Math.random() < 0.35) {
     // "The Audition": the leaning adult personality leaks through
     // occasionally, at normal idle cadence, never labeled.
-    const leaning = determineAdultForm(pet.hidden, pet.health);
+    const leaning = determineAdultForm(pet.hidden, pet.health, Math.random, pet.name);
     say(teenFlickerLine(leaning));
   } else if (Math.random() < RARE_IDLE_CHANCE) {
     // Once in a while, a line from somewhere else entirely.
