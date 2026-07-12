@@ -168,18 +168,14 @@ function quirk(t: number, period: number, dur: number, offset = 0): number {
 // per-form idle motion gets damped by this before it hits the canvas.
 const IDLE_WIGGLE_SCALE = 0.5;
 
-// Idle song cadence. On its own slow schedule (not tied to any one quirk), but
-// on the same order as the quirk periods so a song lands near a quirky move
-// often enough to feel like the buddy hums around its little trick.
-const SONG_PERIOD = 23; // seconds between idle songs
+// Idle song cadence. Randomized per-firing rather than a fixed metronome, so
+// it never settles into a beat the player can predict.
+const SONG_PERIOD_MIN = 32; // seconds, shortest gap between idle songs
+const SONG_PERIOD_MAX = 58; // seconds, longest gap
 const SONG_DUR = 2.8; // how long the notes drift up
 
-/** A stable phase offset in [0, period) derived from the creature key, so no
- *  two forms sing in unison (and a given form always sings on the same beat). */
-function keyPhase(key: string, period: number): number {
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) % 997;
-  return (h / 997) * period;
+function randomSongInterval(): number {
+  return SONG_PERIOD_MIN + Math.random() * (SONG_PERIOD_MAX - SONG_PERIOD_MIN);
 }
 
 /** The trot: the bounce every creature uses when it's actually going
@@ -268,11 +264,11 @@ export class Scene {
   private sleepStart = -Infinity;
 
   // Idle singing: music notes float up like the Zzz, and a callback fires the
-  // sound once as the window opens. songOffset phases it per creature; the
-  // cycle guard turns the once-per-frame check into a once-per-song sound.
+  // sound once as the window opens. nextSongAt is a scene-clock deadline,
+  // rerolled to a fresh random interval every time it fires.
   private singHandler: (() => void) | null = null;
-  private songOffset = 0;
-  private lastSongCycle = -1;
+  private nextSongAt = -1; // -1 = not yet scheduled (set on first update())
+  private songWindowStart = -Infinity;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -301,7 +297,6 @@ export class Scene {
 
   update(view: SceneView): void {
     if (view.asleep && !this.view.asleep) this.sleepStart = performance.now();
-    if (view.key !== this.view.key) this.songOffset = keyPhase(view.key, SONG_PERIOD);
     this.view = view;
     const cacheKey = `${view.key}:${view.mood}:${view.variant ?? ""}`;
     if (cacheKey !== this.creatureCacheKey) {
@@ -778,15 +773,17 @@ export class Scene {
       !this.flourishing() &&
       !this.evolving()
     ) {
-      const qs = quirk(t, SONG_PERIOD, SONG_DUR, this.songOffset);
+      // The countdown only runs while eligible, so a long nap doesn't spend
+      // down a song that was due mid-sleep.
+      if (this.nextSongAt < 0) this.nextSongAt = t + randomSongInterval();
+      if (t >= this.nextSongAt) {
+        this.songWindowStart = t;
+        this.singHandler?.();
+        this.nextSongAt = t + randomSongInterval();
+      }
+      const elapsed = t - this.songWindowStart;
+      const qs = elapsed >= 0 && elapsed < SONG_DUR ? elapsed / SONG_DUR : -1;
       if (qs >= 0) {
-        // Fire the sound once per window — the cycle index only ticks over
-        // between songs, so re-entering the same window never retriggers it.
-        const cycle = Math.floor((t + this.songOffset) / SONG_PERIOD);
-        if (cycle !== this.lastSongCycle) {
-          this.lastSongCycle = cycle;
-          this.singHandler?.();
-        }
         const cx = CREATURE_X + this.curDx;
         const headY = FLOOR_Y + this.curDy - 20;
         for (let i = 0; i < 3; i++) {
