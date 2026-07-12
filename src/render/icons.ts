@@ -41,7 +41,7 @@ export type IconName =
   | "star"
   | "sparkle"
   | "alert"
-  | "megaphone"
+  | "speechdots"
   | "thermometer"
   | "rock"
   | "paper"
@@ -756,25 +756,24 @@ const ICONS: Record<IconName, IconDef> = {
     ],
     palette: { r: "#e05c48" },
   },
-  megaphone: {
-    // speaker glyph — a small square driver flush against a flared cone,
-    // straight-edged (not curved) so it reads as geometric, not organic.
-    // A status update, not an emergency, so it's amber rather than alert-red.
+  speechdots: {
+    // a speech bubble with a three-dot ellipsis — "there's something to
+    // say," not an alarm. Amber dots on a cream bubble, tail bottom-left.
     rows: [
       "............",
-      ".........k..",
-      ".......kyk..",
-      ".....kyyyk..",
-      ".kyyyyyyyk..",
-      ".kyyyyyyyk..",
-      ".kyyyyyyyk..",
-      ".kyyyyyyyk..",
-      ".....kyyyk..",
-      ".......kyk..",
-      ".........k..",
+      ".kkkkkkkkkk.",
+      "kwwwwwwwwwwk",
+      "kwwwwwwwwwwk",
+      "kwwdwwdwwdwk",
+      "kwwwwwwwwwwk",
+      ".kkkkkkkkkk.",
+      "..kwk.......",
+      "...k........",
+      "............",
+      "............",
       "............",
     ],
-    palette: { k: K, y: "#e8a33d" },
+    palette: { k: K, w: "#fdf3e0", d: "#e8a33d" },
   },
   thermometer: {
     rows: [
