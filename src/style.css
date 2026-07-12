@@ -1501,7 +1501,7 @@ body {
 }
 
 .stage-controls .game-choices {
-  margin: 6px 0 2px;
+  margin: 6px 0;
 }
 
 /* RPS: chunky icon-only choices at the bottom, and the flying clone that
