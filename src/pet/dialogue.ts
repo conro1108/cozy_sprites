@@ -24,6 +24,7 @@ export type Category =
   | "carrot"
   | "cube"
   | "soup"
+  | "soup_cure" // soup fed to a soup-curable illness — the folk remedy landing
   | "medicine"
   | "dose" // first plague shot: cured of nothing yet
   | "clean"
@@ -266,6 +267,15 @@ const GENERAL: Bank = {
     "Ugh. Effective.",
     "Science, probably.",
     "I feel less doomed. Slightly.",
+  ],
+  // The anti-medicine: it works AND it's nice. Warm, sincere, a little smug.
+  soup_cure: [
+    "Oh. Oh, that's the stuff.",
+    "The soup knew what to do.",
+    "Cured. By broth. Take that, science.",
+    "I can feel my face again.",
+    "Warm. Fixed. Grateful.",
+    "This is why I keep you around.",
   ],
   dose: [
     "One down. I still feel historic.",
@@ -574,6 +584,7 @@ const ALWAYS_SPEAK: ReadonlySet<Category> = new Set([
   "hatch",
   "sick",
   "medicine",
+  "soup_cure",
   "dose",
   "call",
   "clean_nothing", // the joke only lands if it actually comments

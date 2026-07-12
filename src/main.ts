@@ -737,6 +737,12 @@ function doFeed(food: FoodId): void {
     sayCat("full");
     scene?.triggerPulse("shake");
     playSfx("refuse");
+  } else if (note === "soupcure") {
+    // Soup landed on a soup-curable illness. The cure outranks any snack call
+    // it happened to satisfy — that's the moment worth reacting to.
+    sayCat("soup_cure");
+    scene?.triggerPulse("love");
+    playSfx("medicine");
   } else if (call === "satisfied") {
     // It called for a snack and the snack arrived. Peak service.
     say(attentionSatisfiedLine("snack"));

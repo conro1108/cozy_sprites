@@ -28,7 +28,7 @@ import {
 } from "./state";
 import { migratePet } from "./persistence";
 import { FOODS } from "./roster";
-import type { PetState } from "./types";
+import type { IllnessId, PetState } from "./types";
 
 const HOUR = 3_600_000;
 
@@ -315,6 +315,90 @@ describe("salad, the disciplined pick", () => {
     );
     const { state } = feed(pet, "salad", T0);
     expect(state.health).toBe(56);
+  });
+});
+
+describe("soup, the folk remedy", () => {
+  const sickWith = (illness: IllnessId, over: Partial<PetState> = {}) =>
+    asStage(
+      { ...createPet("Milo", T0), energy: 2, health: 50, sick: true, illness, ...over },
+      "child",
+    );
+
+  it.each(["sniffles", "goblinflu", "vapors"] as const)("cures %s", (illness) => {
+    const { state, note } = feed(sickWith(illness), "soup", T0);
+    expect(state.sick).toBe(false);
+    expect(state.illness).toBeNull();
+    expect(note).toBe("soupcure");
+  });
+
+  it.each(["dysentery", "trimethylaminuria", "plague"] as const)(
+    "does not cure %s — that still wants medicine",
+    (illness) => {
+      const { state, note } = feed(sickWith(illness), "soup", T0);
+      expect(state.sick).toBe(true);
+      expect(state.illness).toBe(illness);
+      expect(note).not.toBe("soupcure");
+    },
+  );
+
+  it("clears the dose counter, so a later illness starts fresh", () => {
+    const relapsed = sickWith("goblinflu", { dosesGiven: 1, lastDoseAt: T0, illnessMs: 2 * HOUR });
+    const { state } = feed(relapsed, "soup", T0);
+    expect(state.dosesGiven).toBe(0);
+    expect(state.lastDoseAt).toBeNull();
+    expect(state.illnessMs).toBe(0);
+  });
+
+  it("is a cure, not a tonic — health is left exactly where it was", () => {
+    const { state } = feed(sickWith("sniffles"), "soup", T0);
+    expect(state.health).toBe(50);
+  });
+
+  it("still feeds: energy and happiness land as normal", () => {
+    const { state } = feed(sickWith("goblinflu", { energy: 2, happiness: 2 }), "soup", T0);
+    expect(state.energy).toBeCloseTo(2 + FOODS.soup.energy);
+    expect(state.happiness).toBeCloseTo(2 + FOODS.soup.happiness);
+  });
+
+  it("a full stomach doesn't turn away the cure", () => {
+    // Soup is a proper meal, not a treat, so a full pet would normally refuse
+    // it — but a sick pet gets its soup regardless.
+    const stuffed = sickWith("vapors", { energy: MAX_HEARTS });
+    const { state, note } = feed(stuffed, "soup", T0);
+    expect(note).toBe("soupcure");
+    expect(state.sick).toBe(false);
+  });
+
+  it("a full and healthy pet still refuses plain soup", () => {
+    const stuffed = asStage({ ...createPet("Milo", T0), energy: MAX_HEARTS }, "child");
+    expect(feed(stuffed, "soup", T0).note).toBe("full");
+  });
+
+  it("the cure note outranks a favorite-food note", () => {
+    // The Little Cosmos's favorite is soup — the sickness lifting is the
+    // headline, but it still pockets the favorite happiness bonus.
+    const cosmos = asStage(
+      {
+        ...createPet("Milo", T0),
+        form: "cosmos" as const,
+        happiness: 2,
+        sick: true,
+        illness: "sniffles" as const,
+      },
+      "adult",
+    );
+    const { state, note } = feed(cosmos, "soup", T0);
+    expect(note).toBe("soupcure");
+    expect(state.happiness).toBeCloseTo(2 + FOODS.soup.happiness + 1);
+  });
+
+  it("soup on a well pet is just soup", () => {
+    const well = asStage({ ...createPet("Milo", T0), energy: 2, health: 50 }, "child");
+    const { state, note } = feed(well, "soup", T0);
+    expect(note).toBeUndefined();
+    expect(state.health).toBe(50);
+    expect(state.sick).toBe(false);
   });
 });
 

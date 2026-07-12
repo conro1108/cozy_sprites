@@ -729,6 +729,13 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
     s.health = clamp100(s.health + (s.sick ? 6 : 2));
     if (!note && s.sick) note = "salad";
   }
+  if (soupCures) {
+    // A cure, not a tonic: it clears the illness and leaves health where it
+    // found it (soup is the neutral tier — plain fuel). Overrides any
+    // favorite/disliked note; the sickness lifting is the headline.
+    cureIllness(s, 0);
+    note = "soupcure";
+  }
 
   const call = resolveCall(s, "snack", unjustified);
   return { state: s, note, call };

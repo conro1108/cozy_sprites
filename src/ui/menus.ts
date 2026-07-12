@@ -3,6 +3,7 @@
 // Games run *in the scene*: panels only collect input, then hand off to scene
 // acts, and all result text comes out of the sprite's mouth.
 
+import { ILLNESSES } from "../pet/types";
 import type { FoodId, GameId, PetState, FarmEntry, AdultForm } from "../pet/types";
 import { FOODS, FOOD_ORDER, ADULTS, ADULT_ORDER } from "../pet/roster";
 import { ageLabel } from "../pet/format";
@@ -235,7 +236,11 @@ const FOOD_ICONS: Record<FoodId, IconName> = {
 };
 
 export function openFood(ctx: MenuCtx): void {
-  const p = openPanel("Kitchen", "What's on the menu?");
+  // Nudge toward the pot when soup would actually cure what's going around —
+  // otherwise the folk remedy is a mechanic nobody ever discovers.
+  const sick = ctx.pet();
+  const soupHelps = sick.sick && sick.illness !== null && ILLNESSES[sick.illness].soupCure;
+  const p = openPanel("Kitchen", soupHelps ? "Something warm might help." : "What's on the menu?");
   const grid = document.createElement("div");
   grid.className = "tile-grid";
   for (const id of FOOD_ORDER) {
