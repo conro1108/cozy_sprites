@@ -682,7 +682,7 @@ function fetchGame(ctx: MenuCtx): void {
 }
 
 const RPS_ROUNDS = 3;
-const RPS_WINS_NEEDED = 2; // best of 3 — first to 2 decisive rounds
+const RPS_WINS_NEEDED = 2; // best of 3 — majority of 3 decisive rounds
 
 // In-scene game: pick a move down at the bottom, watch it fly up into the
 // countdown at the sprite. Played as a best-of-3, same shape as
@@ -804,7 +804,9 @@ function rps(ctx: MenuCtx): void {
           pips[round].classList.add(wonRound ? "won" : "lost");
           if (wonRound) wins++;
           round++;
-          if (wins >= RPS_WINS_NEEDED || round - wins >= RPS_WINS_NEEDED) {
+          // Play out all 3 rounds regardless of when the match is already
+          // decided — same as higher/lower's full 5.
+          if (round >= RPS_ROUNDS) {
             finishMatch();
           } else {
             newRound();
