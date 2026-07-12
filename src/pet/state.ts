@@ -111,6 +111,14 @@ const STAGE_METABOLISM_MULT: Record<Stage, number> = {
   adult: 1,
 };
 
+// Every game costs energy and burns weight on top of its happiness reward.
+// Fetch is the outlier — actual running, not a card guess or a chat — so it
+// costs more of both.
+const BASE_GAME_EXERTION = { energy: 0.2, weight: 0.3 };
+const GAME_EXERTION: Partial<Record<GameId, { energy: number; weight: number }>> = {
+  fetch: { energy: 0.3, weight: 0.6 },
+};
+
 /** Most poops a pet can have queued up in its gut, waiting on the floor to clear. */
 const MAX_POOP_PRESSURE = 2;
 
@@ -678,6 +686,8 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   }
   if (food === "cube") {
     s.hidden.cubeEaten++;
+    // Not really food. A mild, mysterious cost — nothing like cake's.
+    s.health = clamp100(s.health - 1);
     if (!note) note = "cube";
   }
   if (food === "carrot") {
@@ -725,8 +735,9 @@ export function applyGameResult(
   // Carrying extra weight takes some of the joy out of running around.
   if (s.weight >= OVERWEIGHT) gain *= 0.7;
   s.happiness = clampHearts(s.happiness + gain);
-  s.energy = clampHearts(s.energy - 0.2);
-  s.weight = Math.max(1, s.weight - 0.3);
+  const exertion = GAME_EXERTION[game] ?? BASE_GAME_EXERTION;
+  s.energy = clampHearts(s.energy - exertion.energy);
+  s.weight = Math.max(1, s.weight - exertion.weight);
   const call = resolveCall(s, "play", unjustified);
   return { state: s, call };
 }

@@ -12,20 +12,31 @@ export interface FoodDef {
   fiber: number; // roughage → poop pressure. What goes in must come out.
 }
 
-// Fiber drives digestion (see stepEvents). Carrot is basically a plumbing
-// service; noodles/burger are middling; cake is dessert, not roughage; the
-// cube passes through mostly unbothered by biology. Weight values are tuned
-// against the real-clock metabolism (~0.15/awake-hour drift + games): a varied
-// diet hovers near the baseline, a cake habit visibly does not.
+// Six foods, two per health tier — healthy (carrot, soup) actually help the
+// body, neutral (burger, noodles) are plain fuel, unhealthy (cake, cube) are
+// the treats: the only two with happiness ≥ 0.5, so they're always accepted
+// even on a full stomach (see feed()'s isTreat check). Weight-per-energy
+// climbs tier by tier (~0.1 → ~0.6/1.5) and each tier has a light and a heavy
+// option, so a varied healthy-leaning diet hovers near the baseline metabolism
+// (~0.15/awake-hour drift + games) while leaning on the unhealthy pair is what
+// visibly tips a pet overweight.
 export const FOODS: Record<FoodId, FoodDef> = {
-  burger: { id: "burger", name: "Burger", icon: "🍔", energy: 2, happiness: 0.2, weight: 1, fiber: 0.35 },
+  // Healthy — light everyday health food vs. heartier, actively healing.
+  carrot: { id: "carrot", name: "Carrot", icon: "🥕", energy: 1, happiness: 0, weight: 0.1, fiber: 0.6 },
+  // The comfort food: warm, and the one dish that actively heals — doubly so
+  // when sick. Even a fainted pet will take soup.
+  soup: { id: "soup", name: "Soup", icon: "🍲", energy: 1.5, happiness: 0.4, weight: 0.25, fiber: 0.3 },
+  // Neutral — plain fuel, no health effect either way. Noodles are the
+  // heartier, more indulgent pick: same energy as a burger, more happiness,
+  // more weight to show for it.
+  burger: { id: "burger", name: "Burger", icon: "🍔", energy: 2, happiness: 0.2, weight: 0.5, fiber: 0.35 },
+  noodles: { id: "noodles", name: "Noodles", icon: "🍜", energy: 2, happiness: 0.3, weight: 0.7, fiber: 0.4 },
+  // Unhealthy — both treats. Cube is the mild, mysterious one: modest
+  // happiness, a small health cost, weird instead of rich. Cake is the real
+  // junk food: the biggest happiness hit in the roster, and the weight and
+  // health cost to match.
+  cube: { id: "cube", name: "Cube", icon: "🧊", energy: 1, happiness: 0.5, weight: 0.6, fiber: 0.12 },
   cake: { id: "cake", name: "Cake", icon: "🍰", energy: 1, happiness: 1, weight: 1.5, fiber: 0.15 },
-  carrot: { id: "carrot", name: "Carrot", icon: "🥕", energy: 1, happiness: 0, weight: 0.2, fiber: 0.6 },
-  noodles: { id: "noodles", name: "Noodles", icon: "🍜", energy: 2, happiness: 0.3, weight: 1.2, fiber: 0.4 },
-  cube: { id: "cube", name: "Cube", icon: "🧊", energy: 1, happiness: 0.5, weight: 0.4, fiber: 0.12 },
-  // The comfort food: light, warm, and the one dish that actively heals —
-  // doubly so when sick. Even a fainted pet will take soup.
-  soup: { id: "soup", name: "Soup", icon: "🍲", energy: 1.5, happiness: 0.4, weight: 0.5, fiber: 0.3 },
 };
 
 export const FOOD_ORDER: FoodId[] = ["burger", "cake", "carrot", "noodles", "cube", "soup"];

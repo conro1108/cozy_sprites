@@ -27,6 +27,7 @@ import {
   tooSickToPlay,
 } from "./state";
 import { migratePet } from "./persistence";
+import { FOODS } from "./roster";
 import type { PetState } from "./types";
 
 const HOUR = 3_600_000;
@@ -522,6 +523,23 @@ describe("weight consequences", () => {
     const adultLoss = 10 - applyElapsedDecay(adult, T0 + 1 * HOUR).weight;
     expect(childLoss).toBeGreaterThan(adultLoss);
     expect(childLoss).toBeCloseTo(adultLoss * 2.5);
+  });
+
+  it("weight per energy climbs from healthy to unhealthy foods", () => {
+    const ratio = (food: keyof typeof FOODS) => FOODS[food].weight / FOODS[food].energy;
+    expect(ratio("carrot")).toBeLessThan(ratio("soup"));
+    expect(ratio("soup")).toBeLessThan(ratio("burger"));
+    expect(ratio("burger")).toBeLessThan(ratio("noodles"));
+    expect(ratio("noodles")).toBeLessThan(ratio("cube"));
+    expect(ratio("cube")).toBeLessThan(ratio("cake"));
+  });
+
+  it("fetch burns more energy and weight than other games", () => {
+    const pet = asStage({ ...createPet("Milo", T0), energy: 4, weight: 10 }, "adult");
+    const afterFetch = applyGameResult(pet, "fetch", true, T0).state;
+    const afterRps = applyGameResult(pet, "rps", true, T0).state;
+    expect(10 - afterFetch.weight).toBeGreaterThan(10 - afterRps.weight);
+    expect(4 - afterFetch.energy).toBeGreaterThan(4 - afterRps.energy);
   });
 });
 
