@@ -19,7 +19,7 @@ export type IconName =
   | "medcross"
   | "cake"
   | "carrot"
-  | "noodles"
+  | "salad"
   | "cube"
   | "soup"
   | "dice"
@@ -364,13 +364,13 @@ const ICONS: Record<IconName, IconDef> = {
     ],
     palette: { k: K, o: "#f08030", w: "#ffb066", g: "#5aa85a" },
   },
-  noodles: {
+  salad: {
     rows: [
       "............",
-      ".w..w..w....",
-      ".w..w..w..k.",
-      ".w..w..w.k..",
-      ".w..w..wk...",
+      ".g..g..g....",
+      ".g..g..g..r.",
+      ".g..g..g.r..",
+      ".g..g..gr...",
       "kkkkkkkkkk..",
       "kbbbbbbbbk..",
       "kbbbbbbbbk..",
@@ -379,7 +379,7 @@ const ICONS: Record<IconName, IconDef> = {
       "............",
       "............",
     ],
-    palette: { k: K, b: "#e07a4a", w: "#fbe6b6" },
+    palette: { k: K, b: "#e07a4a", g: "#5aa85a", r: "#e05c48" },
   },
   cube: {
     // A box in three-quarter view: a flat square front face, a lighter top face

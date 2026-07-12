@@ -119,8 +119,37 @@ const GAME_EXERTION: Partial<Record<GameId, { energy: number; weight: number }>>
   fetch: { energy: 0.3, weight: 0.6 },
 };
 
-/** Most poops a pet can have queued up in its gut, waiting on the floor to clear. */
-const MAX_POOP_PRESSURE = 2;
+// Poop is on a regular per-stage schedule now, not fiber-gated — baby is a
+// real shitter, everyone else goes at a sedate, roughly-steady clip. Fiber no
+// longer decides IF a poop happens, only how good it is (see feed()/below).
+const STAGE_POOP_PER_HOUR: Record<Stage, number> = {
+  egg: 0,
+  baby: 24,
+  child: 0.8,
+  teen: 0.4,
+  adult: 0.35,
+};
+// Dysentery is the runs — floods the floor far faster than nature's pace.
+const DYSENTERY_POOP_BONUS_PER_HOUR = 1.5;
+
+// Diet quality, tracked as an exponential moving average of fiber eaten so it
+// drifts with recent meals instead of filling/draining a hidden buffer. Starts
+// at a neutral baseline (~soup/burger) so an unfed pet's first poop isn't
+// unearned bad luck.
+const FIBER_EMA_ALPHA = 0.35;
+export const NEUTRAL_FIBER_LEVEL = 0.3;
+const FIBER_GOOD_THRESHOLD = 0.4;
+const FIBER_BAD_THRESHOLD = 0.2;
+
+// Effects when a poop actually lands — good digestion trims a little weight
+// and nudges health up; bad digestion (junk-heavy diet, or dysentery, which
+// always counts as bad) costs more weight, hurts more, and lingers as a
+// sickness risk until swept (see hasBadPoop, clean()).
+const GOOD_POOP_WEIGHT_LOSS = 0.15;
+const GOOD_POOP_HEALTH_GAIN = 1;
+const BAD_POOP_WEIGHT_LOSS = 0.5;
+const BAD_POOP_HEALTH_LOSS = 4;
+const BAD_POOP_SICK_BONUS = 0.03;
 
 /** Most messes that can pile up on the floor before the game stops adding more. */
 const MAX_POOPS = 8;
@@ -203,7 +232,8 @@ export function createPet(name: string, now: number): PetState {
     illnessMs: 0,
     napMs: 0,
     poops: 0,
-    poopPressure: 0,
+    fiberLevel: NEUTRAL_FIBER_LEVEL,
+    hasBadPoop: false,
     energyZeroMs: 0,
     happinessZeroMs: 0,
     nightAwakeMs: 0,
@@ -669,14 +699,10 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   s.energy = clampHearts(s.energy + def.energy * efficiency);
   s.happiness = clampHearts(s.happiness + def.happiness + happyBonus);
   s.weight = s.weight + def.weight;
-  // What goes in must come out. Fiber builds digestive pressure that stepEvents
-  // later turns into a poop; babies process it faster than adults. Capped: a
-  // pet fed through a full meadow would otherwise bank an invisible backlog and
-  // re-cover the floor the instant you swept it.
-  s.poopPressure = Math.min(
-    MAX_POOP_PRESSURE,
-    s.poopPressure + def.fiber * STAGE_METABOLISM_MULT[s.stage],
-  );
+  // Fiber shifts the rolling diet-quality average — recent meals matter more,
+  // but one carrot doesn't erase a week of cake. This governs how good the
+  // next poop is, not whether/when it happens (see STAGE_POOP_PER_HOUR).
+  s.fiberLevel = s.fiberLevel + (def.fiber - s.fiberLevel) * FIBER_EMA_ALPHA;
 
   s.hidden.mealsEaten++;
   if (food === "cake") {
@@ -743,7 +769,7 @@ export function applyGameResult(
 export function clean(state: PetState, now: number): ActionResult {
   const s = applyElapsedDecay(state, now);
   if (s.poops === 0) return { state: s, note: "nothing" };
-  const next = { ...s, poops: 0 };
+  const next = { ...s, poops: 0, hasBadPoop: false };
   // Tidying up in the dark counts toward the Ghost path, like other night care.
   if (isNight(now) && !next.lightsOn) {
     next.hidden = { ...next.hidden, nightCare: next.hidden.nightCare + 1 };
@@ -1012,25 +1038,27 @@ export function stepEvents(
     if (isNight(chunkStart) && !s.lightsOn) continue;
     const perHour = chunk / HOUR;
 
-    // Pooping. Two paths, but at most one mess per slice.
-    //  1) Digestion: fiber eaten crossed the threshold. Deterministic — that's
-    //     the whole point of the mechanic. Subtract 1.0 and keep the remainder
-    //     so a fibrous binge queues the next poop instead of losing it.
-    //  2) Ambient: even a pet that hasn't eaten eventually goes; babies sooner.
+    // Pooping happens on a regular per-stage schedule, at most one mess per
+    // slice. Fiber doesn't gate this anymore — it only decides quality below.
     if (s.poops < MAX_POOPS) {
-      if (s.poopPressure >= 1) {
-        s.poopPressure -= 1;
+      let poopPerHour = STAGE_POOP_PER_HOUR[s.stage];
+      const dysentery = s.sick && s.illness === "dysentery";
+      if (dysentery) poopPerHour += DYSENTERY_POOP_BONUS_PER_HOUR;
+      if (rng() < poopPerHour * perHour) {
         s.poops++;
         events.push("poop");
-      } else {
-        // Baby is a real shitter — ambient messes fire much more often than
-        // any other stage.
-        let ambientPerHour = s.stage === "baby" ? 24 : 0.25;
-        // Dysentery is the runs — the floor floods far faster than nature's pace.
-        if (s.sick && s.illness === "dysentery") ambientPerHour += 1.5;
-        if (rng() < ambientPerHour * perHour) {
-          s.poops++;
-          events.push("poop");
+        // Quality comes from recent diet — dysentery always fouls it, fiber
+        // decides the rest. Neutral does nothing special; good and bad each
+        // cost weight (a bad gut works harder), bad costs a lot more health
+        // and leaves a lingering sickness risk until the floor is swept.
+        if (dysentery || s.fiberLevel <= FIBER_BAD_THRESHOLD) {
+          s.weight = Math.max(1, s.weight - BAD_POOP_WEIGHT_LOSS);
+          s.health = clamp100(s.health - BAD_POOP_HEALTH_LOSS);
+          s.hasBadPoop = true;
+          events.push("poop-bad");
+        } else if (s.fiberLevel >= FIBER_GOOD_THRESHOLD) {
+          s.weight = Math.max(1, s.weight - GOOD_POOP_WEIGHT_LOSS);
+          s.health = clamp100(s.health + GOOD_POOP_HEALTH_GAIN);
         }
       }
     }
@@ -1040,6 +1068,7 @@ export function stepEvents(
       let sickPerHour = 0.01;
       if (s.health < 40) sickPerHour += 0.04;
       if (s.poops >= 2) sickPerHour += 0.02;
+      if (s.hasBadPoop) sickPerHour += BAD_POOP_SICK_BONUS;
       if (s.weight >= OVERWEIGHT) sickPerHour += 0.015;
       if (rng() < sickPerHour * perHour) {
         s.sick = true;
@@ -1135,7 +1164,7 @@ const ADULT_FOOD: Record<AdultForm, { favorite: FoodId; disliked: FoodId | null 
   blob: { favorite: "cake", disliked: "carrot" },
   gremlin: { favorite: "cube", disliked: null },
   scholar: { favorite: "carrot", disliked: "cake" },
-  office: { favorite: "noodles", disliked: "cube" },
+  office: { favorite: "salad", disliked: "cube" },
   menace: { favorite: "cake", disliked: "burger" },
   ghost: { favorite: "cube", disliked: "burger" },
   humcube: { favorite: "cube", disliked: null },

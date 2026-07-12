@@ -19,7 +19,7 @@ export type AdultForm =
   | "carrot"
   | "cosmos";
 
-export type FoodId = "burger" | "cake" | "carrot" | "noodles" | "cube" | "soup";
+export type FoodId = "burger" | "cake" | "carrot" | "salad" | "cube" | "soup";
 
 /** What an attention call is actually about. Fake calls pick one too — the con
  *  only works if it sounds exactly like a real request. */
@@ -156,9 +156,13 @@ export interface PetState {
   /** Continuous daytime lights-off span — a ≥1h nap cures the vapors. */
   napMs: number;
   poops: number; // count of uncleaned messes on the floor
-  /** Digestive backlog from fiber eaten. Crosses 1.0 → a poop fires (see
-   *  stepEvents). Deterministic, not a dice roll — that's the mechanic. */
-  poopPressure: number;
+  /** Rolling average of recent meals' fiber content (see feed()). Doesn't
+   *  drive whether a poop happens — that's a regular per-stage schedule now
+   *  — only how good it is when it does (see stepEvents). */
+  fiberLevel: number;
+  /** True while at least one of the current uncleaned poops was bad quality.
+   *  Raises sickness risk until the floor is swept (see clean()). */
+  hasBadPoop: boolean;
 
   /** Daytime spent with an empty stomach. Penalties (health drain, care
    *  mistakes) only start past a grace window — a briefly-empty bowl is not

@@ -13,7 +13,7 @@ export interface FoodDef {
 }
 
 // Six foods, two per health tier — healthy (carrot, soup) actually help the
-// body, neutral (burger, noodles) are plain fuel, unhealthy (cake, cube) are
+// body, neutral (burger, salad) are plain fuel, unhealthy (cake, cube) are
 // the treats: the only two with happiness ≥ 0.5, so they're always accepted
 // even on a full stomach (see feed()'s isTreat check). Weight-per-energy
 // climbs tier by tier (~0.1 → ~0.6/1.5) and each tier has a light and a heavy
@@ -26,11 +26,12 @@ export const FOODS: Record<FoodId, FoodDef> = {
   // The comfort food: warm, and the one dish that actively heals — doubly so
   // when sick. Even a fainted pet will take soup.
   soup: { id: "soup", name: "Soup", icon: "🍲", energy: 1.5, happiness: 0.4, weight: 0.25, fiber: 0.3 },
-  // Neutral — plain fuel, no health effect either way. Noodles are the
-  // heartier, more indulgent pick: same energy as a burger, more happiness,
-  // more weight to show for it.
+  // Neutral — plain fuel, no health effect either way. Salad is the heartier,
+  // more indulgent pick, somehow: same energy as a burger, more happiness,
+  // more weight to show for it. It's drenched in enough dressing and croutons
+  // to cancel out the vegetables — the fiber's real, the virtue isn't.
   burger: { id: "burger", name: "Burger", icon: "🍔", energy: 2, happiness: 0.2, weight: 0.5, fiber: 0.35 },
-  noodles: { id: "noodles", name: "Noodles", icon: "🍜", energy: 2, happiness: 0.3, weight: 0.7, fiber: 0.4 },
+  salad: { id: "salad", name: "Salad", icon: "🥗", energy: 2, happiness: 0.3, weight: 0.7, fiber: 0.4 },
   // Unhealthy — both treats, both a bad idea to lean on, in different ways.
   // Cube isn't food at all — mostly vibes and a path to the Humming Cube —
   // so it actually costs energy instead of restoring any; that impracticality
@@ -40,7 +41,7 @@ export const FOODS: Record<FoodId, FoodDef> = {
   cake: { id: "cake", name: "Cake", icon: "🍰", energy: 1, happiness: 1, weight: 1.5, fiber: 0.15 },
 };
 
-export const FOOD_ORDER: FoodId[] = ["burger", "cake", "carrot", "noodles", "cube", "soup"];
+export const FOOD_ORDER: FoodId[] = ["burger", "cake", "carrot", "salad", "cube", "soup"];
 
 export interface AdultDef {
   id: AdultForm;
@@ -93,7 +94,7 @@ export const ADULTS: Record<AdultForm, AdultDef> = {
     id: "office",
     name: "Tired Office Creature",
     blurb: "Develops from a steady, unremarkable, slightly under-loved upbringing.",
-    favorite: "noodles",
+    favorite: "salad",
     disliked: "cube",
     preferredGame: "wouldyou",
   },

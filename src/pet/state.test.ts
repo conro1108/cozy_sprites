@@ -529,8 +529,8 @@ describe("weight consequences", () => {
     const ratio = (food: keyof typeof FOODS) => FOODS[food].weight / FOODS[food].energy;
     expect(ratio("carrot")).toBeLessThan(ratio("soup"));
     expect(ratio("soup")).toBeLessThan(ratio("burger"));
-    expect(ratio("burger")).toBeLessThan(ratio("noodles"));
-    expect(ratio("noodles")).toBeLessThan(ratio("cake"));
+    expect(ratio("burger")).toBeLessThan(ratio("salad"));
+    expect(ratio("salad")).toBeLessThan(ratio("cake"));
   });
 
   it("cube costs energy instead of restoring it — a treat, not a meal", () => {
@@ -1188,85 +1188,125 @@ describe("stepEvents", () => {
   });
 });
 
-describe("fiber-driven pooping", () => {
+describe("fiber-driven poop quality", () => {
   const quiet = () => 0.999;
+  const always = () => 0;
 
-  it("accumulates poop pressure when fed, scaled by fiber", () => {
+  it("fiber level drifts toward recent meals via a rolling average", () => {
     const child = asStage(createPet("Milo", T0), "child");
-    const carrot = feed(child, "carrot", T0).state;
-    const cube = feed(child, "cube", T0).state;
-    expect(carrot.poopPressure).toBeGreaterThan(0);
-    expect(carrot.poopPressure).toBeGreaterThan(cube.poopPressure);
+    const carrotFed = feed(child, "carrot", T0).state;
+    expect(carrotFed.fiberLevel).toBeGreaterThan(child.fiberLevel);
+    const cubeFed = feed(child, "cube", T0).state;
+    expect(cubeFed.fiberLevel).toBeLessThan(child.fiberLevel);
   });
 
-  it("digests faster as a baby than as an adult", () => {
-    const babyFed = feed(asStage(createPet("Milo", T0), "baby"), "carrot", T0).state;
-    const adultFed = feed(asStage(createPet("Milo", T0), "adult"), "carrot", T0).state;
-    expect(babyFed.poopPressure).toBeGreaterThan(adultFed.poopPressure);
-  });
-
-  it("caps pressure so a backlog can't re-cover a swept meadow", () => {
-    let pet = asStage({ ...createPet("Milo", T0), poops: 4 }, "baby");
-    for (let i = 0; i < 20; i++) pet = feed(pet, "cake", T0).state;
-    expect(pet.poopPressure).toBeGreaterThan(1);
-    expect(pet.poopPressure).toBeLessThanOrEqual(2);
-
-    pet = { ...pet, poops: 0 };
-    for (let i = 0; i < 6; i++) pet = stepEvents(pet, 60_000, quiet).state;
-    expect(pet.poops).toBeLessThanOrEqual(2);
-  });
-
-  it("fires exactly one poop when pressure crosses 1.0", () => {
-    const pet = asStage({ ...createPet("Milo", T0), poopPressure: 1.2 }, "child");
-    const { state, events } = stepEvents(pet, 60_000, quiet);
-    expect(events.filter((e) => e === "poop")).toHaveLength(1);
-    expect(state.poops).toBe(1);
-  });
-
-  it("keeps the remainder so a big meal queues the next poop", () => {
-    const pet = asStage({ ...createPet("Milo", T0), poopPressure: 1.2 }, "child");
-    const once = stepEvents(pet, 60_000, quiet).state;
-    expect(once.poopPressure).toBeCloseTo(0.2);
-
-    const glutton = asStage({ ...createPet("Milo", T0), poopPressure: 2.5 }, "child");
-    const t1 = stepEvents(glutton, 60_000, quiet);
-    const t2 = stepEvents(t1.state, 60_000, quiet);
-    expect(t1.events).toContain("poop");
-    expect(t2.events).toContain("poop");
-    expect(t2.state.poops).toBe(2);
-    expect(t2.state.poopPressure).toBeCloseTo(0.5);
-  });
-
-  it("still honours the poops cap even when pressure is high", () => {
-    const pet = asStage({ ...createPet("Milo", T0), poops: 8, poopPressure: 5 }, "child");
-    const { state, events } = stepEvents(pet, 60_000, quiet);
-    expect(events).not.toContain("poop");
-    expect(state.poops).toBe(8);
-  });
-
-  it("still poops ambiently on a pet that hasn't eaten", () => {
+  it("poops on a regular per-stage schedule, not gated by fiber", () => {
     const pet = asStage(createPet("Milo", T0), "child");
-    expect(pet.poopPressure).toBe(0);
-    const { events } = stepEvents(pet, 60_000, () => 0);
+    const { events } = stepEvents(pet, 60_000, always);
     expect(events).toContain("poop");
   });
 
-  it("does not poop with no pressure and an unfavourable roll", () => {
+  it("babies poop far more often than adults on the same roll", () => {
+    const roll = () => 0.1;
+    const baby = asStage(createPet("Milo", T0), "baby");
+    const adult = asStage(createPet("Milo", T0), "adult");
+    expect(stepEvents(baby, 60_000, roll).events).toContain("poop");
+    expect(stepEvents(adult, 60_000, roll).events).not.toContain("poop");
+  });
+
+  it("does not poop on an unfavourable roll", () => {
     const pet = asStage(createPet("Milo", T0), "child");
     const { events } = stepEvents(pet, 60_000, quiet);
     expect(events).not.toContain("poop");
   });
+
+  it("still honours the poops cap even on a favourable roll", () => {
+    const pet = asStage({ ...createPet("Milo", T0), poops: 8 }, "child");
+    const { state, events } = stepEvents(pet, 60_000, always);
+    expect(events).not.toContain("poop");
+    expect(state.poops).toBe(8);
+  });
+
+  it("a fiber-rich diet makes poops good: small weight loss, small health gain", () => {
+    let pet = asStage({ ...createPet("Milo", T0), health: 50 }, "child");
+    pet = feed(pet, "carrot", T0).state;
+    expect(pet.fiberLevel).toBeGreaterThanOrEqual(0.4);
+    const weightBefore = pet.weight;
+    const healthBefore = pet.health; // carrot itself already nudges health up
+    const { state, events } = stepEvents(pet, 60_000, always);
+    expect(events).toContain("poop");
+    expect(events).not.toContain("poop-bad");
+    expect(state.weight).toBeCloseTo(weightBefore - 0.15);
+    expect(state.health).toBe(healthBefore + 1);
+    expect(state.hasBadPoop).toBe(false);
+  });
+
+  it("a junk-heavy diet makes poops bad: bigger weight loss, health hit, sticky flag", () => {
+    let pet = asStage({ ...createPet("Milo", T0), health: 50 }, "child");
+    pet = feed(pet, "cube", T0).state;
+    pet = feed(pet, "cube", T0).state;
+    expect(pet.fiberLevel).toBeLessThanOrEqual(0.2);
+    const weightBefore = pet.weight;
+    const { state, events } = stepEvents(pet, 60_000, always);
+    expect(events).toContain("poop");
+    expect(events).toContain("poop-bad");
+    expect(state.weight).toBeCloseTo(weightBefore - 0.5);
+    expect(state.health).toBe(46);
+    expect(state.hasBadPoop).toBe(true);
+  });
+
+  it("a middling diet makes poops neutral: no weight/health effect from quality", () => {
+    let pet = asStage({ ...createPet("Milo", T0), health: 50 }, "child");
+    pet = feed(pet, "burger", T0).state;
+    expect(pet.fiberLevel).toBeGreaterThan(0.2);
+    expect(pet.fiberLevel).toBeLessThan(0.4);
+    const weightBefore = pet.weight;
+    const { state, events } = stepEvents(pet, 60_000, always);
+    expect(events).toContain("poop");
+    expect(events).not.toContain("poop-bad");
+    expect(state.weight).toBeCloseTo(weightBefore);
+    expect(state.health).toBe(50);
+  });
+
+  it("dysentery always makes poops bad, even on a fiber-rich diet", () => {
+    let pet = asStage(
+      { ...createPet("Milo", T0), health: 50, sick: true, illness: "dysentery" },
+      "child",
+    );
+    pet = feed(pet, "carrot", T0).state;
+    expect(pet.fiberLevel).toBeGreaterThanOrEqual(0.4);
+    const { events } = stepEvents(pet, 60_000, always);
+    expect(events).toContain("poop-bad");
+  });
+
+  it("clean() resets the bad-poop flag along with the mess", () => {
+    const pet = { ...asStage(createPet("Milo", T0), "child"), poops: 1, hasBadPoop: true };
+    const { state } = clean(pet, T0);
+    expect(state.poops).toBe(0);
+    expect(state.hasBadPoop).toBe(false);
+  });
+
+  it("a lingering bad poop raises sickness pressure", () => {
+    // rng 0.005 sits between the base rate (~0.25%/chunk) and the bad-poop-
+    // bumped rate (~1%/chunk) — only the pet with a bad poop still on the
+    // floor falls ill.
+    const trim = asStage(createPet("Milo", T0), "adult");
+    expect(stepEvents(trim, 15 * 60_000, () => 0.005).events).not.toContain("sick");
+    const withBadPoop = { ...trim, hasBadPoop: true };
+    expect(stepEvents(withBadPoop, 15 * 60_000, () => 0.005).events).toContain("sick");
+  });
 });
 
 describe("save migration", () => {
-  it("backfills poopPressure on a save that predates the field", () => {
-    const { poopPressure: _drop, ...legacy } = createPet("Ancient", T0);
+  it("backfills fiberLevel/hasBadPoop on a save that predates them", () => {
+    const { fiberLevel: _drop, hasBadPoop: _drop2, ...legacy } = createPet("Ancient", T0);
     const migrated = migratePet(legacy as unknown as PetState);
-    expect(migrated.poopPressure).toBe(0);
+    expect(migrated.fiberLevel).toBe(0.3);
+    expect(migrated.hasBadPoop).toBe(false);
 
     const fed = feed(asStage(migrated, "child"), "carrot", T0).state;
-    expect(Number.isNaN(fed.poopPressure)).toBe(false);
-    expect(fed.poopPressure).toBeGreaterThan(0);
+    expect(Number.isNaN(fed.fiberLevel)).toBe(false);
+    expect(fed.fiberLevel).toBeGreaterThan(0.3);
   });
 
   it("derives stageElapsedMs from wall-clock progress and defaults recentPats", () => {

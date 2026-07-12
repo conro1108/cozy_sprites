@@ -19,6 +19,7 @@ export type Category =
   | "feed_disliked"
   | "full"
   | "poop"
+  | "poop_bad" // a bad-quality mess — only GENERAL defines it, everyone else falls through
   | "cake"
   | "carrot"
   | "cube"
@@ -73,6 +74,7 @@ const BABY: Bank = {
   feed: ["More.", "Yum.", "Again!", "Food good.", "In it goes."],
   full: ["No.", "Full.", "Too round already."],
   poop: ["Oops.", "Sorry.", "It happened.", "I panicked."],
+  poop_bad: ["Ow.", "Tummy sad.", "Bad food. Bad me.", "That one hurt."],
   clean: ["Yay.", "Clean!", "Nice."],
   sick: ["Feel bad.", "Ow.", "No good.", "Inside hurts."],
   sleep: ["Night night.", "Zzz.", "Dark now."],
@@ -272,6 +274,7 @@ const GENERAL: Bank = {
     "More. The doom persists.",
   ],
   poop: ["Do not look.", "A gift.", "Handle this.", "We don't need to discuss it.", "Nature is disgusting. I contribute."],
+  poop_bad: ["That one fought back.", "Structural integrity: none.", "My gut and I are no longer speaking.", "I blame my recent choices."],
   clean: [
     "Thank you. Unfortunately.",
     "Much better.",

@@ -956,7 +956,7 @@ function stepPet(now: number, withEvents: boolean): boolean {
   } else if (events.includes("poop")) {
     // The squat plays where it stands; the mess lands there too (see scene).
     scene?.playPoop();
-    sayCat("poop");
+    sayCat(events.includes("poop-bad") ? "poop_bad" : "poop");
     notify("care", "Cozy Sprites", `${pet.name} made a mess.`);
   } else if (events.includes("call") || events.includes("fakecall")) {
     // Every call names its want. Fake calls use the same lines — that's the con.

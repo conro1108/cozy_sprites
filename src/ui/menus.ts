@@ -229,7 +229,7 @@ const FOOD_ICONS: Record<FoodId, IconName> = {
   burger: "burger",
   cake: "cake",
   carrot: "carrot",
-  noodles: "noodles",
+  salad: "salad",
   cube: "cube",
   soup: "soup",
 };

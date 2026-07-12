@@ -4,7 +4,7 @@
 
 import type { AdultForm, FarmEntry, PetState } from "./types";
 import { emptyHidden } from "./types";
-import { ageMs } from "./state";
+import { ageMs, NEUTRAL_FIBER_LEVEL } from "./state";
 
 const PET_KEY = "cozy-sprites-pet";
 const FARM_KEY = "cozy-sprites-farm";
@@ -73,9 +73,10 @@ export function migratePet(p: PetState): PetState {
     // An in-flight call from a pre-expiry save starts its clock at its last
     // update rather than being judged stale on arrival.
     callStartedAt: p.callStartedAt ?? (p.wantsAttention ? p.lastUpdated ?? null : null),
-    // Pre-fiber saves have no poopPressure; without this it'd be undefined and
-    // every `+=` would go NaN, jamming pooping shut forever.
-    poopPressure: p.poopPressure ?? 0,
+    // Pre-quality saves have no fiberLevel/hasBadPoop; default to neutral diet
+    // and a clean floor rather than NaN-ing the EMA or falsely flagging bad mess.
+    fiberLevel: p.fiberLevel ?? NEUTRAL_FIBER_LEVEL,
+    hasBadPoop: p.hasBadPoop ?? false,
     zeroHealthMs: p.zeroHealthMs ?? 0,
     deadAt: p.deadAt ?? null,
     causeOfDeath: p.causeOfDeath ?? null,
