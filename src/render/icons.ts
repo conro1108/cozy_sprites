@@ -366,11 +366,11 @@ const ICONS: Record<IconName, IconDef> = {
   },
   salad: {
     rows: [
-      ".gg.gg.gg...",
-      "gggggggggg..",
-      "ggggrggggg..",
-      "gggggggggg..",
-      ".gggggggg...",
+      "............",
+      "............",
+      "..g.gg.g....",
+      ".gggrgogg...",
+      "..ggggrg....",
       "kkkkkkkkkk..",
       "kbbbbbbbbk..",
       "kbbbbbbbbk..",
@@ -379,7 +379,7 @@ const ICONS: Record<IconName, IconDef> = {
       "............",
       "............",
     ],
-    palette: { k: K, b: "#e07a4a", g: "#5aa85a", r: "#e05c48" },
+    palette: { k: K, b: "#e07a4a", g: "#5aa85a", r: "#e05c48", o: "#b06bb0" },
   },
   cube: {
     // A box in three-quarter view: a flat square front face, a lighter top face
