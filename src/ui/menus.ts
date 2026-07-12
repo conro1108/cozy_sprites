@@ -354,19 +354,25 @@ function higherLower(ctx: MenuCtx): void {
   lower.textContent = "▼ Lower";
   choices.append(higher, lower);
 
-  // The end-of-match beat: a short line and a play-again button. The verdict's
-  // emotion is carried by the filled pips, the win/lose chime, and the pet —
-  // no bespoke celebration graphic.
+  // The end-of-match beat: a short verdict line up top by the pips, and two
+  // ways forward down at the bottom — go again, or call it. The emotion is
+  // carried by the filled pips, the win/lose chime, and the pet — no bespoke
+  // celebration graphic.
   const result = document.createElement("div");
   result.className = "hl-result";
   result.style.display = "none";
   const resultText = document.createElement("p");
   resultText.className = "stage-hint hl-result-text";
+  result.append(resultText);
+
+  const resultButtons = document.createElement("div");
+  resultButtons.className = "game-choices";
+  resultButtons.style.display = "none";
   const again = document.createElement("button");
   again.className = "btn btn-small";
   again.textContent = "Play again";
   again.addEventListener("click", () => startMatch());
-  result.append(resultText, again);
+  resultButtons.append(again, doneButton(close));
 
   let them = rollCard();
   let round = 0;
@@ -390,6 +396,7 @@ function higherLower(ctx: MenuCtx): void {
     wins = 0;
     for (const pip of pips) pip.className = "hl-pip";
     result.style.display = "none";
+    resultButtons.style.display = "none";
     cards.style.display = "";
     choices.style.display = "";
     pipRow.style.display = "";
@@ -407,6 +414,7 @@ function higherLower(ctx: MenuCtx): void {
     result.classList.toggle("won", won);
     result.classList.toggle("lost", !won);
     result.style.display = "";
+    resultButtons.style.display = "";
     playSfx(won ? "win" : "lose");
     // The pet weighs in on the whole match — voice and reward — via the same
     // finishGame handoff every game uses.
@@ -456,8 +464,8 @@ function higherLower(ctx: MenuCtx): void {
   higher.addEventListener("click", () => guess(true));
   lower.addEventListener("click", () => guess(false));
   startMatch();
-  top.append(closeBtn, hint, pipRow, cards);
-  bottom.append(choices, result);
+  top.append(closeBtn, hint, pipRow, cards, result);
+  bottom.append(choices, resultButtons);
 }
 
 /** A single Higher/Lower card. `set` swaps the pixel digit shown (or "?"). */
