@@ -366,11 +366,11 @@ const ICONS: Record<IconName, IconDef> = {
   },
   salad: {
     rows: [
-      "............",
-      "..g..gg..g..",
-      ".gg.gggg.gg.",
-      ".ggggrgggg..",
-      "..gg.gg.gg..",
+      ".gg.gg.gg...",
+      "gggggggggg..",
+      "ggggrggggg..",
+      "gggggggggg..",
+      ".gggggggg...",
       "kkkkkkkkkk..",
       "kbbbbbbbbk..",
       "kbbbbbbbbk..",
