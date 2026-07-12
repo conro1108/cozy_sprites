@@ -6,6 +6,7 @@ import {
   loadFarm,
   migratePet,
   retireToFarm,
+  SAVE_VERSION,
   saveDiscoveredForms,
   saveFarm,
   wipeFarm,
@@ -81,10 +82,11 @@ describe("export/import round trip", () => {
     expect(loadDiscoveredForms().sort()).toEqual(["carrot", "dog"]);
   });
 
-  it("leaves local discovered forms untouched when importing an old-format backup", () => {
+  it("leaves local discovered forms untouched when importing a backup missing the discovered field", () => {
     saveDiscoveredForms(["dog", "carrot"]);
-    // An export from before the `discovered` field existed.
-    const legacyCode = btoa(encodeURIComponent(JSON.stringify({ v: 1, pet: null, farm: [] })));
+    // A well-formed current-version backup that simply predates/omits the
+    // `discovered` field.
+    const legacyCode = btoa(encodeURIComponent(JSON.stringify({ v: SAVE_VERSION, pet: null, farm: [] })));
     expect(importSave(legacyCode)).toBe(true);
     expect(loadDiscoveredForms()).toEqual(["dog", "carrot"]);
   });
@@ -120,6 +122,31 @@ describe("burial keeps the evidence", () => {
     saveFarm([]);
     expect(importSave(code)).toBe(true);
     expect(loadFarm()[0].final?.name).toBe("Archibald");
+  });
+
+  it("logs a player-walked retirement, the one path dawn's auto-leave doesn't cover", () => {
+    const pet: PetState = {
+      ...createPet("Archibald", 1000),
+      stage: "adult",
+      form: "gremlin",
+      // Neither deadAt nor departedAt is set — a player walking a ready adult
+      // over retires it directly, without going through the dawn auto-leave
+      // hook that would otherwise log this.
+    };
+    const farm = retireToFarm(pet, 9000);
+    expect(farm[0].final?.diag.find((d) => d.kind === "retirement")?.note).toBe("walked");
+  });
+
+  it("does not double-log retirement for a pet that already departed on its own", () => {
+    const pet: PetState = {
+      ...createPet("Archibald", 1000),
+      stage: "adult",
+      form: "gremlin",
+      departedAt: 8000,
+    };
+    const farm = retireToFarm(pet, 9000);
+    const retirementLogs = farm[0].final?.diag.filter((d) => d.kind === "retirement") ?? [];
+    expect(retirementLogs).toHaveLength(0);
   });
 });
 

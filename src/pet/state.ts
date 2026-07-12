@@ -168,17 +168,24 @@ export const DEATH_AFTER_ZERO_HEALTH_MS = 2 * HOUR;
 const RECOVERED_HEALTH = 10;
 
 // --- Diagnostics -------------------------------------------------------------
-// Bounded rings, oldest dropped first. Sized to hold a pet's entire life at
-// hourly resolution — an adult lasts ~7 awake-days, so a long one runs a
-// fortnight of wall clock. That's ~70KB of save, rewritten every few seconds
-// to localStorage: no network, no serialisation worth worrying about. Better
-// to keep the whole trail than to lose the one hour that explains a death.
+// Bounded rings, oldest dropped first — but sized as a runaway-memory backstop,
+// not a real limit. The old 400-sample cap (~16.7 days hourly) only covered a
+// pet's growth-stage life; a pet kept around as an adult for months would
+// silently lose its baby/child history before ever reaching burial, which is
+// exactly the kind of gap the diagnostics exist to prevent. Diag events also
+// now cover the full care loop (pats, taps, discipline, calls…), so the ring
+// fills faster than it used to. Sized generously so no realistic play session —
+// even a heavily-interacted pet kept for months — truncates before burial;
+// hundreds of KB to a couple MB of save is an acceptable cost for never losing
+// the trail. Completeness beats compactness here.
 const VITALS_INTERVAL_MS = HOUR;
-const VITALS_CAP = 400;
-const DIAG_CAP = 400;
+const VITALS_CAP = 4_000; // ~166 days of hourly samples
+const DIAG_CAP = 8_000;
 
-/** Log a notable transition. Mutates `s`. */
-function logEvent(s: PetState, t: number, kind: DiagKind, detail?: string): void {
+/** Log a notable transition. Mutates `s`. Exported so persistence.ts can log a
+ *  final event (e.g. a player-walked retirement) onto a snapshot bound for the
+ *  farm archive, without duplicating the ring-eviction logic here. */
+export function logEvent(s: PetState, t: number, kind: DiagKind, detail?: string): void {
   s.diag.push(detail === undefined ? { t, kind } : { t, kind, note: detail });
   if (s.diag.length > DIAG_CAP) s.diag.splice(0, s.diag.length - DIAG_CAP);
 }
@@ -424,6 +431,7 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
       cursor - s.callStartedAt >= CALL_EXPIRE_MS
     ) {
       if (!s.fakeCall) s.hidden.careMistakes += 1;
+      logEvent(s, cursor, "call", `expired:${s.fakeCall ? "fake" : "real"} ${s.attentionWant ?? "pat"}`);
       clearCall(s);
     }
 
@@ -493,6 +501,7 @@ function dawnHook(s: PetState, at: number): void {
       s.departedAt = at;
       s.asleep = false;
       clearCall(s);
+      logEvent(s, at, "retirement", "departed (dawn)");
     }
   }
   s.nightAwakeMs = 0;
@@ -610,7 +619,12 @@ function decaySegment(s: PetState, seg: number, segTime: number, night: boolean)
       1,
       s.weight - WEIGHT_DRIFT_PER_HOUR * STAGE_METABOLISM_MULT[s.stage] * hours,
     );
-    if (s.stage === "adult") s.adultLifeMs += seg * retirementPace(s);
+    if (s.stage === "adult") {
+      const prevPhase = retirementPhase(s);
+      s.adultLifeMs += seg * retirementPace(s);
+      const phase = retirementPhase(s);
+      if (phase !== prevPhase && phase !== "none") logEvent(s, segTime, "retirement", phase);
+    }
   }
 
   // --- Death: sustained neglect at zero health, past the egg stage. Eggs
@@ -644,10 +658,15 @@ function decaySegment(s: PetState, seg: number, segTime: number, night: boolean)
   sampleVitals(s, segTime);
 }
 
-/** What gets carved on the memorial. Illness wins; otherwise infer neglect. */
+/** What gets carved on the memorial. Illness wins IF it could actually have
+ *  killed — the sniffles and trimethylaminuria have drainPerHour 0 and cannot
+ *  drain health at all, so a pet that dies while merely carrying one of those
+ *  died of something else entirely (a previous investigation was misled by
+ *  exactly this). Otherwise infer neglect. */
 function causeOfDeath(s: PetState): string {
-  if (s.sick && s.illness) return ILLNESSES[s.illness].label;
-  if (s.sick) return "a mysterious ailment";
+  const fx = s.sick && s.illness ? ILLNESSES[s.illness] : null;
+  if (fx && fx.drainPerHour > 0) return fx.label;
+  if (s.sick && !s.illness) return "a mysterious ailment"; // legacy: sick with no illness id
   if (s.energy <= 0) return "an empty bowl";
   if (s.happiness <= 0) return "a broken heart";
   return "general neglect";
@@ -671,7 +690,19 @@ function advanceOne(s: PetState, at: number): void {
     s.happiness = Math.min(s.happiness, 2);
   }
   if (next === "adult") s.form = determineAdultForm(s.hidden, s.health);
-  logEvent(s, at, "stage", next === "adult" ? `adult (${s.form})` : next);
+  // The adult transition is the one every player wants explained after the
+  // fact ("why did it become THAT") — carry the hidden inputs that decided it
+  // right onto the log line, not just the outcome.
+  logEvent(
+    s,
+    at,
+    "stage",
+    next === "adult"
+      ? `adult (${s.form}) — mistakes ${r1(s.hidden.careMistakes)}, discipline ${s.hidden.discipline}, ` +
+        `nightCare ${s.hidden.nightCare}, cake ${s.hidden.cakeEaten}, cube ${s.hidden.cubeEaten}, ` +
+        `carrot ${s.hidden.carrotEaten}, health ${r1(s.health)}`
+      : next,
+  );
 }
 
 // --- Player actions ---------------------------------------------------------
@@ -715,11 +746,13 @@ function disciplineGain(stage: PetState["stage"]): number {
 
 /** Resolve an active attention call whose want this action just met. Mutates
  *  `s` (callers pass a fresh copy) and returns how it landed. `unjustified` is
- *  computed by the caller from pre-action stats (see callUnjustified). */
+ *  computed by the caller from pre-action stats (see callUnjustified). Caller
+ *  must have already cloned `s.diag` — this logs the resolution. */
 function resolveCall(
   s: PetState,
   want: AttentionWant,
   unjustified: boolean,
+  now: number,
 ): "satisfied" | "spoiled" | undefined {
   if (!s.wantsAttention || (s.attentionWant ?? "pat") !== want) return undefined;
   clearCall(s);
@@ -730,9 +763,11 @@ function resolveCall(
     s.hidden = { ...s.hidden, careMistakes: s.hidden.careMistakes + 1 };
     s.happiness = clampHearts(s.happiness + 0.3);
     s.discipline = clamp100(s.discipline - disciplineGain(s.stage) / 2);
+    logEvent(s, now, "call", `spoiled:${want}`);
     return "spoiled";
   }
   s.happiness = clampHearts(s.happiness + 0.4);
+  logEvent(s, now, "call", `satisfied:${want}`);
   return "satisfied";
 }
 
@@ -817,7 +852,7 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
     note = "soupcure";
   }
 
-  const call = resolveCall(s, "snack", unjustified);
+  const call = resolveCall(s, "snack", unjustified, now);
   return { state: s, note, call };
 }
 
@@ -844,7 +879,7 @@ export function applyGameResult(
   if (tooSickToPlay(s)) {
     return { state: s, note: "toosick" };
   }
-  s = { ...s, hidden: { ...s.hidden, gamePlays: { ...s.hidden.gamePlays } } };
+  s = { ...s, hidden: { ...s.hidden, gamePlays: { ...s.hidden.gamePlays } }, diag: [...s.diag] };
   // Judge the call before the game lifts happiness, or every play reads justified.
   const unjustified = callUnjustified(s);
   s.hidden.gamePlays[game]++;
@@ -857,7 +892,8 @@ export function applyGameResult(
   const exertion = GAME_EXERTION[game] ?? BASE_GAME_EXERTION;
   s.energy = clampHearts(s.energy - exertion.energy);
   s.weight = Math.max(1, s.weight - exertion.weight);
-  const call = resolveCall(s, "play", unjustified);
+  logEvent(s, now, "played", game === "cubehum" ? `${game} reach ${reach}` : `${game} ${won ? "win" : "loss"}`);
+  const call = resolveCall(s, "play", unjustified, now);
   return { state: s, call };
 }
 
@@ -910,7 +946,7 @@ export function discipline(state: PetState, now: number): ActionResult {
   if (s.stage === "egg" || s.stage === "baby") {
     return { state: s, note: "cant" }; // babies can't be disciplined
   }
-  s = { ...s, hidden: { ...s.hidden } };
+  s = { ...s, hidden: { ...s.hidden }, diag: [...s.diag] };
   const correct = callUnjustified(s);
   if (correct) {
     // Teen discipline carries more weight.
@@ -918,23 +954,26 @@ export function discipline(state: PetState, now: number): ActionResult {
     s.hidden.discipline += gain;
     s.discipline = clamp100(s.discipline + gain);
     clearCall(s);
+    logEvent(s, now, "discipline", "correct");
     return { state: s, note: "correct" };
   }
   s.hidden.careMistakes += 1;
   s.discipline = clamp100(s.discipline - 4);
   s.happiness = clampHearts(s.happiness - 0.5);
   s.health = clamp100(s.health - 2);
+  logEvent(s, now, "discipline", "incorrect");
   return { state: s, note: "incorrect" };
 }
 
 export function toggleLight(state: PetState, now: number): PetState {
   let s = applyElapsedDecay(state, now);
-  s = { ...s, lightsOn: !s.lightsOn };
+  s = { ...s, lightsOn: !s.lightsOn, diag: [...s.diag] };
   s.asleep = isNight(now) && !s.lightsOn && s.stage !== "egg";
   // Turning lights off at night to let it sleep counts toward the Ghost path.
   if (isNight(now) && !s.lightsOn) {
     s.hidden = { ...s.hidden, nightCare: s.hidden.nightCare + 1 };
   }
+  logEvent(s, now, "lights", s.lightsOn ? "on" : "off");
   return s;
 }
 
@@ -974,10 +1013,18 @@ export interface TapResult {
 }
 
 export function tap(state: PetState, now: number): TapResult {
-  const s = applyElapsedDecay(state, now);
+  let s = applyElapsedDecay(state, now);
+  // diag is cloned here (once) so every return path below can log freely —
+  // see the note on feed() re applyElapsedDecay handing back the input
+  // untouched when no time has passed.
+  s = { ...s, diag: [...s.diag] };
+  const finish = (result: PetState, reaction: TapReaction, want: AttentionWant | null): TapResult => {
+    logEvent(result, now, "tap", want ? `${reaction}:${want}` : reaction);
+    return { state: result, reaction, want };
+  };
   // The vapors: fainted dead away. A poke gets nothing, not even offense.
   if (s.sick && s.illness === "vapors") {
-    return { state: s, reaction: "ignore", want: null };
+    return finish(s, "ignore", null);
   }
   // Asleep: no calls, no annoyance ledger — just a cracked eye, then a shush
   // if you keep at it. Reuses the same streak/window fields as the awake game.
@@ -986,7 +1033,7 @@ export function tap(state: PetState, now: number): TapResult {
     const recentTaps = [...s.recentTaps, now].filter((t) => now - t < TAP_WINDOW_MS);
     const streakBase = wasQuiet ? 0 : s.tapStreak;
     const next: PetState = { ...s, recentTaps, tapStreak: streakBase + 1 };
-    return { state: next, reaction: streakBase === 0 ? "peek" : "shush", want: null };
+    return finish(next, streakBase === 0 ? "peek" : "shush", null);
   }
   // Quiet means every previous poke has aged out of the window — that's what
   // earns a fresh "react" instead of continuing the ignore/annoyed streak.
@@ -1003,20 +1050,20 @@ export function tap(state: PetState, now: number): TapResult {
   // a pat (see pat()), not a finger-jab. So just hint at what it actually wants.
   if (next.wantsAttention) {
     const want = next.attentionWant ?? "pat";
-    return { state: next, reaction: "hint", want };
+    return finish(next, "hint", want);
   }
 
   if (wasQuiet) {
     next.tapStreak = 1;
-    return { state: next, reaction: "react", want: null };
+    return finish(next, "react", null);
   }
 
   next.tapStreak = streakBase + 1;
   if (next.tapStreak % TAP_ANNOY_THRESHOLD === 0) {
     next.happiness = clampHearts(next.happiness - 0.2);
-    return { state: next, reaction: "annoyed", want: null };
+    return finish(next, "annoyed", null);
   }
-  return { state: next, reaction: "ignore", want: null };
+  return finish(next, "ignore", null);
 }
 
 // --- Pat interaction (the gentle counterpart to a poke) ---------------------
@@ -1067,19 +1114,21 @@ export function pat(state: PetState, now: number): PatResult {
   if (cannotAct(base) || (base.sick && base.illness === "vapors")) {
     return { state: base, reaction: "cant" };
   }
-  const s: PetState = { ...base, hidden: { ...base.hidden } };
+  const s: PetState = { ...base, hidden: { ...base.hidden }, diag: [...base.diag] };
   s.recentPats = [...s.recentPats, now].filter((t) => now - t < PAT_WINDOW_MS);
 
   // An active pat-call is answered by the right gesture. Reuse the call
   // machinery: a genuine call → "answered", a fake tantrum comforted → "spoiled".
+  // resolveCall logs the resolution itself; no separate "pat" entry needed.
   if (s.wantsAttention && (s.attentionWant ?? "pat") === "pat") {
-    const call = resolveCall(s, "pat", callUnjustified(s));
+    const call = resolveCall(s, "pat", callUnjustified(s), now);
     return { state: s, reaction: call === "spoiled" ? "spoiled" : "answered" };
   }
 
   // Rate limit: past the satiation count the pet has had its fill for now, so a
   // pat lands but pays nothing. No happiness is ever subtracted.
   if (s.recentPats.length > PAT_SATIATION) {
+    logEvent(s, now, "pat", "enough");
     return { state: s, reaction: "enough" };
   }
 
@@ -1088,6 +1137,7 @@ export function pat(state: PetState, now: number): PatResult {
   if (!mute) {
     s.happiness = clampHearts(s.happiness + PAT_HAPPINESS * patAffinity(s.form));
   }
+  logEvent(s, now, "pat", "enjoyed");
   return { state: s, reaction: "enjoyed" };
 }
 
@@ -1202,6 +1252,9 @@ export function stepEvents(
         rng() < (s.stage === "teen" ? 0.6 : s.stage === "adult" ? 0.45 : 0);
       if (s.lastUpdated - startedAt >= CALL_EXPIRE_MS) {
         if (!fake) s.hidden.careMistakes += 1;
+        // Rolled entirely within a long catch-up span — nobody was ever there
+        // to see it raised, so it's logged straight to expired.
+        logEvent(s, startedAt, "call", `expired:${fake ? "fake" : "real"} (during catch-up)`);
       } else {
         s.wantsAttention = true;
         s.fakeCall = fake;
@@ -1211,6 +1264,7 @@ export function stepEvents(
         s.attentionWant = wants[Math.floor(rng() * wants.length)];
         s.callStartedAt = startedAt;
         events.push(fake ? "fakecall" : "call");
+        logEvent(s, startedAt, "call", `raised:${fake ? "fake" : "real"} ${s.attentionWant}`);
       }
     }
 
@@ -1231,6 +1285,7 @@ export function stepEvents(
         s.zoomies = true;
         s.zoomiesStartedAt = startedAt;
         events.push("zoomies");
+        logEvent(s, startedAt, "zoomies");
       }
     }
   }

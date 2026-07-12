@@ -4,7 +4,7 @@
 
 import type { AdultForm, FarmEntry, PetState } from "./types";
 import { emptyHidden } from "./types";
-import { ageMs, NEUTRAL_FIBER_LEVEL } from "./state";
+import { ageMs, logEvent, NEUTRAL_FIBER_LEVEL } from "./state";
 
 const PET_KEY = "cozy-sprites-pet";
 const FARM_KEY = "cozy-sprites-farm";
@@ -12,7 +12,10 @@ const DEVICE_KEY = "cozy-sprites-device";
 // Discovered adult forms are normally derived from the farm archive, but a
 // farm wipe must not erase them — this snapshot survives that wipe.
 const DISCOVERED_KEY = "cozy-sprites-discovered";
-const SAVE_VERSION = 1;
+// Bumped for the diagnostics overhaul (new DiagKind coverage, uncapped-ish
+// retention, causeOfDeath fix). No back-compat needed — see CLAUDE.md.
+// Exported for tests that need to construct a well-formed backup blob.
+export const SAVE_VERSION = 2;
 
 export function getDeviceId(): string {
   let id = localStorage.getItem(DEVICE_KEY);
@@ -155,16 +158,25 @@ export function wipeFarm(discovered: AdultForm[]): void {
  *  afterwards — you were left with a one-line cause and no way to check it. */
 export function retireToFarm(state: PetState, now: number): FarmEntry[] {
   const endedAt = state.deadAt ?? state.departedAt ?? now;
+  // A pet that dies or auto-departs at dawn already has that moment logged
+  // (see state.ts). A player-walked retirement is the one path with nothing
+  // in the diag trail to mark it — log it onto the snapshot bound for the
+  // farm archive so the record still ends with what actually happened.
+  let final = state;
+  if (state.deadAt === null && state.departedAt === null) {
+    final = { ...state, diag: [...state.diag] };
+    logEvent(final, endedAt, "retirement", "walked");
+  }
   const entry: FarmEntry = {
-    name: state.name,
-    form: state.form,
-    finalStage: state.stage,
-    ageMs: ageMs(state, endedAt),
-    hatchedAt: state.createdAt,
+    name: final.name,
+    form: final.form,
+    finalStage: final.stage,
+    ageMs: ageMs(final, endedAt),
+    hatchedAt: final.createdAt,
     retiredAt: endedAt,
-    passedAway: state.deadAt !== null,
-    cause: state.causeOfDeath,
-    final: state,
+    passedAway: final.deadAt !== null,
+    cause: final.causeOfDeath,
+    final,
   };
   const farm = [entry, ...loadFarm()];
   saveFarm(farm);

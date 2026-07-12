@@ -24,6 +24,7 @@ import {
   rollIllness,
   stepEvents,
   tap,
+  toggleLight,
   tooSickToPlay,
 } from "./state";
 import { migratePet } from "./persistence";
@@ -687,6 +688,15 @@ describe("death", () => {
     const pet = { ...doomed(), sick: true, illness: "dysentery" as const };
     const later = applyElapsedDecay(pet, T0 + DEATH_AFTER_ZERO_HEALTH_MS + 60_000);
     expect(later.causeOfDeath).toBe("dysentery");
+  });
+
+  it("does not blame an illness that cannot itself drain health (drainPerHour 0)", () => {
+    // The sniffles never kill on their own — a pet that dies while merely
+    // carrying them died of the neglect underneath, not the cold.
+    const pet = { ...doomed(), sick: true, illness: "sniffles" as const };
+    const later = applyElapsedDecay(pet, T0 + DEATH_AFTER_ZERO_HEALTH_MS + 60_000);
+    expect(later.causeOfDeath).not.toBe("the sniffles");
+    expect(later.causeOfDeath).toBe("an empty bowl");
   });
 
   it("eggs cannot die", () => {
@@ -1616,5 +1626,156 @@ describe("diagnostics", () => {
     const pet = asStage(createPet("Milo", T0), "adult");
     applyElapsedDecay(pet, T0 + 5 * HOUR);
     expect(pet.vitals).toHaveLength(0);
+  });
+});
+
+describe("diagnostics: the full care loop reaches the log", () => {
+  it("logs a pat", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    const { state } = pat(pet, T0);
+    expect(state.diag.find((d) => d.kind === "pat")?.note).toBe("enjoyed");
+  });
+
+  it("logs pat satiation once the window fills up", () => {
+    let pet: PetState = asStage(createPet("Milo", T0), "child");
+    for (let i = 0; i <= PAT_SATIATION; i++) {
+      pet = pat(pet, T0 + i * 100).state;
+    }
+    expect(pet.diag.some((d) => d.kind === "pat" && d.note === "enough")).toBe(true);
+  });
+
+  it("logs a tap reaction", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    const { state } = tap(pet, T0);
+    expect(state.diag.find((d) => d.kind === "tap")?.note).toBe("react");
+  });
+
+  it("does not mutate the caller's diag when applyElapsedDecay is a no-op", () => {
+    // tap()/pat() call applyElapsedDecay first; when no time has passed it
+    // hands back the same object, so logging must clone diag itself or it
+    // would corrupt the array the caller is still holding.
+    const pet = asStage(createPet("Milo", T0), "child");
+    const before = pet.diag.length;
+    tap(pet, T0);
+    expect(pet.diag.length).toBe(before);
+  });
+
+  it("logs discipline outcomes", () => {
+    const correct = asStage({ ...createPet("Milo", T0), wantsAttention: true, fakeCall: true }, "teen");
+    expect(discipline(correct, T0).state.diag.find((d) => d.kind === "discipline")?.note).toBe("correct");
+    const wrong = asStage(createPet("Milo", T0), "teen");
+    expect(discipline(wrong, T0).state.diag.find((d) => d.kind === "discipline")?.note).toBe("incorrect");
+  });
+
+  it("logs lights on/off", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    const off = toggleLight(pet, T0);
+    expect(off.diag.find((d) => d.kind === "lights")?.note).toBe("off");
+    const on = toggleLight(off, T0 + 1_000);
+    expect(on.diag.find((d) => d.kind === "lights" && d.note === "on")).toBeTruthy();
+  });
+
+  it("logs a played game with its outcome", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    const { state } = applyGameResult(pet, "fetch", true, T0);
+    expect(state.diag.find((d) => d.kind === "played")?.note).toBe("fetch win");
+  });
+
+  it("logs an attention call being raised, with its want", () => {
+    let calls = 0;
+    // Roll order per EVENT_CHUNK_MS slice: poop, sick, then the call roll.
+    // Miss the first two, hit the call roll, then take the first fake/want pick.
+    const rng = () => {
+      calls++;
+      return calls === 3 ? 0 : 0.99;
+    };
+    const pet = asStage(createPet("Milo", T0), "adult");
+    const { state } = stepEvents(pet, 60_000, rng);
+    const raised = state.diag.find((d) => d.kind === "call" && d.note?.startsWith("raised"));
+    expect(raised).toBeTruthy();
+  });
+
+  it("logs a call resolution when an action satisfies it", () => {
+    const pet = asStage(
+      {
+        ...createPet("Milo", T0),
+        energy: 0.5,
+        wantsAttention: true,
+        fakeCall: false,
+        attentionWant: "snack" as const,
+      },
+      "child",
+    );
+    const { state } = feed(pet, "burger", T0);
+    expect(state.diag.find((d) => d.kind === "call")?.note).toBe("satisfied:snack");
+  });
+
+  it("logs a stale call's expiry", () => {
+    const caller = asStage(
+      {
+        ...createPet("Milo", T0),
+        wantsAttention: true,
+        fakeCall: false,
+        attentionWant: "snack" as const,
+        callStartedAt: T0,
+      },
+      "adult",
+    );
+    const later = applyElapsedDecay(caller, T0 + CALL_EXPIRE_MS + 60_000);
+    expect(later.diag.some((d) => d.kind === "call" && d.note?.startsWith("expired"))).toBe(true);
+  });
+
+  it("logs a zoomies burst", () => {
+    let calls = 0;
+    const rng = () => {
+      calls++;
+      return calls === 4 ? 0 : 0.99;
+    };
+    const pet = asStage(createPet("Milo", T0), "child");
+    const { state } = stepEvents(pet, 60_000, rng);
+    expect(state.diag.some((d) => d.kind === "zoomies")).toBe(true);
+  });
+
+  it("logs restless → ready retirement phase transitions", () => {
+    const base = asStage(
+      { ...createPet("Old Sport", T0), energy: 4, happiness: 4, health: 100 },
+      "adult",
+    );
+    const restless = applyElapsedDecay(
+      { ...base, adultLifeMs: ADULT_LIFESPAN_MS * 0.7 - 1_000 },
+      T0 + 2_000,
+    );
+    expect(restless.diag.find((d) => d.kind === "retirement")?.note).toBe("restless");
+
+    const ready = applyElapsedDecay(
+      { ...base, adultLifeMs: ADULT_LIFESPAN_MS - 1_000 },
+      T0 + 2_000,
+    );
+    expect(ready.diag.find((d) => d.kind === "retirement")?.note).toBe("ready");
+  });
+
+  it("logs an auto-departure at dawn", () => {
+    const waiting = {
+      ...asStage(createPet("Old Sport", at(22)), "adult"),
+      lightsOn: false,
+      asleep: true,
+      adultLifeMs: ADULT_LIFESPAN_MS + AUTO_LEAVE_EXTRA_MS,
+    };
+    const morning = applyElapsedDecay(waiting, at(32, 5));
+    expect(morning.diag.some((d) => d.kind === "retirement" && d.note?.startsWith("departed"))).toBe(
+      true,
+    );
+  });
+
+  it("enriches the adult-evolution log with the hidden inputs that decided the form", () => {
+    const teen = {
+      ...asStage(createPet("Milo", T0), "teen"),
+      stageElapsedMs: TIMING.teen - 1_000,
+    };
+    const evolved = applyElapsedDecay(teen, T0 + 2_000);
+    const stageEvent = evolved.diag.find((d) => d.kind === "stage" && d.note?.startsWith("adult"));
+    expect(stageEvent?.note).toMatch(/mistakes/);
+    expect(stageEvent?.note).toMatch(/discipline/);
+    expect(stageEvent?.note).toMatch(new RegExp(evolved.form!));
   });
 });

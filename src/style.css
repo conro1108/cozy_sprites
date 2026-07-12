@@ -1361,7 +1361,6 @@ body {
 }
 
 .farm-info-close {
-  margin-left: auto;
   flex: 0 0 auto;
   border: none;
   background: none;
@@ -1370,6 +1369,21 @@ body {
   color: var(--ink-soft);
   cursor: pointer;
   padding: 4px 6px;
+}
+
+/* Diagnostic tool, not a feature — small, unstyled, easy to skip past. */
+.farm-info-debug {
+  margin-left: auto;
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.65rem;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 6px;
+  white-space: nowrap;
 }
 
 /* A hedged-off resting plot for the ones who didn't make it. */

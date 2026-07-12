@@ -7,6 +7,7 @@ import { ILLNESSES } from "../pet/types";
 import type { FoodId, GameId, PetState, FarmEntry, AdultForm } from "../pet/types";
 import { FOODS, FOOD_ORDER, ADULTS, ADULT_ORDER } from "../pet/roster";
 import { ageLabel } from "../pet/format";
+import { formatDebugReport } from "../pet/debug";
 import { MAX_HEARTS, retirementPhase } from "../pet/state";
 import { farmConfirmLine, farewellWalkLine, describeCondition } from "../pet/dialogue";
 import {
@@ -126,6 +127,24 @@ function tile(icon: IconName, name: string, onClick: () => void, note?: string):
   }
   el.addEventListener("click", onClick);
   return el;
+}
+
+/** navigator.clipboard only exists in secure contexts (not plain-http LAN
+ *  testing) — fall back to a detached textarea + execCommand there. Shared by
+ *  the backup code copy and the debug report copy. */
+function copyText(text: string): void {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text);
+    return;
+  }
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  ta.remove();
 }
 
 // --- Active in-scene game tracking ------------------------------------------
@@ -1664,12 +1683,27 @@ function farmInfoStrip(formName: (e: FarmEntry) => string): FarmInfo {
           e.retiredAt,
         ).toLocaleDateString()}`;
     txt.append(nm, detail);
+    el.appendChild(txt);
+    // Only entries retired since diagnostics existed carry the full final
+    // snapshot — see FarmEntry.final. Same diagnostic tool as the Backup
+    // panel's, just scoped to whichever grave or resident was tapped.
+    if (e.final) {
+      const dbg = document.createElement("button");
+      dbg.className = "farm-info-debug";
+      dbg.textContent = "Debug report";
+      dbg.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        copyText(formatDebugReport(e.final!));
+        dbg.textContent = "Copied!";
+      });
+      el.appendChild(dbg);
+    }
     const x = document.createElement("button");
     x.className = "farm-info-close";
     x.setAttribute("aria-label", "Close");
     x.textContent = "✕";
     x.addEventListener("click", hide);
-    el.append(txt, x);
+    el.appendChild(x);
     el.classList.add("open");
   };
 
@@ -1968,14 +2002,7 @@ export function openBackup(ctx: MenuCtx): void {
   copy.className = "btn";
   copy.textContent = "Copy code";
   copy.addEventListener("click", () => {
-    // navigator.clipboard only exists in secure contexts (not plain-http LAN
-    // testing) — fall back to select + execCommand there.
-    ta.select();
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(ta.value);
-    } else {
-      document.execCommand("copy");
-    }
+    copyText(ta.value);
     copy.textContent = "Copied!";
   });
 
@@ -1998,4 +2025,19 @@ export function openBackup(ctx: MenuCtx): void {
   });
 
   p.body.append(ta, copy, hr, inp, restore);
+
+  // A separate, deliberately understated diagnostic tool — not a save format,
+  // just a readable dump of the active pet's vitals + event trail. Lives here
+  // because this is already the technical, out-of-the-way panel.
+  const debugHr = document.createElement("p");
+  debugHr.className = "muted";
+  debugHr.textContent = "For explaining what happened, in detail:";
+  const debugBtn = document.createElement("button");
+  debugBtn.className = "btn secondary btn-small";
+  debugBtn.textContent = "Copy debug report";
+  debugBtn.addEventListener("click", () => {
+    copyText(formatDebugReport(ctx.pet()));
+    debugBtn.textContent = "Copied!";
+  });
+  p.body.append(debugHr, debugBtn);
 }
