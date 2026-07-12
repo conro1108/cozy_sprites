@@ -1732,19 +1732,25 @@ export class Scene {
 
     // Older creatures dwell longer, walk slower, and flop down more often.
     const activity = v.activity ?? 1;
-    const dwellFor = () => (3000 + Math.random() * 4000) * (2 - activity);
+    const dwellFor = () => (5000 + Math.random() * 5500) * (2 - activity);
 
     switch (this.wanderPhase) {
       case "dwell": {
         if (now >= this.wanderUntil) {
-          if (Math.random() < 0.12 + 0.55 * (1 - activity)) {
+          // A little of the "stay put" bias from the overcorrected version,
+          // halved rather than fully reverted or reapplied.
+          if (Math.random() < 0.22 + 0.13 * (1 - activity)) {
+            this.wanderUntil = now + dwellFor();
+            break;
+          }
+          if (Math.random() < 0.11 + 0.53 * (1 - activity)) {
             // Take a breather: a big yawn, then blob down for a while.
             this.wanderPhase = "yawn";
             this.phaseStart = now;
             this.wanderUntil = now + 1100;
             break;
           }
-          if (Math.random() < 0.18) {
+          if (Math.random() < 0.14) {
             // Off to perch on the stump for a spell.
             this.wanderTargetX = STUMP_SEAT_DX;
             this.wanderTargetY = 0;
