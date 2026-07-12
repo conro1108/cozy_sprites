@@ -1145,10 +1145,15 @@ export class Scene {
     ctx.fillStyle = "#8a5a3c"; // handle
     ctx.fillRect(bx + 4, by - 16, 2, 14);
     ctx.fillRect(bx + 5, by - 17, 2, 3);
+    const wx = bx + Math.round(wiggle);
     ctx.fillStyle = "#e8c06a"; // bristles
-    ctx.fillRect(bx + Math.round(wiggle), by - 3, 8, 5);
+    ctx.fillRect(wx, by - 5, 8, 7);
+    ctx.fillStyle = "#f6dfa0"; // light bristle strands
+    ctx.fillRect(wx + 1, by - 5, 1, 6);
+    ctx.fillRect(wx + 4, by - 5, 1, 6);
+    ctx.fillRect(wx + 6, by - 5, 1, 6);
     ctx.fillStyle = "#caa050";
-    ctx.fillRect(bx + Math.round(wiggle), by + 2, 8, 1);
+    ctx.fillRect(wx, by + 2, 8, 1);
   }
 
   private drawBall(x: number, y: number): void {
