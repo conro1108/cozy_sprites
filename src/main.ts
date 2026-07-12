@@ -280,7 +280,8 @@ function mountGame(): void {
   const canvas = app.querySelector<HTMLCanvasElement>("#scene")!;
   scene = new Scene(canvas);
   petCanvas = canvas;
-  scene.onIdleSong(() => playSong());
+  // The dog thing doesn't hum a little tune like everyone else — it barks.
+  scene.onIdleSong(() => (pet?.form === "dog" ? playSfx("bark") : playSong()));
   scene.start();
   bindPetGestures(canvas);
 
