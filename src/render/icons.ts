@@ -767,7 +767,7 @@ const ICONS: Record<IconName, IconDef> = {
       ".kkkkkkkkkk.",
       "kwwwwwwwwwwk",
       "kwwwwwwwwwwk",
-      "kwwkwwkwwkwk",
+      "kwkwwkwwwkwk",
       "kwwwwwwwwwwk",
       "kwwwwwwwwwwk",
       ".kkkkkkkkkk.",
