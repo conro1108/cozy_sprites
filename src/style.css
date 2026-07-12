@@ -1613,6 +1613,77 @@ body {
   font-weight: 800;
 }
 
+/* --- History: the diagnostic trail, in plain language ----------------------
+   The list scrolls inside a bounded box rather than growing the panel, so the
+   vitals toggle above it stays reachable no matter how long a life gets. */
+.history-list {
+  margin: 12px 0;
+  max-height: 46vh;
+  overflow-y: auto;
+  border: 2px solid var(--cream-2);
+  border-radius: 12px;
+  padding: 4px 10px 10px;
+}
+
+/* Day headings stick as you scroll back through a long life. */
+.history-day {
+  position: sticky;
+  top: 0;
+  margin: 0;
+  padding: 8px 0 4px;
+  background: var(--cream);
+  color: var(--wood-dark);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.history-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 0.85rem;
+  border-bottom: 1px dashed rgba(138, 111, 87, 0.25);
+}
+
+.history-row:last-child {
+  border-bottom: none;
+}
+
+.history-icon {
+  flex: none;
+  width: 1.3em;
+  text-align: center;
+}
+
+/* Wide enough for a two-digit 12-hour clock ("12:19 PM") without wrapping. */
+.history-time {
+  flex: none;
+  width: 5.6em;
+  white-space: nowrap;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-text {
+  flex: 1;
+}
+
+/* The opt-in numbers sit back visually — they're reference, not narrative. */
+.history-row.vitals .history-text {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.history-empty,
+.history-truncated {
+  margin: 8px 0;
+  font-style: italic;
+}
+
 /* --- The deliberately-hard-to-find help ----------------------------------- */
 .help-hidden {
   display: block;

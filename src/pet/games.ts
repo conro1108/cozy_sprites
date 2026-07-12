@@ -16,6 +16,17 @@ export function spriteWon(game: GameId, playerWon: boolean): boolean {
   return AGAINST_THE_SPRITE.has(game) ? !playerWon : playerWon;
 }
 
+/** Display names, shared by the Play menu's tiles and the history diary so a
+ *  game is called the same thing wherever it's named. */
+export const GAME_NAMES: Record<GameId, string> = {
+  higherlower: "Higher / Lower",
+  fetch: "Fetch",
+  rps: "Rock Paper Scissors",
+  hideseek: "Hide & Seek",
+  wouldyou: "Would You Rather",
+  cubehum: "The Cube's Hum",
+};
+
 export type RpsMove = "rock" | "paper" | "scissors";
 export type Outcome = "win" | "lose" | "tie";
 

@@ -24,10 +24,12 @@ import {
   extendHum,
   humMatches,
   cubeHumLine,
+  GAME_NAMES,
   CUBE_FACES,
   CUBE_HUM_TARGET,
 } from "../pet/games";
 import type { RpsMove, MatchResult } from "../pet/games";
+import { buildHistory, historyTruncated, rowTime } from "../pet/history";
 import { buildCreatureCanvas, type Mood } from "../render/sprites";
 import { iconEl, iconHTML, iconUrl, digitMaskUrl } from "../render/icons";
 import { propEl, propUrl, propSize, type PropName } from "../render/props";
@@ -275,14 +277,16 @@ export function openFood(ctx: MenuCtx): void {
 }
 
 // --- Play (game picker) -----------------------------------------------------
-const GAME_META: { id: GameId; icon: IconName; name: string }[] = [
-  { id: "higherlower", icon: "dice", name: "Higher / Lower" },
-  { id: "fetch", icon: "ball", name: "Fetch" },
-  { id: "rps", icon: "rock", name: "Rock Paper Scissors" },
-  { id: "hideseek", icon: "magnifying", name: "Hide & Seek" },
-  { id: "wouldyou", icon: "question", name: "Would You Rather" },
-  { id: "cubehum", icon: "cube", name: "The Cube's Hum" },
-];
+const GAME_META: { id: GameId; icon: IconName; name: string }[] = (
+  [
+    { id: "higherlower", icon: "dice" },
+    { id: "fetch", icon: "ball" },
+    { id: "rps", icon: "rock" },
+    { id: "hideseek", icon: "magnifying" },
+    { id: "wouldyou", icon: "question" },
+    { id: "cubehum", icon: "cube" },
+  ] as { id: GameId; icon: IconName }[]
+).map((g) => ({ ...g, name: GAME_NAMES[g.id] }));
 
 export function openPlay(ctx: MenuCtx): void {
   const p = openPanel("Play", "Pick a game.");
@@ -2030,12 +2034,22 @@ export function openBackup(ctx: MenuCtx): void {
 
   p.body.append(ta, copy, hr, inp, restore);
 
-  // A separate, deliberately understated diagnostic tool — not a save format,
-  // just a readable dump of the active pet's vitals + event trail. Lives here
+  // Two views onto the same diagnostic trail, both deliberately understated —
+  // neither is a save format. History reads it in plain language, in-game; the
+  // debug report dumps it verbatim for pasting somewhere else. Both live here
   // because this is already the technical, out-of-the-way panel.
   const debugHr = document.createElement("p");
   debugHr.className = "muted";
   debugHr.textContent = "For explaining what happened, in detail:";
+  const debugRow = document.createElement("div");
+  debugRow.className = "btn-pair";
+  const historyBtn = document.createElement("button");
+  historyBtn.className = "btn secondary btn-small";
+  historyBtn.textContent = "History";
+  historyBtn.addEventListener("click", () => {
+    p.close();
+    openHistory(ctx);
+  });
   const debugBtn = document.createElement("button");
   debugBtn.className = "btn secondary btn-small";
   debugBtn.textContent = "Copy debug report";
@@ -2043,5 +2057,99 @@ export function openBackup(ctx: MenuCtx): void {
     copyText(formatDebugReport(ctx.pet()));
     debugBtn.textContent = "Copied!";
   });
-  p.body.append(debugHr, debugBtn);
+  debugRow.append(historyBtn, debugBtn);
+  p.body.append(debugHr, debugRow);
+}
+
+/** The pet's life, in plain language and in reverse — the diagnostic trail as
+ *  something you'd actually read. Vitals (the hourly numbers) are off by
+ *  default: they're what you want when you're asking "why did it get sick",
+ *  and noise the rest of the time. */
+export function openHistory(ctx: MenuCtx): void {
+  const pet = ctx.pet();
+  const p = openPanel(pet.name, "History");
+  let showVitals = false;
+
+  // Same chrome as the sound/notification toggles — same shape of decision.
+  const toggle = document.createElement("div");
+  toggle.className = "notify-settings";
+  const toggleLabel = document.createElement("p");
+  toggleLabel.className = "muted";
+  toggleLabel.textContent = "Vitals";
+  const toggleRow = document.createElement("div");
+  toggleRow.className = "notify-row";
+
+  const list = document.createElement("div");
+  list.className = "history-list";
+
+  const paint = () => {
+    toggleRow.querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("active", (b.dataset.on === "1") === showVitals);
+    });
+    list.innerHTML = "";
+    const days = buildHistory(ctx.pet(), { includeVitals: showVitals });
+    if (days.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "muted history-empty";
+      empty.textContent = "Nothing has happened yet.";
+      list.appendChild(empty);
+      return;
+    }
+    // The ring is capped (see state.ts) — if it has evicted anything, say so
+    // rather than showing a trail that looks complete but isn't.
+    if (historyTruncated(ctx.pet())) {
+      const warn = document.createElement("p");
+      warn.className = "muted history-truncated";
+      warn.textContent = "Only the most recent events are kept — older ones have been forgotten.";
+      list.appendChild(warn);
+    }
+    for (const day of days) {
+      const head = document.createElement("h3");
+      head.className = "history-day";
+      head.textContent = day.label;
+      list.appendChild(head);
+      for (const row of day.rows) {
+        const el = document.createElement("div");
+        el.className = row.kind === "vitals" ? "history-row vitals" : "history-row";
+        const icon = document.createElement("span");
+        icon.className = "history-icon";
+        icon.textContent = row.icon;
+        const time = document.createElement("span");
+        time.className = "history-time";
+        time.textContent = rowTime(row.t);
+        const text = document.createElement("span");
+        text.className = "history-text";
+        text.textContent = row.text;
+        el.append(icon, time, text);
+        list.appendChild(el);
+      }
+    }
+  };
+
+  for (const opt of [
+    { on: false, text: "Hide" },
+    { on: true, text: "Show" },
+  ]) {
+    const b = document.createElement("button");
+    b.className = "notify-opt";
+    b.dataset.on = opt.on ? "1" : "0";
+    b.textContent = opt.text;
+    b.addEventListener("click", () => {
+      showVitals = opt.on;
+      paint();
+    });
+    toggleRow.appendChild(b);
+  }
+  toggle.append(toggleLabel, toggleRow);
+
+  const back = document.createElement("button");
+  back.className = "btn secondary btn-small";
+  back.textContent = "Back to Backup";
+  back.addEventListener("click", () => {
+    p.close();
+    openBackup(ctx);
+  });
+
+  p.body.append(toggle, list, back);
+  paint();
 }
