@@ -51,7 +51,7 @@ export interface MenuCtx {
   clean(): void;
   medicine(): void;
   discipline(): void;
-  finishGame(game: GameId, won: MatchResult, line?: string, reach?: number): void;
+  finishGame(game: GameId, won: MatchResult, line?: string | null, reach?: number): void;
   sayLine(text: string): void;
   sendToFarm(): void;
   exportSave(): string;

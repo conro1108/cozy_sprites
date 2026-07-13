@@ -71,12 +71,13 @@ describe("resolveFetch", () => {
   it("tags a success with a success variant and a matching line", () => {
     const r = resolveFetch(0.6, () => 0);
     expect(["return", "epic"]).toContain(r.variant);
-    expect(r.line.length).toBeGreaterThan(0);
+    expect(r.line).not.toBeNull();
+    expect(r.line!.length).toBeGreaterThan(0);
   });
-  it("tags a failure with one of the fumble variants", () => {
+  it("stays silent on a fumble — the animation is the whole story", () => {
     const r = resolveFetch(0.05, () => 0);
     expect(["wrongway", "overfence", "sock", "stick", "whichway", "distracted"]).toContain(r.variant);
-    expect(r.line.length).toBeGreaterThan(0);
+    expect(r.line).toBeNull();
   });
   it("keeps the wrong-object returns rare across the fail pool", () => {
     // Sweep the rng range: sock+stick together should be a small slice of fails.
@@ -90,15 +91,27 @@ describe("resolveFetch", () => {
     expect(wrongObject / n).toBeLessThan(0.2);
     expect(wrongObject).toBeGreaterThan(0);
   });
-  it("babies fumble even a perfect throw", () => {
+  it("babies fumble even a perfect throw, ordinarily", () => {
     expect(resolveFetch(0.6, () => 0, "baby").success).toBe(false);
     expect(resolveFetch(0.6, () => 0, "adult").success).toBe(true);
   });
-  it("rarely returns the cube instead, and it always counts", () => {
+  it("babies land one occasionally, so fetch isn't a guaranteed loss for a whole stage", () => {
+    // A bad throw a baby would ordinarily fumble regardless of quality —
+    // but a rare lucky roll succeeds anyway, and quietly (baby luck is
+    // never an "epic" catch). 0.9 clears the luck threshold (>0.88) without
+    // also tripping the rarer "brings back the cube" roll (>0.93).
+    const r = resolveFetch(0.05, () => 0.9, "baby");
+    expect(r.success).toBe(true);
+    expect(r.variant).toBe("return");
+  });
+  it("a baby's ordinary roll still fumbles a bad throw", () => {
+    expect(resolveFetch(0.05, () => 0.5, "baby").success).toBe(false);
+  });
+  it("rarely returns the cube instead, and it always counts, silently", () => {
     const r = resolveFetch(0.05, () => 0.95); // terrible throw, cube anyway
     expect(r.variant).toBe("cube");
     expect(r.success).toBe(true);
-    expect(r.line.length).toBeGreaterThan(0);
+    expect(r.line).toBeNull();
   });
 
   it("judges against a moved sweet spot, not the fixed center", () => {

@@ -27,6 +27,13 @@ export const SCENE_W = 112; // fixed content width; height adapts to the stage
 const GRASS_DEPTH = 42; // grass below the horizon (floor sits this far up)
 const CREATURE_X = 56; // resting center
 
+// Fetch timing: the throw+chase+return always takes FETCH_DURATION; variants
+// that come home holding something other than the ball get FETCH_HOLD_MS
+// tacked on at the end as a beat to actually look at it before the verdict.
+const FETCH_DURATION = 2500;
+const FETCH_HOLD_MS = 1000;
+const FETCH_HOLD_VARIANTS: ReadonlySet<FetchVariant> = new Set(["sock", "stick", "cube"]);
+
 // Rock-paper-scissors reveal geometry (see drawRps).
 const RPS_ICON_SZ = 20;
 const RPS_PLAYER_X = 14;
@@ -420,7 +427,10 @@ export class Scene {
     const dist = (18 + power * 34) * dir;
     const arc = 18 + Math.random() * 16; // randomized throw height
     const lateral = (Math.random() - 0.5) * 10; // slight sideways curve
-    this.startAct("fetch", 2500, { dist, variant, arc, lateral }, onDone);
+    // Coming home with the wrong thing in its mouth is the whole joke — give
+    // it a beat longer to actually land before the verdict cuts in.
+    const duration = FETCH_HOLD_VARIANTS.has(variant) ? FETCH_DURATION + FETCH_HOLD_MS : FETCH_DURATION;
+    this.startAct("fetch", duration, { dist, variant, arc, lateral }, onDone);
   }
 
   /** Nature calls: squat, tremble, produce. The mess lands where it stands. */
@@ -1495,6 +1505,12 @@ export class Scene {
     const lateral = act.data.lateral as number;
     const dir = Math.sign(dist) || 1;
     const targetX = CREATURE_X + dist;
+    // The chase/return choreography below is all authored against the base
+    // 2500ms timeline; hold variants get extra real time tacked on at the
+    // end (see FETCH_HOLD_MS), so their thresholds run off `cp` — the same
+    // curve, just clamped at 1 once the base timeline elapses, holding the
+    // final pose (object in mouth, home) for the remaining hold beat.
+    const cp = Math.min(1, (p * act.duration) / FETCH_DURATION);
     let dx = 0;
     let ball: { x: number; y: number } | null = null;
     let sock: { x: number; y: number } | null = null;
@@ -1556,18 +1572,19 @@ export class Scene {
 
       case "sock":
       case "stick": {
-        // Full chase, but returns with the wrong object held proudly in its mouth.
-        if (p < 0.22) {
-          ball = throwArc(p / 0.22);
-        } else if (p < 0.5) {
-          const q = (p - 0.22) / 0.28;
+        // Full chase, but returns with the wrong object held proudly in its
+        // mouth — then holds there a beat once home (see cp above).
+        if (cp < 0.22) {
+          ball = throwArc(cp / 0.22);
+        } else if (cp < 0.5) {
+          const q = (cp - 0.22) / 0.28;
           dx = q * dist;
           ball = { x: targetX, y: FLOOR_Y + 8 };
-        } else if (p < 0.66) {
+        } else if (cp < 0.66) {
           dx = dist;
           ball = { x: targetX, y: FLOOR_Y + 8 };
         } else {
-          const q = (p - 0.66) / 0.34;
+          const q = (cp - 0.66) / 0.34;
           dx = (1 - q) * dist;
           if (variant === "sock") sock = mouth();
           else stick = mouth(2);
@@ -1599,22 +1616,23 @@ export class Scene {
       }
 
       case "cube": {
-        // Normal chase out — but what comes back, slowly, reverently, hums.
-        if (p < 0.22) {
-          ball = throwArc(p / 0.22);
+        // Normal chase out — but what comes back, slowly, reverently, hums —
+        // then holds there once home, humming, a beat longer (see cp above).
+        if (cp < 0.22) {
+          ball = throwArc(cp / 0.22);
           this.drawCreature(t, 0, 1, null);
-        } else if (p < 0.48) {
-          const q = (p - 0.22) / 0.26;
+        } else if (cp < 0.48) {
+          const q = (cp - 0.22) / 0.26;
           dx = q * dist;
           ball = { x: targetX, y: FLOOR_Y + 8 };
           this.drawCreature(t, dx, 1, null);
-        } else if (p < 0.62) {
+        } else if (cp < 0.62) {
           // a long, still moment at the ball. Something is decided.
           dx = dist;
           this.drawCreature(t, dx, 1, null);
         } else {
           // the slow walk home. The ball is gone. The cube is here.
-          const q = (p - 0.62) / 0.38;
+          const q = (cp - 0.62) / 0.38;
           dx = (1 - q) * dist;
           this.drawCreature(t, dx, 1, null);
           const cx = CREATURE_X + dx + 7 * dir;

@@ -94,7 +94,12 @@ export type FetchVariant =
 export interface FetchResult {
   success: boolean;
   variant: FetchVariant;
-  line: string;
+  /** Null for every variant whose animation already says it all (the ball
+   *  sailing over the fence, a sock held up in triumph) — the scene carries
+   *  those moments alone, with a beat to actually watch them, rather than a
+   *  caption that just narrates what's already on screen. Only the plain
+   *  successes still get a spoken reaction. */
+  line: string | null;
 }
 
 /** Where the throw meter's forgiving zone sits, and how forgiving it is.
@@ -157,18 +162,23 @@ export function resolveFetch(
   // Very rarely the ball simply… isn't what comes back. (rng>0.93 rather than
   // <0.07 so the tests' rng:()=>0 stays on the ordinary path.)
   if (rng() > 0.93) {
-    return { success: true, variant: "cube", line: pick(FETCH_LINES.cube, rng) };
+    return { success: true, variant: "cube", line: null };
   }
   // Distance from the (possibly-moved) sweet spot; edges fumble. Youth fumbles
   // more. A wider span forgives more, so the same throw can pass an easy zone
   // and miss a tight one. (Default spot reproduces the old center-0.6 scoring.)
+  // Babies can't reliably fetch, but they should land one occasionally rather
+  // than fumbling every single throw — a small flat chance of success cuts
+  // through the fumble penalty regardless of how good the throw was. (>0.88
+  // rather than <0.12 so the tests' rng:()=>0 stays on the ordinary path.)
+  const babyLucky = stage === "baby" && rng() > 0.88;
   const quality = 1 - Math.abs(power - spot.center) / spot.span - STAGE_FUMBLE[stage];
-  if (quality > 0.45) {
-    const variant: FetchVariant = rng() < 0.22 ? "epic" : "return";
+  if (quality > 0.45 || babyLucky) {
+    const variant: FetchVariant = quality > 0.45 && rng() < 0.22 ? "epic" : "return";
     return { success: true, variant, line: pick(FETCH_LINES[variant], rng) };
   }
   const variant = pickFail(rng());
-  return { success: false, variant, line: pick(FETCH_LINES[variant], rng) };
+  return { success: false, variant, line: null };
 }
 
 // Weighted fail pool. The ordinary misses carry the game; the wrong-object
@@ -191,7 +201,11 @@ function pickFail(roll: number): FetchVariant {
   return FAIL_WEIGHTS[FAIL_WEIGHTS.length - 1][0];
 }
 
-const FETCH_LINES: Record<FetchVariant, string[]> = {
+// Only the two plain-success variants speak — the scene's animation already
+// performs everything else (a fumble, an over-the-fence loss, a sock held up
+// proudly), so a caption there would just narrate what you're already
+// watching. See FetchResult.line.
+const FETCH_LINES: Record<"return" | "epic", string[]> = {
   return: [
     "Retrieved it. Flawless.",
     "Got it!",
@@ -203,44 +217,6 @@ const FETCH_LINES: Record<FetchVariant, string[]> = {
     "Caught it on the first bounce. Legend.",
     "Snatched it out of the air. Unreal.",
     "It never stood a chance.",
-  ],
-  wrongway: [
-    "Ran straight past it.",
-    "Went the wrong way. Fully committed.",
-    "Sprinted confidently away from the ball.",
-  ],
-  overfence: [
-    "The ball has emigrated.",
-    "Watched it sail over the fence. Waved.",
-    "It's the neighbour's ball now.",
-  ],
-  sock: [
-    "Brought back a sock.",
-    "Brought back the wrong object entirely.",
-    "Returned with one damp sock. Whose?",
-  ],
-  stick: [
-    "Found a stick. The ball is dead to me.",
-    "Behold: stick.",
-    "The ball was unavailable. The stick volunteered.",
-  ],
-  whichway: [
-    "Which way did it go??",
-    "It vanished. Genuinely gone.",
-    "I looked away for one second.",
-    "The grass ate it. I checked everywhere.",
-  ],
-  distracted: [
-    "Got distracted by a superior smell.",
-    "Lay down halfway.",
-    "Watched it land. Did nothing.",
-    "Found a beetle instead. The beetle is furious.",
-  ],
-  cube: [
-    "This is not the ball. It is better. It is the cube.",
-    "The cube wished to be fetched. Who am I to argue.",
-    "It hummed the whole way home.",
-    "I threw a ball. It came back a cube. Do not ask me either.",
   ],
 };
 
