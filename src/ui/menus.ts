@@ -2062,13 +2062,12 @@ export function openBackup(ctx: MenuCtx): void {
 }
 
 /** The pet's life, in plain language and in reverse — the diagnostic trail as
- *  something you'd actually read. Vitals (the hourly numbers) are off by
- *  default: they're what you want when you're asking "why did it get sick",
- *  and noise the rest of the time. */
+ *  something you'd actually read. Vitals (the hourly numbers) default on:
+ *  they're what you want when you're asking "why did it get sick". */
 export function openHistory(ctx: MenuCtx): void {
   const pet = ctx.pet();
   const p = openPanel(pet.name, "History");
-  let showVitals = false;
+  let showVitals = true;
 
   // Same chrome as the sound/notification toggles — same shape of decision.
   const toggle = document.createElement("div");
@@ -2127,8 +2126,8 @@ export function openHistory(ctx: MenuCtx): void {
   };
 
   for (const opt of [
-    { on: false, text: "Hide" },
     { on: true, text: "Show" },
+    { on: false, text: "Hide" },
   ]) {
     const b = document.createElement("button");
     b.className = "notify-opt";
