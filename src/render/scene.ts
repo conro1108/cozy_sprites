@@ -1134,24 +1134,45 @@ export class Scene {
     ctx.fillRect(x + 6, y + 1, 3, 1);
   }
 
-  /** A little broom standing on the ground at (x, y): angled handle up-right,
-   *  bristle fan at the foot. `wiggle` sways the bristles as it sweeps. */
-  private drawBroom(x: number, y: number, wiggle: number): void {
+  /** A little broom standing on the ground at (x, y). `lean` tips the handle
+   *  top by that many px (a stepped pixel diagonal — no rotation, so it stays
+   *  on the grid); `squash` ∈ [0,1] presses the bristle fan into the floor,
+   *  wider and shorter, as the stroke makes contact. */
+  private drawBroom(x: number, y: number, lean: number, squash: number): void {
     const ctx = this.ctx;
     const bx = Math.round(x);
     const by = Math.round(y);
-    ctx.fillStyle = "#8a5a3c"; // handle
-    ctx.fillRect(bx + 4, by - 16, 2, 14);
-    ctx.fillRect(bx + 5, by - 17, 2, 3);
-    const wx = bx + Math.round(wiggle);
-    ctx.fillStyle = "#e8c06a"; // bristles
-    ctx.fillRect(wx, by - 5, 8, 7);
-    ctx.fillStyle = "#f6dfa0"; // light bristle strands
-    ctx.fillRect(wx + 1, by - 5, 1, 6);
-    ctx.fillRect(wx + 4, by - 5, 1, 6);
-    ctx.fillRect(wx + 6, by - 5, 1, 6);
-    ctx.fillStyle = "#caa050";
-    ctx.fillRect(wx, by + 2, 8, 1);
+    const tip = Math.round(lean);
+    // Handle: five 2×3 segments stepping from the bristle block up to the tip.
+    ctx.fillStyle = "#8a5a3c";
+    for (let i = 0; i < 5; i++) {
+      const sx = bx + 4 + Math.round((tip * (i + 1)) / 5);
+      ctx.fillRect(sx, by - 5 - (i + 1) * 3, 2, 3);
+    }
+    ctx.fillStyle = "#6e4630"; // knob at the top, catching the tilt
+    ctx.fillRect(bx + 4 + tip, by - 21, 2, 2);
+    // Bristle fan: squash widens it a px each side and shaves a row off.
+    const sq = Math.round(squash);
+    const fx = bx - sq;
+    const fw = 8 + sq * 2;
+    const fh = 7 - sq;
+    ctx.fillStyle = "#e8c06a";
+    ctx.fillRect(fx, by - 5 + sq, fw, fh);
+    ctx.fillStyle = "#f6dfa0"; // light strands ride the fan
+    ctx.fillRect(fx + 1, by - 5 + sq, 1, fh - 1);
+    ctx.fillRect(fx + 4, by - 5 + sq, 1, fh - 1);
+    ctx.fillRect(fx + fw - 2, by - 5 + sq, 1, fh - 1);
+    ctx.fillStyle = "#caa050"; // worn tip line at the floor
+    ctx.fillRect(fx, by + 2, fw, 1);
+  }
+
+  /** A puff of low dust flung forward from the bristles mid-stroke. */
+  private drawSweepDust(x: number, y: number, q: number): void {
+    const ctx = this.ctx;
+    ctx.fillStyle = `rgba(240,236,220,${0.6 * (1 - q)})`;
+    ctx.fillRect(Math.round(x + q * 7), Math.round(y - 1 - q * 3), 2, 2);
+    ctx.fillRect(Math.round(x + 3 + q * 10), Math.round(y - q * 2), 1, 1);
+    ctx.fillRect(Math.round(x + 1 + q * 4), Math.round(y + 1 - q * 4), 1, 1);
   }
 
   private drawBall(x: number, y: number): void {
@@ -1261,10 +1282,23 @@ export class Scene {
         const cleanedAt = act.data.cleanedAt as number[];
         const n = spots.length;
 
+        // The scrubbing stroke everything shares: the broom jabs forward and
+        // eases back (phase φ), leaning its handle against the direction it's
+        // pushing, lifting slightly on the backswing, and pressing the fan
+        // into the floor at the front of each push.
+        const phi = p * Math.PI * 10; // ~5 strokes over the act
+        const jab = Math.sin(phi) * 3;
+        const push = Math.cos(phi); // stroke velocity: + pushing, − returning
+        const lean = -push * 3; // handle trails the push
+        const lift = Math.max(0, -push) * 2; // backswing skims off the floor
+        const press = Math.max(0, push); // contact pressure while pushing
+
         if (n === 0) {
           // Nothing on the floor — a token flourish across the grass.
-          const bx = 4 + p * (SCENE_W - 10);
-          this.drawBroom(bx, this.sh - 14, Math.sin(p * Math.PI * 10) * 2);
+          const bx = 4 + p * (SCENE_W - 10) + jab;
+          const by = this.sh - 14 - lift;
+          this.drawBroom(bx, by, lean, press);
+          if (push > 0.3) this.drawSweepDust(bx + 8, by + 1, 1 - push);
           for (let i = 0; i < 4; i++) {
             this.drawSparkle(
               Math.round(bx - 6 - i * 9),
@@ -1291,29 +1325,42 @@ export class Scene {
         const ease = q * q * (3 - 2 * q);
         const a = way(seg);
         const b = way(seg + 1);
-        const bx = a.x + (b.x - a.x) * ease;
-        const by = a.y + (b.y - a.y) * ease;
+        const bx = a.x + (b.x - a.x) * ease + jab;
+        const by = a.y + (b.y - a.y) * ease - lift;
 
         // Mark each mess swept as the broom arrives at its waypoint.
         for (let i = 0; i < n; i++) {
           if (cleanedAt[i] < 0 && p >= (i + 1) / segs) cleanedAt[i] = p;
         }
 
-        // Messes still ahead of the broom stay on the floor; freshly-swept ones
-        // get a brief sparkle puff where they used to be.
+        // Messes ahead of the broom stay put. A reached mess gets shoved: it
+        // skids off in the sweep direction, flattening as it goes, THEN the
+        // sparkles take over where it used to sit — cause before effect.
         for (let i = 0; i < n; i++) {
           const sx = spots[i].x;
           const sy = FLOOR_Y + spots[i].yOffset;
+          const since = p - cleanedAt[i];
           if (cleanedAt[i] < 0) {
             this.drawPoop(sx, sy);
-          } else if (p - cleanedAt[i] < 0.3) {
+          } else if (since < 0.08) {
+            // The shove: slide right, squash down to a skidding smear.
+            const d = since / 0.08;
+            const px = Math.round(sx + d * 12);
+            const h = Math.max(1, Math.round(3 - d * 2));
+            const w = Math.max(3, Math.round(8 - d * 4));
+            const ctx = this.ctx;
+            ctx.fillStyle = "#6b4a2a";
+            ctx.fillRect(px, sy + (3 - h), w, h);
+            if (d < 0.5) ctx.fillRect(px + 1, sy - 2 + (3 - h), w - 3, 1);
+          } else if (since < 0.35) {
             for (let k = 0; k < 4; k++) {
               this.drawSparkle(sx + (k % 2 ? 5 : 1), sy - ((k * 3) % 7), t * 8 + i + k);
             }
           }
         }
 
-        this.drawBroom(bx, by, Math.sin(p * Math.PI * 12) * 1.5);
+        this.drawBroom(bx, by, lean, press);
+        if (push > 0.3) this.drawSweepDust(bx + 8, by + 1, 1 - push);
         break;
       }
 
