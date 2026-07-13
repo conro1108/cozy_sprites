@@ -71,12 +71,14 @@ describe("resolveFetch", () => {
   it("tags a success with a success variant and a matching line", () => {
     const r = resolveFetch(0.6, () => 0);
     expect(["return", "epic"]).toContain(r.variant);
-    expect(r.line.length).toBeGreaterThan(0);
+    expect(r.line).not.toBeNull();
+    expect(r.line!.length).toBeGreaterThan(0);
   });
   it("tags a failure with one of the fumble variants and a genuine reaction line", () => {
     const r = resolveFetch(0.05, () => 0);
     expect(["wrongway", "overfence", "sock", "stick", "whichway", "distracted"]).toContain(r.variant);
-    expect(r.line.length).toBeGreaterThan(0);
+    expect(r.line).not.toBeNull();
+    expect(r.line!.length).toBeGreaterThan(0);
   });
   it("keeps the wrong-object returns rare across the fail pool", () => {
     // Sweep the rng range: sock+stick together should be a small slice of fails.
@@ -110,7 +112,28 @@ describe("resolveFetch", () => {
     const r = resolveFetch(0.05, () => 0.95); // terrible throw, cube anyway
     expect(r.variant).toBe("cube");
     expect(r.success).toBe(true);
-    expect(r.line.length).toBeGreaterThan(0);
+  });
+  it("has a line available for a cube return when the silence roll doesn't land", () => {
+    // First roll (>0.93) selects the cube; second roll (<=0.7) keeps it from
+    // going silent — sequenced so each check gets the value it needs.
+    const rolls = [0.95, 0.1];
+    let i = 0;
+    const r = resolveFetch(0.05, () => rolls[Math.min(i++, rolls.length - 1)]);
+    expect(r.variant).toBe("cube");
+    expect(r.line).not.toBeNull();
+    expect(r.line!.length).toBeGreaterThan(0);
+  });
+  it("stays silent on some fraction of outcomes, even ones with lines available", () => {
+    // Sweep the silence roll across its range for an on-target throw: some
+    // land with a line, some land silent — both must actually occur.
+    const seen = new Set<boolean>();
+    for (let i = 0; i <= 10; i++) {
+      const frac = i / 10;
+      const r = resolveFetch(0.6, () => frac);
+      seen.add(r.line !== null);
+    }
+    expect(seen.has(true)).toBe(true);
+    expect(seen.has(false)).toBe(true);
   });
 
   it("judges against a moved sweet spot, not the fixed center", () => {

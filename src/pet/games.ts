@@ -94,7 +94,22 @@ export type FetchVariant =
 export interface FetchResult {
   success: boolean;
   variant: FetchVariant;
-  line: string;
+  /** Null roughly 30% of the time regardless of variant — every outcome has
+   *  lines available (see FETCH_LINES), but always speaking would mean the
+   *  same handful of quips on repeat every session. Letting the animation
+   *  carry it alone sometimes keeps it from feeling scripted. */
+  line: string | null;
+}
+
+// How often a fetch result stays silent even though it has lines available.
+const FETCH_SILENCE_CHANCE = 0.3;
+
+/** Pick a line, or nothing — see FetchResult.line. (>1-chance rather than
+ *  <chance so the tests' rng:()=>0 stays on the "has a line" path, matching
+ *  the rest of this file's convention.) */
+function maybeLine(pool: string[], rng: () => number): string | null {
+  if (rng() > 1 - FETCH_SILENCE_CHANCE) return null;
+  return pick(pool, rng);
 }
 
 /** Where the throw meter's forgiving zone sits, and how forgiving it is.
@@ -157,7 +172,7 @@ export function resolveFetch(
   // Very rarely the ball simply… isn't what comes back. (rng>0.93 rather than
   // <0.07 so the tests' rng:()=>0 stays on the ordinary path.)
   if (rng() > 0.93) {
-    return { success: true, variant: "cube", line: pick(FETCH_LINES.cube, rng) };
+    return { success: true, variant: "cube", line: maybeLine(FETCH_LINES.cube, rng) };
   }
   // Distance from the (possibly-moved) sweet spot; edges fumble. Youth fumbles
   // more. A wider span forgives more, so the same throw can pass an easy zone
@@ -170,10 +185,10 @@ export function resolveFetch(
   const quality = 1 - Math.abs(power - spot.center) / spot.span - STAGE_FUMBLE[stage];
   if (quality > 0.45 || babyLucky) {
     const variant: FetchVariant = quality > 0.45 && rng() < 0.22 ? "epic" : "return";
-    return { success: true, variant, line: pick(FETCH_LINES[variant], rng) };
+    return { success: true, variant, line: maybeLine(FETCH_LINES[variant], rng) };
   }
   const variant = pickFail(rng());
-  return { success: false, variant, line: pick(FETCH_LINES[variant], rng) };
+  return { success: false, variant, line: maybeLine(FETCH_LINES[variant], rng) };
 }
 
 // Weighted fail pool. The ordinary misses carry the game; the wrong-object
@@ -196,11 +211,10 @@ function pickFail(roll: number): FetchVariant {
   return FAIL_WEIGHTS[FAIL_WEIGHTS.length - 1][0];
 }
 
-// Every variant still gets to speak — but only with lines that are a genuine
-// reaction, never ones that just narrate the action the scene already played
-// out ("lay down halfway", "watched it sail over the fence"). If a variant's
-// whole bit doesn't have a joke or an opinion in it beyond "here's what
-// happened", it doesn't get a line.
+// Every variant has lines to draw from (see maybeLine for how often they
+// actually get used) — but only lines that are a genuine reaction, never
+// ones that just narrate the action the scene already played out ("lay down
+// halfway", "watched it sail over the fence").
 const FETCH_LINES: Record<FetchVariant, string[]> = {
   return: [
     "Retrieved it. Flawless.",
@@ -214,9 +228,21 @@ const FETCH_LINES: Record<FetchVariant, string[]> = {
     "Snatched it out of the air. Unreal.",
     "It never stood a chance.",
   ],
-  wrongway: ["Went the wrong way. Fully committed.", "Wrong way, but with real conviction."],
-  overfence: ["The ball has emigrated.", "It's the neighbour's ball now."],
-  sock: ["Returned with one damp sock. Whose?"],
+  wrongway: [
+    "Went the wrong way. Fully committed.",
+    "Wrong way, but with real conviction.",
+    "That direction felt right at the time.",
+  ],
+  overfence: [
+    "The ball has emigrated.",
+    "It's the neighbour's ball now.",
+    "Physics happened. Not my fault.",
+  ],
+  sock: [
+    "Returned with one damp sock. Whose?",
+    "A sock. Bold substitution. No regrets.",
+    "This is not the ball. This is a sock. I stand by my choice.",
+  ],
   stick: [
     "Found a stick. The ball is dead to me.",
     "Behold: stick.",
@@ -228,7 +254,11 @@ const FETCH_LINES: Record<FetchVariant, string[]> = {
     "I looked away for one second.",
     "The grass ate it. I checked everywhere.",
   ],
-  distracted: ["Found a beetle instead. The beetle is furious."],
+  distracted: [
+    "Found a beetle instead. The beetle is furious.",
+    "A smell called. I had to take it.",
+    "The ball can wait. This cannot.",
+  ],
   cube: [
     "This is not the ball. It is better. It is the cube.",
     "The cube wished to be fetched. Who am I to argue.",
