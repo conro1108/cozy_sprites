@@ -9,6 +9,7 @@ function px(buf: PixelBuffer, x: number, y: number): [number, number, number, nu
 }
 
 const EYE: [number, number, number] = [0x3a, 0x2b, 0x3f];
+const NOSE: [number, number, number] = [0x2b, 0x20, 0x30];
 const TAIL: [number, number, number] = [0x4a, 0x4a, 0x56];
 const OUTLINE: [number, number, number] = [0x40, 0x2e, 0x3a];
 const DOG_FILL: [number, number, number] = [0x7a, 0x7a, 0x8a];
@@ -42,11 +43,43 @@ describe("dog chest patch", () => {
     expect(rgb(px(dog, 9, 12))).toEqual(DOG_FILL);
   });
   it("keeps the eye row clear of any marking", () => {
-    expect(rgb(px(dog, 5, 7))).toEqual(EYE);
-    expect(rgb(px(dog, 9, 7))).toEqual(EYE);
-    expect(rgb(px(dog, 6, 7))).not.toEqual(DOG_PATCH);
-    expect(rgb(px(dog, 7, 7))).not.toEqual(DOG_PATCH);
-    expect(rgb(px(dog, 8, 7))).not.toEqual(DOG_PATCH);
+    expect(rgb(px(dog, 5, 6))).toEqual(EYE);
+    expect(rgb(px(dog, 9, 6))).toEqual(EYE);
+    expect(rgb(px(dog, 6, 6))).not.toEqual(DOG_PATCH);
+    expect(rgb(px(dog, 7, 6))).not.toEqual(DOG_PATCH);
+    expect(rgb(px(dog, 8, 6))).not.toEqual(DOG_PATCH);
+  });
+});
+
+describe("dog snout", () => {
+  it("draws nose, philtrum, and mouth on the neutral face", () => {
+    const dog = renderPixels("dog", "neutral");
+    for (const x of [6, 7, 8]) expect(rgb(px(dog, x, 7))).toEqual(NOSE); // nose bar
+    expect(rgb(px(dog, 7, 8))).toEqual(EYE); // philtrum
+    for (const x of [6, 7, 8]) expect(rgb(px(dog, x, 9))).toEqual(EYE); // mouth
+  });
+
+  it("keeps the snout identical across every mood", () => {
+    const moods = ["neutral", "happy", "sad", "sleep"] as const;
+    for (const mood of moods) {
+      const buf = renderPixels("dog", mood);
+      for (const x of [6, 7, 8]) {
+        expect(rgb(px(buf, x, 7)), `${mood} nose`).toEqual(NOSE);
+      }
+      expect(rgb(px(buf, 7, 8)), `${mood} philtrum`).toEqual(EYE);
+    }
+  });
+
+  it("anchors the snout while the eyes glance and blink", () => {
+    const base = renderPixels("dog", "neutral");
+    for (const frame of ["glanceL", "glanceR", "blink"] as const) {
+      const f = renderPixels("dog", "neutral", null, frame);
+      for (const y of [7, 8, 9]) {
+        for (let x = 0; x < CELL; x++) {
+          expect(px(f, x, y), `${frame} row ${y}`).toEqual(px(base, x, y));
+        }
+      }
+    }
   });
 });
 

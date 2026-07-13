@@ -87,11 +87,20 @@ const SMALL_HAPPY = SMALL_NEUTRAL;
 const SMALL_SAD = ["e...e", ".....", ".e.e.", "..e.."];
 const SMALL_SLEEP = ["ee.ee", ".....", "..e.."];
 
-const FACE_PALETTE: Palette = { e: EYE, z: "#9a9ab0" };
+// The dog's face: the one creature with real anatomy — nose bar, philtrum,
+// mouth (drawn from the owner's sketch). The snout rows stay identical across
+// moods so only the eyes and mouth emote; the face sits one row higher than
+// the other small faces to make room.
+const DOG_NEUTRAL = ["e...e", ".nnn.", "..e..", ".eee."];
+const DOG_HAPPY = DOG_NEUTRAL;
+const DOG_SAD = ["e...e", ".nnn.", "..e..", ".e.e.", "..e.."];
+const DOG_SLEEP = ["ee.ee", ".nnn.", "..e..", ".eee."];
+
+const FACE_PALETTE: Palette = { e: EYE, z: "#9a9ab0", n: "#2b2030" };
 
 export type Mood = "neutral" | "happy" | "sad" | "sleep";
 
-type FaceKind = "standard" | "small";
+type FaceKind = "standard" | "small" | "dog";
 
 function faceFor(kind: FaceKind, mood: Mood): string[] {
   if (kind === "standard") {
@@ -104,6 +113,18 @@ function faceFor(kind: FaceKind, mood: Mood): string[] {
         return FACE_SLEEP;
       default:
         return FACE_NEUTRAL;
+    }
+  }
+  if (kind === "dog") {
+    switch (mood) {
+      case "happy":
+        return DOG_HAPPY;
+      case "sad":
+        return DOG_SAD;
+      case "sleep":
+        return DOG_SLEEP;
+      default:
+        return DOG_NEUTRAL;
     }
   }
   switch (mood) {
@@ -239,9 +260,9 @@ const DOG: BodyDef = {
   extra: { D: "#4a4a56", W: "#eef0f2" }, // pointy ears + tail; white chest patch
   fill: "#7a7a8a",
   shade: "#5a5a68",
-  face: "small",
+  face: "dog",
   faceDx: 5,
-  faceDy: 7,
+  faceDy: 6,
   // Tail raised — swapped in while trotting or mid-wag. Erases the resting
   // tail (x) and draws it flicked up over the rump.
   alt: {
@@ -804,9 +825,11 @@ export const SPRITE_FRAMES: SpriteFrame[] = [
 ];
 
 /** First row of the face grid that belongs to the mouth (not the gaze) —
- *  everything above it shifts on a glance / closes on a blink. */
+ *  everything above it shifts on a glance / closes on a blink. The dog's
+ *  snout (nose/philtrum/mouth) is all below the split, so it stays anchored
+ *  while the eyes glance and blink. */
 function eyeSplit(kind: FaceKind): number {
-  return kind === "small" ? 1 : 8;
+  return kind === "standard" ? 8 : 1;
 }
 
 /**
