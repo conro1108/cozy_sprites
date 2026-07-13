@@ -621,13 +621,13 @@ export class Scene {
       this.fillDisc(95, 13, MOON_ROWS);
       ctx.fillStyle = "#fff";
       const stars = [
-        [10, 12],
-        [26, 24],
-        [44, 8],
-        [62, 18],
-        [78, 30],
-        [18, 34],
-        [98, 26],
+        [10, 14],
+        [26, 30],
+        [44, 10],
+        [62, 24],
+        [78, 42],
+        [18, 46],
+        [98, 34],
       ];
       for (const [sx, sy] of stars) {
         if (Math.sin(t * 2 + sx) > -0.3) ctx.fillRect(sx, sy, 1, 1);
@@ -1019,8 +1019,8 @@ export class Scene {
   private drawClouds(t: number): void {
     const span = SCENE_W + 30;
     const tracks = [
-      { speed: 3, phase: 0, yMin: 10, yRange: 10 }, // faster, high
-      { speed: 2, phase: 60, yMin: 24, yRange: 12 }, // slower, low
+      { speed: 3, phase: 0, yMin: 10, yRange: 14 }, // faster, high
+      { speed: 2, phase: 60, yMin: 26, yRange: 20 }, // slower, low
     ];
     tracks.forEach((tr, k) => {
       const travel = t * tr.speed + tr.phase;
