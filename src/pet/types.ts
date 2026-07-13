@@ -173,6 +173,9 @@ export interface PetState {
   /** True while at least one of the current uncleaned poops was bad quality.
    *  Raises sickness risk until the floor is swept (see clean()). */
   hasBadPoop: boolean;
+  /** True from the moment dysentery is caught until its first accident lands.
+   *  A real gut bug doesn't wait for a probability roll — see stepEvents(). */
+  dysenteryPoopOwed: boolean;
 
   /** Daytime spent with an empty stomach. Penalties (health drain, care
    *  mistakes) only start past a grace window — a briefly-empty bowl is not

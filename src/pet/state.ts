@@ -294,6 +294,7 @@ export function createPet(name: string, now: number): PetState {
     poops: 0,
     fiberLevel: NEUTRAL_FIBER_LEVEL,
     hasBadPoop: false,
+    dysenteryPoopOwed: false,
     energyZeroMs: 0,
     happinessZeroMs: 0,
     nightAwakeMs: 0,
@@ -1217,7 +1218,12 @@ export function stepEvents(
       let poopPerHour = STAGE_POOP_PER_HOUR[s.stage];
       const dysentery = s.sick && s.illness === "dysentery";
       if (dysentery) poopPerHour += DYSENTERY_POOP_BONUS_PER_HOUR;
-      if (rng() < poopPerHour * perHour) {
+      // A fresh case of dysentery guarantees its first accident on the next
+      // eligible slice instead of leaving it to the roll — a real gut bug
+      // doesn't wait its turn (see dysenteryPoopOwed on PetState).
+      const owedStrike = dysentery && s.dysenteryPoopOwed;
+      if (owedStrike || rng() < poopPerHour * perHour) {
+        if (owedStrike) s.dysenteryPoopOwed = false;
         s.poops++;
         events.push("poop");
         logEvent(s, chunkStart + chunk, "poop", `now ${s.poops} on the floor`);
@@ -1250,6 +1256,7 @@ export function stepEvents(
         s.dosesGiven = 0;
         s.lastDoseAt = null;
         s.illnessMs = 0;
+        if (s.illness === "dysentery") s.dysenteryPoopOwed = true;
         events.push("sick");
         logEvent(s, chunkStart + chunk, "sick", s.illness);
       }

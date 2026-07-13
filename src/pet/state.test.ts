@@ -1257,6 +1257,46 @@ describe("stepEvents", () => {
     expect(stepEvents(runs, 1 * HOUR, () => 0.35).events).toContain("poop");
   });
 
+  it("catching dysentery on the sick roll marks a poop as owed for the next slice", () => {
+    const pet = asStage(createPet("Milo", T0), "adult");
+    let calls = 0;
+    const rng = () => {
+      calls++;
+      if (calls === 1) return 0.99; // poop roll: no poop this slice
+      if (calls === 2) return 0; // sick roll: definitely falls ill
+      if (calls === 3) return 0.5; // rollIllness: lands on dysentery
+      return 0.99; // call roll: no call
+    };
+    const { state, events } = stepEvents(pet, 60_000, rng);
+    expect(state.illness).toBe("dysentery");
+    expect(state.dysenteryPoopOwed).toBe(true);
+    expect(events).not.toContain("poop");
+  });
+
+  it("a fresh case of dysentery guarantees its first accident, no roll needed", () => {
+    const pet = {
+      ...asStage(createPet("Milo", T0), "adult"),
+      sick: true,
+      illness: "dysentery" as const,
+      dysenteryPoopOwed: true,
+    };
+    const adversarial = () => 0.999; // would never trigger poop on its own
+    const { state, events } = stepEvents(pet, 60_000, adversarial);
+    expect(events).toContain("poop-bad");
+    expect(state.dysenteryPoopOwed).toBe(false);
+  });
+
+  it("the debt pays off once — later slices go back to rolling the dice", () => {
+    const pet = {
+      ...asStage(createPet("Milo", T0), "adult"),
+      sick: true,
+      illness: "dysentery" as const,
+      dysenteryPoopOwed: false,
+    };
+    const adversarial = () => 0.999;
+    expect(stepEvents(pet, 60_000, adversarial).events).not.toContain("poop");
+  });
+
   it("a long absence is replayed in slices — several messes, not one", () => {
     // 8 daytime hours away with an adversarial rng: the floor fills to its
     // 8-mess cap, one slice at a time.
