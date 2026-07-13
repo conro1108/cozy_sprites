@@ -71,13 +71,12 @@ describe("resolveFetch", () => {
   it("tags a success with a success variant and a matching line", () => {
     const r = resolveFetch(0.6, () => 0);
     expect(["return", "epic"]).toContain(r.variant);
-    expect(r.line).not.toBeNull();
-    expect(r.line!.length).toBeGreaterThan(0);
+    expect(r.line.length).toBeGreaterThan(0);
   });
-  it("stays silent on a fumble — the animation is the whole story", () => {
+  it("tags a failure with one of the fumble variants and a genuine reaction line", () => {
     const r = resolveFetch(0.05, () => 0);
     expect(["wrongway", "overfence", "sock", "stick", "whichway", "distracted"]).toContain(r.variant);
-    expect(r.line).toBeNull();
+    expect(r.line.length).toBeGreaterThan(0);
   });
   it("keeps the wrong-object returns rare across the fail pool", () => {
     // Sweep the rng range: sock+stick together should be a small slice of fails.
@@ -107,11 +106,11 @@ describe("resolveFetch", () => {
   it("a baby's ordinary roll still fumbles a bad throw", () => {
     expect(resolveFetch(0.05, () => 0.5, "baby").success).toBe(false);
   });
-  it("rarely returns the cube instead, and it always counts, silently", () => {
+  it("rarely returns the cube instead, and it always counts", () => {
     const r = resolveFetch(0.05, () => 0.95); // terrible throw, cube anyway
     expect(r.variant).toBe("cube");
     expect(r.success).toBe(true);
-    expect(r.line).toBeNull();
+    expect(r.line.length).toBeGreaterThan(0);
   });
 
   it("judges against a moved sweet spot, not the fixed center", () => {

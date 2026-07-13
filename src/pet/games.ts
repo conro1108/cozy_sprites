@@ -94,12 +94,7 @@ export type FetchVariant =
 export interface FetchResult {
   success: boolean;
   variant: FetchVariant;
-  /** Null for every variant whose animation already says it all (the ball
-   *  sailing over the fence, a sock held up in triumph) — the scene carries
-   *  those moments alone, with a beat to actually watch them, rather than a
-   *  caption that just narrates what's already on screen. Only the plain
-   *  successes still get a spoken reaction. */
-  line: string | null;
+  line: string;
 }
 
 /** Where the throw meter's forgiving zone sits, and how forgiving it is.
@@ -162,7 +157,7 @@ export function resolveFetch(
   // Very rarely the ball simply… isn't what comes back. (rng>0.93 rather than
   // <0.07 so the tests' rng:()=>0 stays on the ordinary path.)
   if (rng() > 0.93) {
-    return { success: true, variant: "cube", line: null };
+    return { success: true, variant: "cube", line: pick(FETCH_LINES.cube, rng) };
   }
   // Distance from the (possibly-moved) sweet spot; edges fumble. Youth fumbles
   // more. A wider span forgives more, so the same throw can pass an easy zone
@@ -178,7 +173,7 @@ export function resolveFetch(
     return { success: true, variant, line: pick(FETCH_LINES[variant], rng) };
   }
   const variant = pickFail(rng());
-  return { success: false, variant, line: null };
+  return { success: false, variant, line: pick(FETCH_LINES[variant], rng) };
 }
 
 // Weighted fail pool. The ordinary misses carry the game; the wrong-object
@@ -201,11 +196,12 @@ function pickFail(roll: number): FetchVariant {
   return FAIL_WEIGHTS[FAIL_WEIGHTS.length - 1][0];
 }
 
-// Only the two plain-success variants speak — the scene's animation already
-// performs everything else (a fumble, an over-the-fence loss, a sock held up
-// proudly), so a caption there would just narrate what you're already
-// watching. See FetchResult.line.
-const FETCH_LINES: Record<"return" | "epic", string[]> = {
+// Every variant still gets to speak — but only with lines that are a genuine
+// reaction, never ones that just narrate the action the scene already played
+// out ("lay down halfway", "watched it sail over the fence"). If a variant's
+// whole bit doesn't have a joke or an opinion in it beyond "here's what
+// happened", it doesn't get a line.
+const FETCH_LINES: Record<FetchVariant, string[]> = {
   return: [
     "Retrieved it. Flawless.",
     "Got it!",
@@ -217,6 +213,26 @@ const FETCH_LINES: Record<"return" | "epic", string[]> = {
     "Caught it on the first bounce. Legend.",
     "Snatched it out of the air. Unreal.",
     "It never stood a chance.",
+  ],
+  wrongway: ["Went the wrong way. Fully committed.", "Wrong way, but with real conviction."],
+  overfence: ["The ball has emigrated.", "It's the neighbour's ball now."],
+  sock: ["Returned with one damp sock. Whose?"],
+  stick: [
+    "Found a stick. The ball is dead to me.",
+    "Behold: stick.",
+    "The ball was unavailable. The stick volunteered.",
+  ],
+  whichway: [
+    "Which way did it go??",
+    "It vanished. Genuinely gone.",
+    "I looked away for one second.",
+    "The grass ate it. I checked everywhere.",
+  ],
+  distracted: ["Found a beetle instead. The beetle is furious."],
+  cube: [
+    "This is not the ball. It is better. It is the cube.",
+    "The cube wished to be fetched. Who am I to argue.",
+    "I threw a ball. It came back a cube. Do not ask me either.",
   ],
 };
 

@@ -851,7 +851,7 @@ function doLight(): void {
   commit();
 }
 
-function doFinishGame(game: GameId, won: MatchResult, line?: string | null, reach = 0): void {
+function doFinishGame(game: GameId, won: MatchResult, line?: string, reach = 0): void {
   if (!pet || dying) return;
   // Would You Rather is never win/lose — only a slight bump.
   const r = applyGameResult(pet, game, game === "wouldyou" ? false : won, Date.now(), reach);
@@ -878,14 +878,8 @@ function doFinishGame(game: GameId, won: MatchResult, line?: string | null, reac
     // Its reaction and its bounce follow *its* result (in RPS it gloats when it
     // beats you); the jingle stays on yours — it scores the "You win" banner.
     const itWon = spriteWon(game, won);
-    if (line === null) {
-      // Deliberately silent — the scene already performed the whole moment
-      // (fetch's fumbles and wrong-object returns), so no caption restates it.
-    } else if (line) {
-      say(line);
-    } else {
-      sayCat(itWon ? "win" : "lose");
-    }
+    if (line) say(line);
+    else sayCat(itWon ? "win" : "lose");
     if (itWon || game === "wouldyou") scene?.triggerPulse("happy");
     // Would You Rather has no verdict to sound out — it's all opinion.
     if (game !== "wouldyou") playSfx(won ? "win" : "lose");
