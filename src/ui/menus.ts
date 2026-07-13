@@ -261,7 +261,7 @@ export function openFood(ctx: MenuCtx): void {
   // otherwise the folk remedy is a mechanic nobody ever discovers.
   const sick = ctx.pet();
   const soupHelps = sick.sick && sick.illness !== null && ILLNESSES[sick.illness].soupCure;
-  const p = openPanel("Kitchen", soupHelps ? "Something warm might help." : "What's on the menu?");
+  const p = openPanel("Food", soupHelps ? "Something warm might help." : "What's on the menu?");
   const grid = document.createElement("div");
   grid.className = "tile-grid";
   for (const id of FOOD_ORDER) {
