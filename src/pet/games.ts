@@ -169,9 +169,13 @@ export function resolveFetch(
   stage: Stage = "adult",
   spot: FetchSpot = DEFAULT_FETCH_SPOT,
 ): FetchResult {
-  // Very rarely the ball simply… isn't what comes back. (rng>0.93 rather than
-  // <0.07 so the tests' rng:()=>0 stays on the ordinary path.)
-  if (rng() > 0.93) {
+  // Very rarely the ball simply… isn't what comes back — independent of
+  // throw quality, so even a perfect throw can get this surprise. Kept well
+  // below sock's worst-case rate (P(miss) × sock's 8% share of the fail
+  // pool) so it reads as the rarest thing fetch can produce, not just the
+  // rarest miss. (rng>0.985 rather than <0.015 so the tests' rng:()=>0
+  // stays on the ordinary path.)
+  if (rng() > 0.985) {
     return { success: true, variant: "cube", line: maybeLine(FETCH_LINES.cube, rng) };
   }
   // Distance from the (possibly-moved) sweet spot; edges fumble. Youth fumbles
@@ -191,15 +195,17 @@ export function resolveFetch(
   return { success: false, variant, line: maybeLine(FETCH_LINES[variant], rng) };
 }
 
-// Weighted fail pool. The ordinary misses carry the game; the wrong-object
-// returns (sock, stick) stay rare so they land as a surprise, not a bit.
+// Weighted fail pool, in three tiers: the ordinary misses (wrongway,
+// whichway, distracted) carry the game; overfence and stick are a rung
+// rarer; sock is the rarest miss. (The cube is rarer still — see its own
+// flat, quality-independent roll above.)
 const FAIL_WEIGHTS: [FetchVariant, number][] = [
-  ["wrongway", 0.26],
-  ["distracted", 0.24],
-  ["overfence", 0.2],
-  ["whichway", 0.16],
-  ["stick", 0.08],
-  ["sock", 0.06],
+  ["wrongway", 0.22],
+  ["whichway", 0.22],
+  ["distracted", 0.22],
+  ["overfence", 0.13],
+  ["stick", 0.13],
+  ["sock", 0.08],
 ];
 
 function pickFail(roll: number): FetchVariant {

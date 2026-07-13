@@ -80,17 +80,25 @@ describe("resolveFetch", () => {
     expect(r.line).not.toBeNull();
     expect(r.line!.length).toBeGreaterThan(0);
   });
-  it("keeps the wrong-object returns rare across the fail pool", () => {
-    // Sweep the rng range: sock+stick together should be a small slice of fails.
-    let wrongObject = 0;
-    const n = 200;
+  it("weighs misses in tiers: wrongway/whichway/distracted most common, then overfence/stick, then sock, then the cube rarest of all", () => {
+    const topTier = ["wrongway", "whichway", "distracted"];
+    const midTier = ["overfence", "stick"];
+    const counts: Record<string, number> = {};
+    const n = 2000;
     for (let i = 0; i < n; i++) {
-      const roll = i / n;
-      const r = resolveFetch(0.05, () => roll);
-      if (r.variant === "sock" || r.variant === "stick") wrongObject++;
+      // A throw that always misses (badly off-center) — occasionally
+      // diverted to the cube instead, same as any real throw.
+      const r = resolveFetch(0.05, () => i / n);
+      counts[r.variant] = (counts[r.variant] ?? 0) + 1;
     }
-    expect(wrongObject / n).toBeLessThan(0.2);
-    expect(wrongObject).toBeGreaterThan(0);
+    const topAvg = topTier.reduce((s, v) => s + (counts[v] ?? 0), 0) / topTier.length;
+    const midAvg = midTier.reduce((s, v) => s + (counts[v] ?? 0), 0) / midTier.length;
+    const sockCount = counts.sock ?? 0;
+    const cubeCount = counts.cube ?? 0;
+    expect(topAvg).toBeGreaterThan(midAvg);
+    expect(midAvg).toBeGreaterThan(sockCount);
+    expect(sockCount).toBeGreaterThan(cubeCount);
+    expect(cubeCount).toBeGreaterThan(0); // rare, not impossible
   });
   it("babies fumble even a perfect throw, ordinarily", () => {
     expect(resolveFetch(0.6, () => 0, "baby").success).toBe(false);
@@ -100,7 +108,7 @@ describe("resolveFetch", () => {
     // A bad throw a baby would ordinarily fumble regardless of quality —
     // but a rare lucky roll succeeds anyway, and quietly (baby luck is
     // never an "epic" catch). 0.9 clears the luck threshold (>0.88) without
-    // also tripping the rarer "brings back the cube" roll (>0.93).
+    // also tripping the rarer "brings back the cube" roll (>0.985).
     const r = resolveFetch(0.05, () => 0.9, "baby");
     expect(r.success).toBe(true);
     expect(r.variant).toBe("return");
@@ -109,14 +117,14 @@ describe("resolveFetch", () => {
     expect(resolveFetch(0.05, () => 0.5, "baby").success).toBe(false);
   });
   it("rarely returns the cube instead, and it always counts", () => {
-    const r = resolveFetch(0.05, () => 0.95); // terrible throw, cube anyway
+    const r = resolveFetch(0.05, () => 0.99); // terrible throw, cube anyway
     expect(r.variant).toBe("cube");
     expect(r.success).toBe(true);
   });
   it("has a line available for a cube return when the silence roll doesn't land", () => {
-    // First roll (>0.93) selects the cube; second roll (<=0.7) keeps it from
+    // First roll (>0.985) selects the cube; second roll (<=0.7) keeps it from
     // going silent — sequenced so each check gets the value it needs.
-    const rolls = [0.95, 0.1];
+    const rolls = [0.99, 0.1];
     let i = 0;
     const r = resolveFetch(0.05, () => rolls[Math.min(i++, rolls.length - 1)]);
     expect(r.variant).toBe("cube");
