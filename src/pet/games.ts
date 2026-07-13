@@ -220,7 +220,6 @@ const FETCH_LINES: Record<FetchVariant, string[]> = {
     "Retrieved it. Flawless.",
     "Got it!",
     "Perfect return.",
-    "That one felt personal.",
     "Delivered. Slightly damp. You're welcome.",
   ],
   epic: [
@@ -230,7 +229,6 @@ const FETCH_LINES: Record<FetchVariant, string[]> = {
   ],
   wrongway: [
     "Went the wrong way. Fully committed.",
-    "Wrong way, but with real conviction.",
     "That direction felt right at the time.",
   ],
   overfence: [
@@ -241,7 +239,6 @@ const FETCH_LINES: Record<FetchVariant, string[]> = {
   sock: [
     "Returned with one damp sock. Whose?",
     "A sock. Bold substitution. No regrets.",
-    "This is not the ball. This is a sock. I stand by my choice.",
   ],
   stick: [
     "Found a stick. The ball is dead to me.",
@@ -262,7 +259,6 @@ const FETCH_LINES: Record<FetchVariant, string[]> = {
   cube: [
     "This is not the ball. It is better. It is the cube.",
     "The cube wished to be fetched. Who am I to argue.",
-    "I threw a ball. It came back a cube. Do not ask me either.",
   ],
 };
 
