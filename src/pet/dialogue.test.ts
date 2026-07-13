@@ -9,14 +9,28 @@ import {
   pickLine,
   shouldSpeak,
   speakChance,
+  teenFlickerLine,
 } from "./dialogue";
+import type { Category } from "./dialogue";
 import { createPet } from "./state";
+import { ADULT_ORDER } from "./roster";
 import type { PetState } from "./types";
 
 const T0 = 1_700_000_000_000;
 
 function petAt(stage: PetState["stage"], form: PetState["form"] = null): PetState {
   return { ...createPet("Milo", T0), stage, form };
+}
+
+/** Every line a (state, category) can produce, by sweeping the rng. 97 is
+ *  prime and larger than any bank, so every index gets hit. */
+function allLines(state: PetState, category: Category): Set<string> {
+  const out = new Set<string>();
+  for (let i = 0; i < 97; i++) {
+    const line = pickLine(state, category, () => i / 97);
+    if (line !== null) out.add(line);
+  }
+  return out;
 }
 
 describe("chattiness", () => {
@@ -41,6 +55,54 @@ describe("chattiness", () => {
   it("shouldSpeak respects the roll", () => {
     expect(shouldSpeak(petAt("teen"), "tap", () => 0.99)).toBe(false);
     expect(shouldSpeak(petAt("teen"), "tap", () => 0.0)).toBe(true);
+  });
+});
+
+describe("stage voices", () => {
+  // A formless adult resolves straight to the GENERAL bank — the grown-up
+  // fallback voice the young stages must never leak into.
+  const GENERAL_VOICE = petAt("adult");
+
+  it("young stages never fall through to the grown-up voice on common categories", () => {
+    const stages: PetState["stage"][] = ["baby", "child", "teen"];
+    const categories: Category[] = ["pat", "pat_enough", "win", "lose", "annoyed", "medicine", "feed"];
+    for (const stage of stages) {
+      for (const cat of categories) {
+        const own = allLines(petAt(stage), cat);
+        const general = allLines(GENERAL_VOICE, cat);
+        expect(own.size, `${stage}/${cat} has no lines of its own`).toBeGreaterThan(0);
+        // A missing stage bank would resolve to GENERAL's set exactly — a
+        // shared line or two ("More.") is fine, wholesale identity is not.
+        expect(own, `${stage}/${cat} fell through to the GENERAL bank`).not.toEqual(general);
+      }
+    }
+  });
+
+  it("a baby's pat vocabulary includes drooling", () => {
+    expect(allLines(petAt("baby"), "pat")).toContain("*drools*");
+  });
+
+  it("every adult form keeps its own idle voice", () => {
+    for (const form of ADULT_ORDER) {
+      expect(allLines(petAt("adult", form), "idle").size).toBeGreaterThan(3);
+    }
+  });
+});
+
+describe("teen flicker", () => {
+  it("hints at every adult form without quoting its actual lines", () => {
+    for (const form of ADULT_ORDER) {
+      const adultIdle = allLines(petAt("adult", form), "idle");
+      const flickers = new Set<string>();
+      for (let i = 0; i < 97; i++) {
+        const line = teenFlickerLine(form, () => i / 97);
+        if (line !== null) flickers.add(line);
+      }
+      expect(flickers.size, `${form} has no flicker lines`).toBeGreaterThan(0);
+      for (const line of flickers) {
+        expect(adultIdle, `${form} flicker quotes the adult verbatim: "${line}"`).not.toContain(line);
+      }
+    }
   });
 });
 
