@@ -376,6 +376,12 @@ export function tooSickToPlay(state: PetState): boolean {
   return state.sick && state.illness !== null && ILLNESSES[state.illness].blocksPlay;
 }
 
+/** Too unwell to eat right now — medicine first. The UI checks this before
+ *  opening the food menu; feed() enforces it as the authoritative backstop. */
+export function tooSickToEat(state: PetState): boolean {
+  return state.sick && state.illness !== null && ILLNESSES[state.illness].blocksFeed;
+}
+
 // --- The deterministic tick -------------------------------------------------
 /** Upper bound on one decay chunk. Keeps the grace-window accumulators and
  *  drain transitions honest during long offline catch-ups (a 3-day absence is
@@ -793,6 +799,12 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   if (cannotAct(s)) {
     return { state: s, note: "cant" };
   }
+  // Some illnesses kill the appetite outright — medicine first, food after.
+  // The UI checks tooSickToEat before opening the kitchen; this backstops an
+  // illness that struck between opening the menu and tapping a food.
+  if (tooSickToEat(s)) {
+    return { state: s, note: "toosick" };
+  }
   // diag is cloned too: applyElapsedDecay hands back the input untouched when no
   // time has passed, so logEvent below would otherwise push into the caller's array.
   s = { ...s, hidden: { ...s.hidden }, diag: [...s.diag] };
@@ -827,9 +839,7 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
 
   logEvent(s, now, "fed", food);
 
-  // Dysentery: it runs right through — meals only half stick.
-  const efficiency = s.sick && s.illness ? ILLNESSES[s.illness].foodEfficiency : 1;
-  s.energy = clampHearts(s.energy + def.energy * efficiency);
+  s.energy = clampHearts(s.energy + def.energy);
   s.happiness = clampHearts(s.happiness + def.happiness + happyBonus);
   s.weight = s.weight + def.weight;
   // Fiber shifts the rolling diet-quality average — recent meals matter more,

@@ -27,6 +27,7 @@ import {
   stepEvents,
   tap,
   toggleLight,
+  tooSickToEat,
   tooSickToPlay,
 } from "./state";
 import { migratePet } from "./persistence";
@@ -406,13 +407,6 @@ describe("soup, the folk remedy", () => {
 });
 
 describe("illness particulars", () => {
-  it("dysentery: meals only half stick", () => {
-    const well = asStage({ ...createPet("Milo", T0), energy: 1 }, "adult");
-    expect(feed(well, "burger", T0).state.energy).toBe(3);
-    const runs = { ...well, sick: true, illness: "dysentery" as const };
-    expect(feed(runs, "burger", T0).state.energy).toBe(2);
-  });
-
   it("goblin flu blocks games — and banks no reward", () => {
     const flu = asStage(
       { ...createPet("Milo", T0), happiness: 1, sick: true, illness: "goblinflu" as const },
@@ -425,12 +419,34 @@ describe("illness particulars", () => {
     expect(state.hidden.gamePlays.fetch).toBe(0);
   });
 
-  it("the sniffles don't block games", () => {
-    const sniffly = asStage(
-      { ...createPet("Milo", T0), sick: true, illness: "sniffles" as const },
-      "child",
+  it("only the sniffles are mild enough to play through", () => {
+    const mkSick = (illness: IllnessId) =>
+      asStage({ ...createPet("Milo", T0), sick: true, illness }, "child");
+    expect(tooSickToPlay(mkSick("sniffles"))).toBe(false);
+    for (const illness of ["dysentery", "goblinflu", "vapors", "trimethylaminuria", "plague"] as const) {
+      expect(tooSickToPlay(mkSick(illness))).toBe(true);
+    }
+  });
+
+  it("only the sniffles, the vapors, and goblin flu leave the appetite alone", () => {
+    const mkSick = (illness: IllnessId) =>
+      asStage({ ...createPet("Milo", T0), sick: true, illness }, "child");
+    for (const illness of ["sniffles", "goblinflu", "vapors"] as const) {
+      expect(tooSickToEat(mkSick(illness))).toBe(false);
+    }
+    for (const illness of ["dysentery", "trimethylaminuria", "plague"] as const) {
+      expect(tooSickToEat(mkSick(illness))).toBe(true);
+    }
+  });
+
+  it("dysentery blocks feeding outright — medicine first, no half-measures", () => {
+    const runs = asStage(
+      { ...createPet("Milo", T0), energy: 1, sick: true, illness: "dysentery" as const },
+      "adult",
     );
-    expect(tooSickToPlay(sniffly)).toBe(false);
+    const { state, note } = feed(runs, "burger", T0);
+    expect(note).toBe("toosick");
+    expect(state.energy).toBe(1);
   });
 
   it("the sniffles pass on their own within the day", () => {
@@ -1424,13 +1440,13 @@ describe("fiber-driven poop quality", () => {
     expect(state.health).toBe(50);
   });
 
-  it("dysentery always makes poops bad, even on a fiber-rich diet", () => {
-    let pet = asStage(
-      { ...createPet("Milo", T0), health: 50, sick: true, illness: "dysentery" },
+  it("dysentery always makes poops bad, even with a fiber-rich diet already banked", () => {
+    // Dysentery blocks feeding outright, so the good fiber has to be left
+    // over from before the illness struck — set directly rather than fed in.
+    const pet = asStage(
+      { ...createPet("Milo", T0), health: 50, sick: true, illness: "dysentery", fiberLevel: 0.6 },
       "child",
     );
-    pet = feed(pet, "carrot", T0).state;
-    expect(pet.fiberLevel).toBeGreaterThanOrEqual(0.4);
     const { events } = stepEvents(pet, 60_000, always);
     expect(events).toContain("poop-bad");
   });

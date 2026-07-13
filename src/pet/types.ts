@@ -53,13 +53,14 @@ export interface IllnessDef {
   drainPerHour: number;
   /** Happiness decays this much faster while sick (misery multiplier). */
   happinessDecayMult: number;
-  /** True → too weak for mini-games (feeding still allowed). */
+  /** True → too weak for mini-games. Only the sniffles are mild enough to
+   *  play through. */
   blocksPlay: boolean;
+  /** True → too unwell to eat until cured (medicine still works). Only the
+   *  sniffles, the vapors, and goblin flu leave the appetite alone. */
+  blocksFeed: boolean;
   /** True → the pet is unresponsive: pats land but pay nothing. */
   patMute: boolean;
-  /** Fraction of a meal's energy value that actually sticks (dysentery: it
-   *  runs right through). 1 for everything else. */
-  foodEfficiency: number;
   /** Clears on its own after this much daytime, no medicine needed. */
   selfResolveMs: number | null;
   /** True → also curable by a ≥1h daytime lights-off nap (the vapors). */
@@ -79,38 +80,44 @@ const HOUR = 3_600_000;
 export const ILLNESSES: Record<IllnessId, IllnessDef> = {
   sniffles: {
     id: "sniffles", label: "the sniffles", doses: 1,
-    drainPerHour: 0, happinessDecayMult: 1.5, blocksPlay: false, patMute: false,
-    foodEfficiency: 1, selfResolveMs: 4 * HOUR, napCure: false, soupCure: true,
+    drainPerHour: 0, happinessDecayMult: 1.5, blocksPlay: false, blocksFeed: false,
+    patMute: false,
+    selfResolveMs: 4 * HOUR, napCure: false, soupCure: true,
     neglect: false,
   },
   dysentery: {
     id: "dysentery", label: "dysentery", doses: 1,
-    drainPerHour: 8, happinessDecayMult: 1, blocksPlay: false, patMute: false,
-    foodEfficiency: 0.5, selfResolveMs: null, napCure: false, soupCure: false,
+    drainPerHour: 8, happinessDecayMult: 1, blocksPlay: true, blocksFeed: true,
+    patMute: false,
+    selfResolveMs: null, napCure: false, soupCure: false,
     neglect: true,
   },
   goblinflu: {
     id: "goblinflu", label: "goblin flu", doses: 1,
-    drainPerHour: 10, happinessDecayMult: 1.25, blocksPlay: true, patMute: false,
-    foodEfficiency: 1, selfResolveMs: null, napCure: false, soupCure: true,
+    drainPerHour: 10, happinessDecayMult: 1.25, blocksPlay: true, blocksFeed: false,
+    patMute: false,
+    selfResolveMs: null, napCure: false, soupCure: true,
     neglect: true,
   },
   vapors: {
     id: "vapors", label: "the vapors", doses: 1,
-    drainPerHour: 6, happinessDecayMult: 1, blocksPlay: true, patMute: true,
-    foodEfficiency: 1, selfResolveMs: null, napCure: true, soupCure: true,
+    drainPerHour: 6, happinessDecayMult: 1, blocksPlay: true, blocksFeed: false,
+    patMute: true,
+    selfResolveMs: null, napCure: true, soupCure: true,
     neglect: true,
   },
   trimethylaminuria: {
     id: "trimethylaminuria", label: "trimethylaminuria", doses: 1,
-    drainPerHour: 0, happinessDecayMult: 1.5, blocksPlay: false, patMute: true,
-    foodEfficiency: 1, selfResolveMs: null, napCure: false, soupCure: false,
+    drainPerHour: 0, happinessDecayMult: 1.5, blocksPlay: true, blocksFeed: true,
+    patMute: true,
+    selfResolveMs: null, napCure: false, soupCure: false,
     neglect: true,
   },
   plague: {
     id: "plague", label: "the plague", doses: 2,
-    drainPerHour: 14, happinessDecayMult: 1.25, blocksPlay: true, patMute: false,
-    foodEfficiency: 1, selfResolveMs: null, napCure: false, soupCure: false,
+    drainPerHour: 14, happinessDecayMult: 1.25, blocksPlay: true, blocksFeed: true,
+    patMute: false,
+    selfResolveMs: null, napCure: false, soupCure: false,
     neglect: true,
   },
 };

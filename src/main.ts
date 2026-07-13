@@ -14,6 +14,7 @@ import {
   pat as patPet,
   toggleLight,
   tooSickToPlay,
+  tooSickToEat,
   retirementPhase,
 } from "./pet/state";
 import type { AdultForm, FoodId, GameId, PetState } from "./pet/types";
@@ -301,6 +302,12 @@ function mountGame(): void {
     if (pet?.asleep) {
       // Fast asleep — the bowl can wait until morning.
       say("Zzz…");
+      return;
+    }
+    if (pet && tooSickToEat(pet)) {
+      // Some illnesses kill the appetite outright — medicine first, food after.
+      // (The milder ones — sniffles, the vapors, goblin flu — still eat fine.)
+      say(SICK_EAT_LINES[Math.floor(Math.random() * SICK_EAT_LINES.length)]);
       return;
     }
     // Don't open over a running act (a fetch chase, an rps reveal…), but a
@@ -735,6 +742,10 @@ function doFeed(food: FoodId): void {
   pet = state;
   if (note === "cant") {
     say(pet.stage === "egg" ? "*the egg does not eat*" : "Zzz…");
+  } else if (note === "toosick") {
+    // Struck too sick to eat between opening the menu and tapping a food —
+    // feed()'s backstop caught it. Same beat as the nav-gate refusal.
+    say(SICK_EAT_LINES[Math.floor(Math.random() * SICK_EAT_LINES.length)]);
   } else if (note === "full") {
     sayCat("full");
     scene?.triggerPulse("shake");
@@ -835,6 +846,13 @@ const SICK_PLAY_LINES = [
   "Too wobbly to play.",
   "Medicine first. Glory later.",
   "*declines, feverishly*",
+];
+
+const SICK_EAT_LINES = [
+  "No food. I am unwell.",
+  "The thought alone is too much.",
+  "Medicine first. Food later.",
+  "*turns away from the bowl*",
 ];
 
 function doLight(): void {
