@@ -25,4 +25,12 @@ screenshots) before calling them done.
 
 This project merges straight to `main` — no feature branches or PRs.
 
+## No live data migrations
+
+Don't add backward-compat handling for old `PetState` shapes (e.g. `field ??
+default` patterns in `persistence.ts` for newly-added fields). Export/import
+is the only persistence boundary and is treated as atomic — there are no
+in-flight saves on an old schema to upgrade. When adding a field, just add it
+to the type and to `createPet`; skip the migration shim.
+
 Always commit and push after completing a piece of work, without asking for confirmation first.
