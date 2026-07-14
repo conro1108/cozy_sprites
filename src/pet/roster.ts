@@ -53,6 +53,10 @@ export interface AdultDef {
   /** The one double-secret form: even rarer than a secret, and given its own
    *  cosmic collection treatment when finally caught. */
   ultra?: boolean;
+  /** Never appears in the collection at all — not as a tile, not as a "???"
+   *  slot, not even after you've raised one. There is no in-game trace that it
+   *  exists; you either know the name or you don't. */
+  hidden?: boolean;
 }
 
 export const ADULTS: Record<AdultForm, AdultDef> = {
@@ -141,6 +145,18 @@ export const ADULTS: Record<AdultForm, AdultDef> = {
     secret: true,
     ultra: true,
   },
+  // Not a personality you can raise — an easter egg. Only a pet named "connor"
+  // ever becomes one (see determineAdultForm), and it never shows up in the
+  // collection, so nobody who doesn't already know is left staring at a gap.
+  mole: {
+    id: "mole",
+    name: "The Software Mole",
+    blurb: "Undocumented. Ships anyway.", // never rendered — see `hidden`
+    favorite: "cube", // a well-specified shape. Finally, a food with no edge cases
+    disliked: "soup", // cannot be eaten over a keyboard. Non-starter
+    preferredGame: "higherlower", // it is, professionally, a binary search
+    hidden: true,
+  },
 };
 
 export const ADULT_ORDER: AdultForm[] = [
@@ -154,4 +170,5 @@ export const ADULT_ORDER: AdultForm[] = [
   "humcube",
   "carrot",
   "cosmos",
+  "mole",
 ];

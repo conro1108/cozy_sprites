@@ -49,6 +49,7 @@ export function scoreForms(
     humcube: 0,
     carrot: 0,
     cosmos: 0, // never scored — the cosmos is drawn by luck, not raised (see below)
+    mole: 0, // never scored — the mole is summoned by name, not raised (see below)
   };
 
   // Loyal Dog Thing — fetch enthusiast, well cared for. Ordinary wear and tear
@@ -126,6 +127,11 @@ export function determineAdultForm(
 ): AdultForm {
   // A pet named Poppy is always the Loyal Dog Thing — no upbringing overrides it.
   if (name?.trim().toLowerCase() === "poppy") return "dog";
+  // The Software Mole: an easter egg, not a personality. Naming your pet Connor
+  // is the only way to get one, and it is the *whole* way — this returns before
+  // scoring and before the cosmos roll below, so no upbringing earns it and no
+  // luck takes it away. Nothing in the collection ever hints it exists.
+  if (name?.trim().toLowerCase() === "connor") return "mole";
 
   const scores = scoreForms(hidden, health);
   // Sort descending so rng()=0 deterministically yields the top scorer.

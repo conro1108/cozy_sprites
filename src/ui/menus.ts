@@ -1865,6 +1865,9 @@ export function openCollection(ctx: MenuCtx): void {
   for (const form of ADULT_ORDER) {
     const found = discovered.has(form);
     const def = ADULTS[form];
+    // Hidden forms are never listed — not as a tile, not as a "???" slot, not
+    // even once raised. The collection must not hint that they exist.
+    if (def.hidden) continue;
     // Secret forms leave no trace until you've raised one.
     if (def.secret && !found) continue;
     const el = document.createElement("div");

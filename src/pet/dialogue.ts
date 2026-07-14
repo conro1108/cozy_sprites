@@ -807,6 +807,95 @@ const ADULT: Record<AdultForm, Bank> = {
     sleep: ["I return to the dark. Only briefly.", "Goodnight. I'll be overhead.", "*dims, contentedly*"],
     farm: ["I'll hang over the fields.", "Every night sky needs one of me.", "The pasture looks lovely from up here."],
   },
+  // The Software Mole — heads-down, half-blind, deep in a tunnel of its own
+  // making. Moles navigate by touch and smell, which is roughly how it debugs.
+  mole: {
+    idle: [
+      "I've been digging through the logs. It's logs all the way down.",
+      "It works in my tunnel.",
+      "That meeting could have been a smell.",
+      "I can't see the bug. But I can feel where it is.",
+      "Estimate: two days. I have lived here for six.",
+      "I refactored the burrow. Same rooms. Fewer regrets.",
+      "Someone left a TODO down here in 2019. It's load-bearing now.",
+      "I'm not blind, I'm heads-down.",
+      "I read the docs. I wrote the docs. I trust neither of us.",
+      "*surfaces, blinks at the sun, reconsiders, submerges*",
+      "The tunnel is fine. The tunnel is fine. The tunnel is on fire.",
+      "I have been inside the same function since breakfast and I regret nothing.",
+      "Every problem is just a smaller problem you haven't dug into yet.",
+      "I don't have a bug. I have an undocumented burrow.",
+    ],
+    tap: [
+      "I was in flow. That's gone. That's fine. That's fine.",
+      "*surfaces, blinks, resubmerges*",
+      "Context switch. That's twenty minutes you owe me.",
+    ],
+    pat: [
+      "Oh. Positive feedback. In this economy.",
+      "*accepts the pat without looking away from the problem*",
+      "That's the kindest code review I've ever had.",
+    ],
+    pat_enough: [
+      "This has become a standing meeting.",
+      "I appreciate it, but I was rubber-ducking something.",
+    ],
+    win: [
+      "All green. I'm suspicious.",
+      "Passed first try. Something is deeply wrong.",
+      "It compiles. Nobody touch anything.",
+    ],
+    lose: [
+      "It works in my tunnel.",
+      "That's a known issue. I've known it since just now.",
+      "I'll write a test for that. I will not write a test for that.",
+    ],
+    feed_favorite: [
+      "A cube. No edge cases. Beautiful.",
+      "Finally. Something well-specified.",
+      "*eats the cube exactly as documented*",
+    ],
+    feed_disliked: [
+      "Soup cannot be eaten over a keyboard. This is a hard blocker.",
+      "I'm going to have to decline the soup.",
+    ],
+    full: ["Buffer's full. Backpressure.", "At capacity. Push it to the next sprint."],
+    sick: [
+      "It's not a bug in me. It's a bug in the environment.",
+      "I have a fever and several unhandled exceptions.",
+      "*coughs* *the cough has a stack trace*",
+    ],
+    medicine: [
+      "A patch. Accepted. Applying.",
+      "Hotfix. Straight to prod. No review.",
+      "*rolls back to a known good state*",
+    ],
+    clean: [
+      "Thank you. That was tech debt.",
+      "The burrow is clean. The backlog is not.",
+      "You closed a ticket nobody was going to close.",
+    ],
+    discipline_correct: [
+      "Noted. This is going in the retro, isn't it.",
+      "Fair. That was a bad commit.",
+      "I'll revert it.",
+    ],
+    sleep: [
+      "Going offline. On-call is someone else's problem tonight.",
+      "*sets status to away*",
+      "Deploying myself to bed.",
+    ],
+    wake: [
+      "I dreamt the fix. I did not write it down. It is gone forever.",
+      "Standup in five and I have nothing.",
+      "*resurfaces, unrested, ready to dig*",
+    ],
+    farm: [
+      "Retirement. Finally, time for a side project.",
+      "I'll maintain a small open-source burrow. Nobody will contribute.",
+      "Golden handshake. Golden shovel.",
+    ],
+  },
 };
 
 function bankForStage(stage: Stage): Bank {
@@ -907,6 +996,12 @@ const TEEN_FLICKER: Record<AdultForm, string[]> = {
     "Sometimes I feel enormous and also not here.",
     "I counted the stars. One of them counted back.",
   ],
+  mole: [
+    "I dug a hole today. Then I sat in it. Then I improved it.",
+    "The sun is too bright and everything is too much. Is there a smaller room.",
+    "I keep wanting to take things apart to see how they work. Sorry about the fence.",
+    "I don't want to go outside. I want to go *further in*.",
+  ],
 };
 
 /** Occasionally the pet leaks a candidate-adult flavour line during Teen
@@ -967,6 +1062,7 @@ const FORM_CHATTINESS: Record<AdultForm, number> = {
   humcube: 0.2, // quiet and cryptic, like the ghost — speaks when it matters
   carrot: 0.45, // evangelical about the lifestyle
   cosmos: 0.19, // speaks rarely, from very far away
+  mole: 0.35, // heads-down; surfaces to comment, then goes back under
 };
 
 export function speakChance(state: PetState, category: Category): number {

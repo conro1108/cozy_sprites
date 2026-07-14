@@ -2167,6 +2167,17 @@ export class Scene {
           this.extraAlpha = 0.55 + 0.45 * Math.abs(Math.cos(q * Math.PI * 3));
         }
         break;
+      case "mole":
+        m.bob = Math.sin(t * 3.4) * 0.5; // small and quick — the claws never stop
+        if ((q = quirk(t, 19.5, 2)) >= 0) {
+          // Surfacing: rises up out of the work, squints at the daylight, thinks
+          // better of the whole thing, and sinks back into the tunnel.
+          const env = Math.sin(q * Math.PI);
+          m.bob -= env * 2.6;
+          m.sy *= 1 + env * 0.05;
+          this.forceGlance = 1;
+        }
+        break;
       case "baby":
         m.bob = Math.sin(t * 2.6) * 1.6;
         m.dx = Math.sin(t * 6) * 0.5; // a delighted wiggle

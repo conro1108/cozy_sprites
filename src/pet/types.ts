@@ -5,8 +5,9 @@ export const MAX_HEARTS = 4;
 export type Stage = "egg" | "baby" | "child" | "teen" | "adult";
 
 /** The six standard adult forms, three earnable secrets (ghost, humcube,
- *  carrot), and one ultra-rare secret (cosmos) that no upbringing can summon —
- *  it's pure luck. */
+ *  carrot), one ultra-rare secret (cosmos) that no upbringing can summon —
+ *  it's pure luck — and the mole, which isn't raised at all: it's an easter
+ *  egg keyed to the pet's name, and never appears in the collection. */
 export type AdultForm =
   | "dog"
   | "blob"
@@ -17,7 +18,8 @@ export type AdultForm =
   | "ghost"
   | "humcube"
   | "carrot"
-  | "cosmos";
+  | "cosmos"
+  | "mole";
 
 export type FoodId = "burger" | "cake" | "carrot" | "salad" | "cube" | "soup";
 

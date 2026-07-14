@@ -1150,6 +1150,7 @@ export const PAT_AFFINITY: Record<AdultForm, number> = {
   ghost: 0.7, // aloof
   gremlin: 0.6, // low — barely tolerates a hand
   cosmos: 0.9, // distant, but a warm hand still surprises it pleasantly
+  mole: 0.8, // it was mid-thought. It is glad you came anyway
 };
 
 /** Pat multiplier for a pet's current form; 1 before it has one. Exported so
@@ -1407,4 +1408,5 @@ const ADULT_FOOD: Record<AdultForm, { favorite: FoodId; disliked: FoodId | null 
   humcube: { favorite: "cube", disliked: null },
   carrot: { favorite: "carrot", disliked: "burger" },
   cosmos: { favorite: "soup", disliked: null },
+  mole: { favorite: "cube", disliked: "soup" }, // a shape with no edge cases; a food with nothing but
 };

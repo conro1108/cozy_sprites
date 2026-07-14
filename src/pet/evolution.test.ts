@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { determineAdultForm } from "./evolution";
+import { determineAdultForm, scoreForms } from "./evolution";
+import { ADULTS, ADULT_ORDER } from "./roster";
 import { emptyHidden } from "./types";
 import type { HiddenStats } from "./types";
 
@@ -175,5 +176,46 @@ describe("determineAdultForm", () => {
     expect(determineAdultForm(emptyHidden(), 100, NO_LUCK, " Poppy ")).toBe("dog");
     // A different name doesn't trigger it.
     expect(determineAdultForm(emptyHidden(), 100, NO_LUCK, "Poppyseed")).not.toBe("dog");
+  });
+
+  describe("the software mole (easter egg)", () => {
+    it("is summoned by the name Connor, and only by the name Connor", () => {
+      expect(determineAdultForm(emptyHidden(), 100, NO_LUCK, "Connor")).toBe("mole");
+      // Not case-sensitive, and stray whitespace doesn't defeat the match.
+      expect(determineAdultForm(emptyHidden(), 100, NO_LUCK, "connor")).toBe("mole");
+      expect(determineAdultForm(emptyHidden(), 100, NO_LUCK, "CONNOR")).toBe("mole");
+      expect(determineAdultForm(emptyHidden(), 100, NO_LUCK, "  cOnNoR  ")).toBe("mole");
+      // A name that merely contains it is not it.
+      expect(determineAdultForm(emptyHidden(), 100, NO_LUCK, "Connors")).not.toBe("mole");
+      expect(determineAdultForm(emptyHidden(), 100, NO_LUCK, "O'Connor")).not.toBe("mole");
+    });
+
+    it("beats every upbringing, and the cosmic luck roll can't take it away", () => {
+      // A carrot-perfect diet is the strongest score in the game — still a mole.
+      const devout = hidden({ mealsEaten: 10, carrotEaten: 10 });
+      expect(determineAdultForm(devout, 90, NO_LUCK, "connor")).toBe("mole");
+      // Top-of-the-roll luck would otherwise hand this pet to the night sky.
+      expect(determineAdultForm(emptyHidden(), 100, () => 0.999, "connor")).toBe("mole");
+    });
+
+    it("is unreachable without the name — no upbringing ever scores it", () => {
+      // It sits at zero in the score table and must never win a near-tie.
+      expect(scoreForms(emptyHidden(), 100).mole).toBe(0);
+      const chaotic = hidden({ careMistakes: 9, discipline: 0, cakeEaten: 6 });
+      expect(scoreForms(chaotic, 20).mole).toBe(0);
+      // Sweep the luck roll across its whole range with no name: never a mole.
+      for (let r = 0; r < 1; r += 0.01) {
+        expect(determineAdultForm(emptyHidden(), 100, () => r)).not.toBe("mole");
+      }
+    });
+
+    it("never appears in the collection, even once raised", () => {
+      // The whole point: no tile, no "???" slot, no gap in the grid to notice.
+      expect(ADULTS.mole.hidden).toBe(true);
+      // Every other form stays listable — this flag is the mole's alone.
+      const listable = ADULT_ORDER.filter((f) => !ADULTS[f].hidden);
+      expect(listable).not.toContain("mole");
+      expect(listable).toHaveLength(ADULT_ORDER.length - 1);
+    });
   });
 });

@@ -589,6 +589,53 @@ const COSMOS: BodyDef = {
   faceDy: 7,
 };
 
+// The Software Mole (easter egg) — a velvety taupe loaf with no visible ears,
+// a pink snout (p) that the shared mood-mouth lands right on top of, and two
+// pale digging claws (c) it uses, exclusively, for typing. The wire-rim glasses
+// are an overlay, hollow like the scholar's so every mood's eyes show through.
+const MOLE: BodyDef = {
+  rows: [
+    "................",
+    "................",
+    ".....kkkkkk.....",
+    "...kkBBBBBBkk...",
+    "..kBBBBBBBBBBk..",
+    "..kBBBBBBBBBBk..",
+    "..kBBBBBBBBBBk..",
+    "..kBBBppppBBBk..",
+    "..kBBBppppBBBk..",
+    "..kBBBBppBBBBk..",
+    "..kBBBBBBBBBBk..",
+    ".kBBBBBBBBBBBBk.",
+    ".kSBBBBBBBBBBSk.",
+    ".kcccSSSSSSccck.",
+    "..kkkkkkkkkkkk..",
+    "................",
+  ],
+  // Dusty rose, not tongue-pink — saturated pink under the mouth line reads as a
+  // tongue lolling out instead of a snout.
+  extra: { p: "#d7a9a4", c: "#f0dfc6" },
+  fill: "#8a7466",
+  shade: "#6b584c",
+  face: "small",
+  faceDx: 5,
+  faceDy: 5,
+  overlay: {
+    // Glasses ride at rows 4-6, framing the eyes at (5,5) and (9,5) — the lens
+    // centres are left hollow so the mood eyes read through them.
+    rows: [
+      "................",
+      "................",
+      "................",
+      "................",
+      "....www.www.....",
+      "....w.w.w.w.....",
+      "....www.www.....",
+    ],
+    palette: { w: "#dbe7ff" },
+  },
+};
+
 const BODIES: Record<string, BodyDef> = {
   baby: BABY,
   child: CHILD,
@@ -603,6 +650,7 @@ const BODIES: Record<string, BodyDef> = {
   humcube: HUMCUBE,
   carrot: CARROT,
   cosmos: COSMOS,
+  mole: MOLE,
 };
 
 // --- Teen "audition" accents --------------------------------------------------
