@@ -1698,6 +1698,29 @@ body {
   padding: 2px 6px;
 }
 
+/* The Status margin row: dev gear bottom-left, the ? bottom-right. */
+.panel-footer {
+  display: flex;
+  justify-content: space-between;
+}
+.panel-footer .help-hidden {
+  margin: 14px 0 0;
+}
+
+/* --- Dev Tools -------------------------------------------------------------- */
+.dev-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 14px;
+}
+.dev-grid .btn {
+  flex: none;
+  width: auto;
+  margin-top: 0;
+  padding: 9px 12px;
+}
+
 /* --- Memorial --------------------------------------------------------------*/
 .memorial h1 {
   font-size: 1.15rem;

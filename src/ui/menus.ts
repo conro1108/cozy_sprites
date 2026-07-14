@@ -4,11 +4,12 @@
 // acts, and all result text comes out of the sprite's mouth.
 
 import { ILLNESSES } from "../pet/types";
-import type { FoodId, GameId, PetState, FarmEntry, AdultForm } from "../pet/types";
+import type { FoodId, GameId, IllnessId, PetState, FarmEntry, AdultForm } from "../pet/types";
 import { FOODS, FOOD_ORDER, ADULTS, ADULT_ORDER } from "../pet/roster";
 import { ageLabel } from "../pet/format";
 import { formatDebugReport } from "../pet/debug";
-import { MAX_HEARTS, retirementPhase } from "../pet/state";
+import { MAX_HEARTS, TIMELINE_SPEED, retirementPhase } from "../pet/state";
+import type { DevAction } from "../pet/devtools";
 import { farmConfirmLine, farewellWalkLine, describeCondition } from "../pet/dialogue";
 import {
   judgeHigherLower,
@@ -58,6 +59,8 @@ export interface MenuCtx {
   importSave(code: string): boolean;
   reload(): void;
   resetFarm(): void;
+  /** Pull a Dev Tools lever (timeline switch, forced event). */
+  devAction(action: DevAction): void;
 }
 
 let root: HTMLElement;
@@ -1117,7 +1120,18 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   p.body.appendChild(soundSettings());
   p.body.appendChild(notifySettings());
 
-  // The manual, such as it is, hides in the margin. (Design note: obscure.)
+  // The margin dwellers: dev tools bottom-left, the manual bottom-right.
+  // Both deliberately obscure — neither is part of the game proper.
+  const footer = document.createElement("div");
+  footer.className = "panel-footer";
+  const gear = document.createElement("button");
+  gear.className = "help-hidden";
+  gear.textContent = "⚙";
+  gear.setAttribute("aria-label", "Dev tools");
+  gear.addEventListener("click", () => {
+    p.close();
+    openDevTools(ctx);
+  });
   const help = document.createElement("button");
   help.className = "help-hidden";
   help.textContent = "?";
@@ -1126,7 +1140,8 @@ export function openStatus(ctx: MenuCtx, now: number): void {
     p.close();
     openHelp();
   });
-  p.body.appendChild(help);
+  footer.append(gear, help);
+  p.body.appendChild(footer);
 }
 
 /** Sound on/off. Borrows the notification toggle's chrome — same shape of
@@ -1999,6 +2014,107 @@ function farmYard(farm: FarmEntry[], onBarnTap?: () => void): HTMLElement {
   return yard;
 }
 
+// --- Dev Tools ---------------------------------------------------------------
+// The gear in the Status margin. Timeline switching, loaded dice for every
+// event the game normally rolls for, and the diagnostic views (History, the
+// debug report) that used to hide in the Backup panel.
+export function openDevTools(ctx: MenuCtx): void {
+  const p = openPanel("Dev Tools", "Levers behind the meadow.");
+
+  const section = (text: string) => {
+    const el = document.createElement("p");
+    el.className = "muted";
+    el.textContent = text;
+    p.body.appendChild(el);
+    return el;
+  };
+
+  // Timeline: real wall-clock pacing, or everything at demo speed.
+  const tlWrap = document.createElement("div");
+  tlWrap.className = "notify-settings";
+  const tlLabel = document.createElement("p");
+  tlLabel.className = "muted";
+  tlLabel.textContent = `Timeline — demo runs game-time ${TIMELINE_SPEED.demo}× faster`;
+  const tlRow = document.createElement("div");
+  tlRow.className = "notify-row";
+  const paintTimeline = () => {
+    const active = ctx.pet().timeline === "demo" ? "demo" : "real";
+    tlRow.querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("active", b.dataset.tl === active);
+    });
+  };
+  for (const t of ["real", "demo"] as const) {
+    const b = document.createElement("button");
+    b.className = "notify-opt";
+    b.dataset.tl = t;
+    b.textContent = t === "real" ? "Real" : "Demo";
+    b.addEventListener("click", () => {
+      ctx.devAction({ type: "timeline", timeline: t });
+      paintTimeline();
+    });
+    tlRow.appendChild(b);
+  }
+  tlWrap.append(tlLabel, tlRow);
+  p.body.appendChild(tlWrap);
+  paintTimeline();
+
+  // Forced events close the panel — the payoff (the squat, the call bubble,
+  // the evolution flash) plays out on the stage underneath.
+  const devBtn = (grid: HTMLElement, text: string, action: DevAction) => {
+    const b = document.createElement("button");
+    b.className = "btn secondary btn-small";
+    b.textContent = text;
+    b.addEventListener("click", () => {
+      p.close();
+      ctx.devAction(action);
+    });
+    grid.appendChild(b);
+  };
+
+  section("Force an event:");
+  const events = document.createElement("div");
+  events.className = "dev-grid";
+  devBtn(events, "Mess", { type: "poop", bad: false });
+  devBtn(events, "Bad mess", { type: "poop", bad: true });
+  devBtn(events, "Attention call", { type: "call", fake: false });
+  devBtn(events, "Fake call", { type: "call", fake: true });
+  devBtn(events, "Zoomies", { type: "zoomies" });
+  devBtn(events, "Grow up", { type: "grow" });
+  devBtn(events, "Ready to retire", { type: "retire-ready" });
+  p.body.appendChild(events);
+
+  section("Inflict an illness:");
+  const illnesses = document.createElement("div");
+  illnesses.className = "dev-grid";
+  for (const id of Object.keys(ILLNESSES) as IllnessId[]) {
+    devBtn(illnesses, ILLNESSES[id].label, { type: "illness", illness: id });
+  }
+  p.body.appendChild(illnesses);
+
+  // Two views onto the same diagnostic trail, both deliberately understated —
+  // neither is a save format. History reads it in plain language, in-game; the
+  // debug report dumps it verbatim for pasting somewhere else.
+  section("For explaining what happened, in detail:");
+  const debugRow = document.createElement("div");
+  debugRow.className = "btn-pair";
+  const historyBtn = document.createElement("button");
+  historyBtn.className = "btn secondary btn-small";
+  historyBtn.textContent = "History";
+  historyBtn.addEventListener("click", () => {
+    p.close();
+    openHistory(ctx);
+  });
+  const debugBtn = document.createElement("button");
+  debugBtn.className = "btn secondary btn-small";
+  debugBtn.textContent = "Copy debug report";
+  debugBtn.addEventListener("click", () => {
+    copyText(formatDebugReport(ctx.pet()));
+    debugBtn.textContent = "Copied!";
+  });
+  debugRow.append(historyBtn, debugBtn);
+  p.body.appendChild(debugRow);
+}
+
 // --- Backup -----------------------------------------------------------------
 export function openBackup(ctx: MenuCtx): void {
   const p = openPanel("Backup", "Copy this code to save your progress elsewhere.");
@@ -2033,32 +2149,6 @@ export function openBackup(ctx: MenuCtx): void {
   });
 
   p.body.append(ta, copy, hr, inp, restore);
-
-  // Two views onto the same diagnostic trail, both deliberately understated —
-  // neither is a save format. History reads it in plain language, in-game; the
-  // debug report dumps it verbatim for pasting somewhere else. Both live here
-  // because this is already the technical, out-of-the-way panel.
-  const debugHr = document.createElement("p");
-  debugHr.className = "muted";
-  debugHr.textContent = "For explaining what happened, in detail:";
-  const debugRow = document.createElement("div");
-  debugRow.className = "btn-pair";
-  const historyBtn = document.createElement("button");
-  historyBtn.className = "btn secondary btn-small";
-  historyBtn.textContent = "History";
-  historyBtn.addEventListener("click", () => {
-    p.close();
-    openHistory(ctx);
-  });
-  const debugBtn = document.createElement("button");
-  debugBtn.className = "btn secondary btn-small";
-  debugBtn.textContent = "Copy debug report";
-  debugBtn.addEventListener("click", () => {
-    copyText(formatDebugReport(ctx.pet()));
-    debugBtn.textContent = "Copied!";
-  });
-  debugRow.append(historyBtn, debugBtn);
-  p.body.append(debugHr, debugRow);
 }
 
 /** The pet's life, in plain language and in reverse — the diagnostic trail as
@@ -2143,10 +2233,10 @@ export function openHistory(ctx: MenuCtx): void {
 
   const back = document.createElement("button");
   back.className = "btn secondary btn-small";
-  back.textContent = "Back to Backup";
+  back.textContent = "Back to Dev Tools";
   back.addEventListener("click", () => {
     p.close();
-    openBackup(ctx);
+    openDevTools(ctx);
   });
 
   p.body.append(toggle, list, back);

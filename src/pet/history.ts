@@ -101,7 +101,9 @@ function describeCall(note: string | undefined): string {
 /** One diag event, in plain language. Unknown/absent notes degrade to a bare
  *  headline rather than leaking the raw note. */
 function describeEvent(e: DiagEvent): { icon: string; text: string } {
-  const note = e.note;
+  // Dev Tools levers log through the same kinds as organic events, tagged
+  // "(dev)" for the debug report — the diary reads them the same either way.
+  const note = e.note?.replace(/\s*\(dev\)$/, "");
   switch (e.kind) {
     case "hatched":
       return { icon: "🥚", text: "Hatched" };
@@ -164,6 +166,11 @@ function describeEvent(e: DiagEvent): { icon: string; text: string } {
       return { icon: "❤️", text: "Health climbed back off zero" };
     case "death":
       return { icon: "🪦", text: note ? `Died of ${note}` : "Died" };
+    case "timeline":
+      return {
+        icon: "⏱️",
+        text: note === "demo" ? "Switched to the demo timeline" : "Back on the real timeline",
+      };
   }
 }
 

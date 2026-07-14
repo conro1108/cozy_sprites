@@ -21,6 +21,7 @@ import type {
   IllnessId,
   PetState,
   Stage,
+  Timeline,
 } from "./types";
 import { FOODS } from "./roster";
 import { determineAdultForm } from "./evolution";
@@ -43,6 +44,20 @@ export const TIMING: Record<Exclude<Stage, "adult">, number> = {
 };
 
 const STAGE_ORDER: Stage[] = ["egg", "baby", "child", "teen", "adult"];
+
+// --- Timelines ----------------------------------------------------------------
+// How fast game-time runs against the wall clock. On "demo" every elapsed
+// wall-ms counts 60× toward aging, decay, health, and event rolls, so a full
+// life plays out in a sitting (child in ~24 min, teen in ~36). Day/night stays
+// on the wall clock, as do the player-reaction windows (call expiry, zoomies,
+// dose spacing) — those measure the human, not the pet.
+export const TIMELINE_SPEED: Record<Timeline, number> = { real: 1, demo: 60 };
+
+/** The pet's current game-time multiplier. Reads as 1 for anything that isn't
+ *  explicitly on the demo timeline, so no save shape can NaN the engine. */
+function timelineSpeed(s: PetState): number {
+  return s.timeline === "demo" ? TIMELINE_SPEED.demo : 1;
+}
 
 /**
  * Fraction of elapsed time that counts toward growing up while ASLEEP.
@@ -271,6 +286,7 @@ export function createPet(name: string, now: number): PetState {
     name,
     createdAt: now,
     lastUpdated: now,
+    timeline: "real",
     stage: "egg",
     stageStartedAt: now,
     stageElapsedMs: 0,
@@ -394,6 +410,13 @@ const MAX_SEG_MS = 15 * 60_000;
  * MAX_SEG_MS, so each chunk is uniform in stage and awake/asleep state. Aging
  * is an awake-time accumulator: awake time counts at 1×, asleep at
  * SLEEP_AGE_RATE — a sleeping pet doesn't grow.
+ *
+ * On the demo timeline every wall-ms counts TIMELINE_SPEED.demo× toward
+ * game-time (aging, decay, health, the death clock). Chunks are cut so each
+ * one's *game-time* stays under MAX_SEG_MS, keeping the grace-window math as
+ * honest as on the real clock. Day/night edges and the night ledger stay on
+ * the wall clock, as do call expiry and zoomies — those windows measure the
+ * player's reaction time, not the pet's metabolism.
  */
 export function applyElapsedDecay(state: PetState, now: number): PetState {
   if (now <= state.lastUpdated) return state;
@@ -408,13 +431,14 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
     diag: [...state.diag],
   };
   let cursor = s.lastUpdated;
+  const speed = timelineSpeed(s);
 
   // Legacy saves: an in-flight call from before call expiry existed starts its
   // clock now rather than being judged retroactively.
   if (s.wantsAttention && s.callStartedAt === null) s.callStartedAt = cursor;
 
   while (cursor < now && s.deadAt === null && s.departedAt === null) {
-    let segEnd = Math.min(now, cursor + MAX_SEG_MS);
+    let segEnd = Math.min(now, cursor + MAX_SEG_MS / speed);
 
     // 1) Cut at the next day/night edge so the chunk is uniformly awake or
     //    asleep. Sample isNight at the START — segEnd may land exactly on an
@@ -430,14 +454,14 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
     //    depletes within an asleep chunk, so there's nothing to cut.
     if (s.stage !== "adult" && ageRate > 0) {
       const remaining = TIMING[s.stage] - s.stageElapsedMs;
-      const advanceAt = cursor + remaining / ageRate;
+      const advanceAt = cursor + remaining / (ageRate * speed);
       if (advanceAt < segEnd) segEnd = advanceAt;
     }
 
     const seg = segEnd - cursor;
     if (seg > 0) {
-      decaySegment(s, seg, segEnd, night);
-      if (s.stage !== "adult") s.stageElapsedMs += seg * ageRate;
+      decaySegment(s, seg * speed, segEnd, night, seg);
+      if (s.stage !== "adult") s.stageElapsedMs += seg * ageRate * speed;
     }
     cursor = segEnd;
 
@@ -545,11 +569,20 @@ function cureIllness(s: PetState, healthBonus: number, at: number, via: string):
   if (healthBonus > 0) s.health = clamp100(s.health + healthBonus);
 }
 
-/** Apply `seg` ms of decay at the current stage's rates. Mutates `s`. `night`
- *  is precomputed by the caller (sampled at the chunk's start, since the chunk
- *  is uniform in day/night) — do NOT re-derive it from segTime, which may sit
- *  on an edge. */
-function decaySegment(s: PetState, seg: number, segTime: number, night: boolean): void {
+/** Apply `seg` ms of game-time decay at the current stage's rates. Mutates
+ *  `s`. `night` is precomputed by the caller (sampled at the chunk's start,
+ *  since the chunk is uniform in day/night) — do NOT re-derive it from
+ *  segTime, which may sit on an edge. `wallSeg` is the chunk's wall-clock
+ *  span (equal to `seg` on the real timeline, smaller on demo) — the night
+ *  ledger accrues at wall pace because dawnHook judges it against a real
+ *  8–12h night. */
+function decaySegment(
+  s: PetState,
+  seg: number,
+  segTime: number,
+  night: boolean,
+  wallSeg: number = seg,
+): void {
   const asleep = night && !s.lightsOn && s.stage !== "egg";
   const day = !night;
   const hours = seg / HOUR;
@@ -629,8 +662,8 @@ function decaySegment(s: PetState, seg: number, segTime: number, night: boolean)
 
   // --- Night ledger, metabolism, retirement ----------------------------------
   if (night && s.stage !== "egg") {
-    if (asleep) s.nightSleepMs += seg;
-    else s.nightAwakeMs += seg;
+    if (asleep) s.nightSleepMs += wallSeg;
+    else s.nightAwakeMs += wallSeg;
   }
   if (day) {
     s.weight = Math.max(
@@ -691,8 +724,10 @@ function causeOfDeath(s: PetState): string {
 }
 
 /** Move to the next life stage. Mutates `s`. Caller guarantees stage≠adult.
- *  `at` is the wall-clock moment the boundary was crossed. */
-function advanceOne(s: PetState, at: number): void {
+ *  `at` is the wall-clock moment the boundary was crossed. Exported only for
+ *  the Dev Tools "grow up" lever (devtools.ts) — game code reaches it solely
+ *  through applyElapsedDecay's stage-budget loop. */
+export function advanceOne(s: PetState, at: number): void {
   const cur = s.stage as Exclude<Stage, "adult">;
   const next = STAGE_ORDER[STAGE_ORDER.indexOf(cur) + 1];
   // Carry the awake-time overshoot into the next stage rather than dropping it,
@@ -1210,17 +1245,22 @@ export function stepEvents(
   }
   const s: PetState = { ...state, hidden: { ...state.hidden }, diag: [...state.diag] };
   const start = s.lastUpdated - elapsed;
+  const speed = timelineSpeed(s);
   let offset = 0;
 
   while (offset < elapsed) {
-    const chunk = Math.min(EVENT_CHUNK_MS, elapsed - offset);
+    // Slices are sized so each covers at most EVENT_CHUNK_MS of *game-time* —
+    // on the demo timeline that means smaller wall slices, keeping the
+    // one-mess-per-slice cap and the dice cadence as honest as on the real
+    // clock instead of one mega-roll standing in for fifteen game-hours.
+    const chunk = Math.min(EVENT_CHUNK_MS / speed, elapsed - offset);
     const chunkStart = start + offset;
     offset += chunk;
     // Egg is already excluded above, so this mirrors applyElapsedDecay's own
     // asleep test exactly: night and lights off. Note this reads the caller's
     // snapshot, NOT s.lightsOn — see lightsOnDuringSpan on the signature.
     if (isNight(chunkStart) && !lightsOnDuringSpan) continue;
-    const perHour = chunk / HOUR;
+    const perHour = (chunk * speed) / HOUR;
 
     // Pooping happens on a regular per-stage schedule, at most one mess per
     // slice. Fiber doesn't gate this anymore — it only decides quality below.

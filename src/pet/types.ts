@@ -21,6 +21,12 @@ export type AdultForm =
 
 export type FoodId = "burger" | "cake" | "carrot" | "salad" | "cube" | "soup";
 
+/** Which clock the pet lives on. "real" is the wall-clock game (stages take
+ *  days); "demo" runs game-time at TIMELINE_SPEED (state.ts) so a whole life
+ *  plays out in a sitting. A dev/demo lever, switched from the Dev Tools
+ *  panel — night/day stays on the wall clock either way. */
+export type Timeline = "real" | "demo";
+
 /** What an attention call is actually about. Fake calls pick one too — the con
  *  only works if it sounds exactly like a real request. */
 export type AttentionWant = "pat" | "play" | "snack";
@@ -139,6 +145,8 @@ export interface PetState {
   name: string;
   createdAt: number; // ms epoch, hatch/birth reference
   lastUpdated: number;
+  /** Which clock this pet lives on — see Timeline. */
+  timeline: Timeline;
 
   stage: Stage;
   /** Wall-clock moment the CURRENT stage began. Kept for display/debug and for
@@ -294,7 +302,8 @@ export type DiagKind =
   | "dawn"
   | "zero-health"
   | "recovered"
-  | "death";
+  | "death"
+  | "timeline";
 
 /** A notable transition, logged as it happens. `note` carries the detail —
  *  the illness name, the food, the cause of death. */

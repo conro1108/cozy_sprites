@@ -10,6 +10,7 @@ import {
   PAT_SATIATION,
   TAP_ANNOY_THRESHOLD,
   TAP_WINDOW_MS,
+  TIMELINE_SPEED,
   TIMING,
   VITALS_CAP,
   ZOOMIES_DURATION_MS,
@@ -1895,5 +1896,60 @@ describe("diagnostics: the full care loop reaches the log", () => {
     expect(stageEvent?.note).toMatch(/mistakes/);
     expect(stageEvent?.note).toMatch(/discipline/);
     expect(stageEvent?.note).toMatch(new RegExp(evolved.form!));
+  });
+});
+
+describe("demo timeline", () => {
+  const demo = (p: PetState): PetState => ({ ...p, timeline: "demo" });
+
+  it("accrues game-time at TIMELINE_SPEED.demo x wall pace", () => {
+    const pet = demo(asStage(createPet("Milo", T0), "child"));
+    const later = applyElapsedDecay(pet, T0 + 60_000);
+    expect(later.stageElapsedMs).toBe(60_000 * TIMELINE_SPEED.demo);
+    const real = applyElapsedDecay(asStage(createPet("Milo", T0), "child"), T0 + 60_000);
+    expect(real.stageElapsedMs).toBe(60_000);
+  });
+
+  it("decays meters at demo pace over the same wall span", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    const real = applyElapsedDecay(pet, T0 + 60_000);
+    const fast = applyElapsedDecay(demo(pet), T0 + 60_000);
+    expect(fast.energy).toBeLessThan(real.energy);
+  });
+
+  it("hatches a demo egg in about a second", () => {
+    const egg = demo(createPet("Milo", T0));
+    expect(applyElapsedDecay(egg, T0 + 2_000).stage).toBe("baby");
+  });
+
+  it("a neglected demo pet can die within a wall-clock quarter hour", () => {
+    // Starvation drain, the grace window, and the doom clock all run on
+    // game-time — roughly eleven game-hours of total neglect, which the demo
+    // clock compresses into minutes. The real clock shrugs the same span off.
+    const pet = asStage(createPet("Milo", T0), "child");
+    expect(applyElapsedDecay(demo(pet), T0 + 15 * 60_000).deadAt).not.toBeNull();
+    expect(applyElapsedDecay(pet, T0 + 15 * 60_000).deadAt).toBeNull();
+  });
+
+  it("keeps the night ledger on the wall clock", () => {
+    // dawnHook judges the ledger against a real 8-12h night, so a demo pet's
+    // sleep must not be counted 60x or every night reads as sixty of them.
+    const pet = {
+      ...demo(asStage(createPet("Milo", at(20)), "child")),
+      lightsOn: false,
+    };
+    const beforeDawn = applyElapsedDecay(pet, at(30));
+    expect(beforeDawn.nightSleepMs).toBe(10 * HOUR);
+  });
+
+  it("rolls world events per game-time slice, not per wall slice", () => {
+    // rng 0.05 clears an adult's per-slice mess odds every slice: the real
+    // clock fits 4 slices in a wall hour, the demo clock a game-day's worth —
+    // enough to hit the mess cap.
+    const rng = () => 0.05;
+    const real = stepEvents(asStage(createPet("Milo", T0), "adult"), HOUR, rng);
+    const fast = stepEvents(demo(asStage(createPet("Milo", T0), "adult")), HOUR, rng);
+    expect(real.state.poops).toBe(4);
+    expect(fast.state.poops).toBeGreaterThan(real.state.poops);
   });
 });

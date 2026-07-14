@@ -40,6 +40,8 @@ import {
 } from "./pet/dialogue";
 import type { Category } from "./pet/dialogue";
 import { determineAdultForm } from "./pet/evolution";
+import { applyDevAction } from "./pet/devtools";
+import type { DevAction } from "./pet/devtools";
 import { spriteWon } from "./pet/games";
 import type { MatchResult } from "./pet/games";
 import {
@@ -911,6 +913,38 @@ function doFinishGame(game: GameId, won: MatchResult, line?: string | null, reac
   commit();
 }
 
+/** A Dev Tools lever. The state change is devtools.ts's job; this replays the
+ *  same stage feedback the organic event would have earned, so a forced mess
+ *  still squats and a forced evolution still gets its flash. */
+function doDevAction(action: DevAction): void {
+  if (!pet || dying) return;
+  const prev = pet;
+  pet = applyDevAction(pet, action, Date.now());
+  switch (action.type) {
+    case "poop":
+      if (pet.poops > prev.poops) scene?.playPoop();
+      break;
+    case "illness":
+      if (!prev.sick && pet.sick && pet.illness) {
+        say(illnessAnnouncement(pet.name, pet.illness));
+      }
+      break;
+    case "call":
+      if (!prev.wantsAttention && pet.wantsAttention) say(attentionCallLine(pet.attentionWant));
+      break;
+    case "grow":
+      if (pet.stage !== prev.stage) handleStageChange(prev.stage, pet.stage);
+      break;
+    case "retire-ready":
+      if (retirementPhase(prev) !== "ready" && retirementPhase(pet) === "ready") {
+        say(retirementLine("ready"));
+      }
+      break;
+    // timeline and zoomies show themselves — render() reads them off state.
+  }
+  commit();
+}
+
 function doSendToFarm(): void {
   if (!pet) return;
   // A ready retiree gets walked over properly — farewell screen, the works.
@@ -1197,6 +1231,7 @@ const ctx = {
     wipeFarm(Array.from(computeDiscovered()));
     farm = [];
   },
+  devAction: doDevAction,
 };
 
 // --- Utils ------------------------------------------------------------------
