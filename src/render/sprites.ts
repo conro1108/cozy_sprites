@@ -298,7 +298,9 @@ const DOG: BodyDef = {
   faceDx: 5,
   faceDy: 6,
   // Tail raised — swapped in while trotting or mid-wag. Erases the resting
-  // tail (x) and draws it flicked up over the rump.
+  // nub (x) and sweeps the tail up from the SAME place on the rump, curling to
+  // a tip about ear height. It has to leave the body where the resting tail
+  // does: hang it off the mid-back instead and the trotting dog grows a fin.
   alt: {
     rows: [
       "................",
@@ -307,12 +309,12 @@ const DOG: BodyDef = {
       "................",
       "................",
       "................",
-      "................",
       "..............k.",
-      ".............kD.",
-      "............kD..",
-      "............kxx.",
-      "............xxx.",
+      ".............kDk",
+      ".............kDk",
+      "............kDk.",
+      "............Dkx.",
+      ".............xx.",
       "............xx..",
     ],
     palette: { k: OUTLINE, D: "#4a4a56", x: "ERASE" },
