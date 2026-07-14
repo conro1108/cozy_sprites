@@ -591,41 +591,43 @@ const CARROT: BodyDef = {
   faceDy: 6,
 };
 
-// The Little Cosmos — a pet-shaped piece of the night sky: a swirling nebula of
-// indigo (I), amethyst (U) and rose (N), freckled with white stars (w). The
-// engine's face rides in the swirl; the whole thing shimmers in the scene (see
-// scene.ts). Kept mid-toned so the shared dark eyes still read on the swirl.
+// The Little Cosmos — a plump four-point star: amethyst points (U), a rose
+// corona (N), and a radiant pale core (P) the face floats in, with two loose
+// sparkles (w) drifting beside it. The core is the one pale sprite in the
+// roster, so the shared dark eyes read at any scene brightness; the widest row
+// is all core, so glance-slid eyes never leave it. The whole star shimmers in
+// the scene (see scene.ts). Bottom tip lands on the shared baseline (row 14).
 const COSMOS: BodyDef = {
   rows: [
     "................",
     "................",
-    ".....kkkkkk.....",
-    "...kkIUUUUIkk...",
-    "..kIUUNNNNUUIk..",
-    ".kIUNNwNNUUNIk..",
-    ".kIUNUUUwNNUUk..",
-    ".kIwUNUUUNUUwk..",
-    ".kIUNUUwUNUNIk..",
-    "..kIUNNNUUwIIk..",
-    "..kIIUwNNUUIk...",
-    "...kkIUUNUIk....",
-    "...kSIUUUISk....",
-    "....kSSSSSk.....",
-    ".....kkkkkk.....",
+    "................",
+    ".......kk.......",
+    "......kNNk...w..",
+    ".....kUNNUk.....",
+    "...kkUNPPNUkk...",
+    ".kkUUNPPPPNUUkk.",
+    "kUUNPPPPPPPPNUUk",
+    ".kkUNPPPPPPNUkk.",
+    "..kkUNPPPPNUkk..",
+    "....kUNPPNUk....",
+    ".....kUNNUk.....",
+    "..w...kNNk......",
+    ".......kk.......",
     "................",
   ],
   extra: {
-    I: "#3c3478", // deep indigo
-    U: "#7a52ac", // amethyst
-    N: "#d46eb6", // rose nebula
-    w: "#ffffff", // stars
+    U: "#6a4a9e", // amethyst points
+    N: "#e07ac2", // rose corona
+    P: "#f6d7ee", // radiant core
+    w: "#ffffff", // companion sparkles
     k: "#241d47", // night outline
   },
-  fill: "#7a52ac",
-  shade: "#3c3478",
+  fill: "#6a4a9e",
+  shade: "#4e3680",
   face: "small",
   faceDx: 6,
-  faceDy: 7,
+  faceDy: 8,
 };
 
 // The Software Mole (easter egg) — a velvety taupe loaf with no visible ears,
