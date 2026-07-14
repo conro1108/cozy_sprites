@@ -9,19 +9,50 @@
 import type { AttentionWant, IllnessId, PetState, Timeline } from "./types";
 import {
   ADULT_LIFESPAN_MS,
+  MAX_HEARTS,
   advanceOne,
   applyElapsedDecay,
   logEvent,
 } from "./state";
 
+/** The visible stats the panel can set outright. Clamped to each stat's own
+ *  range on the way in, so the UI can dispatch raw stepper arithmetic. */
+export type DevStat = "energy" | "happiness" | "health" | "discipline" | "weight";
+
+/** The hidden ledger the panel can nudge — the inputs that steer which adult
+ *  a teen becomes (see determineAdultForm), plus care mistakes. */
+export type DevHidden =
+  | "careMistakes"
+  | "discipline"
+  | "nightCare"
+  | "cakeEaten"
+  | "cubeEaten"
+  | "carrotEaten";
+
 export type DevAction =
   | { type: "timeline"; timeline: Timeline }
+  | { type: "stat"; stat: DevStat; value: number }
+  | { type: "hidden"; stat: DevHidden; delta: number }
   | { type: "poop"; bad: boolean }
   | { type: "illness"; illness: IllnessId }
   | { type: "call"; fake: boolean }
   | { type: "zoomies" }
   | { type: "grow" }
   | { type: "retire-ready" };
+
+const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
+
+/** Each settable stat's legal range. Weight has no hard ceiling in the game,
+ *  but the lever stops at 20 — well past OVERWEIGHT, which is all a dev needs. */
+export const DEV_STAT_RANGE: Record<DevStat, { min: number; max: number }> = {
+  energy: { min: 0, max: MAX_HEARTS },
+  happiness: { min: 0, max: MAX_HEARTS },
+  health: { min: 0, max: 100 },
+  discipline: { min: 0, max: 100 },
+  weight: { min: 1, max: 20 },
+};
+
+const r1 = (v: number): number => Math.round(v * 10) / 10;
 
 /** Apply one dev lever. Returns a new state (never mutates the input); levers
  *  that don't apply right now (growing an adult, sickening the sick…) hand the
@@ -38,6 +69,22 @@ export function applyDevAction(state: PetState, action: DevAction, now: number):
       if (s.timeline === action.timeline) return settled;
       s.timeline = action.timeline;
       logEvent(s, now, "timeline", action.timeline);
+      return s;
+    }
+    case "stat": {
+      const { min, max } = DEV_STAT_RANGE[action.stat];
+      const value = clamp(action.value, min, max);
+      if (s[action.stat] === value) return settled;
+      s[action.stat] = value;
+      logEvent(s, now, "dev", `${action.stat} set to ${r1(value)}`);
+      return s;
+    }
+    case "hidden": {
+      const prev = s.hidden[action.stat];
+      const value = Math.max(0, prev + action.delta);
+      if (value === prev) return settled;
+      s.hidden[action.stat] = value;
+      logEvent(s, now, "dev", `hidden ${action.stat} ${r1(prev)} → ${r1(value)}`);
       return s;
     }
     case "poop": {

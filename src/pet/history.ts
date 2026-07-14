@@ -171,6 +171,10 @@ function describeEvent(e: DiagEvent): { icon: string; text: string } {
         icon: "⏱️",
         text: note === "demo" ? "Switched to the demo timeline" : "Back on the real timeline",
       };
+    case "dev":
+      // A stat or ledger lever from the Dev Tools panel — the note is already
+      // plain language ("health set to 50", "hidden careMistakes 3 → 4").
+      return { icon: "🛠️", text: note ? `Dev lever — ${note}` : "Dev lever pulled" };
   }
 }
 

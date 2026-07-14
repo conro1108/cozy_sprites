@@ -303,7 +303,8 @@ export type DiagKind =
   | "zero-health"
   | "recovered"
   | "death"
-  | "timeline";
+  | "timeline"
+  | "dev";
 
 /** A notable transition, logged as it happens. `note` carries the detail —
  *  the illness name, the food, the cause of death. */

@@ -9,7 +9,8 @@ import { FOODS, FOOD_ORDER, ADULTS, ADULT_ORDER } from "../pet/roster";
 import { ageLabel } from "../pet/format";
 import { formatDebugReport } from "../pet/debug";
 import { MAX_HEARTS, TIMELINE_SPEED, retirementPhase } from "../pet/state";
-import type { DevAction } from "../pet/devtools";
+import { DEV_STAT_RANGE } from "../pet/devtools";
+import type { DevAction, DevHidden, DevStat } from "../pet/devtools";
 import { farmConfirmLine, farewellWalkLine, describeCondition } from "../pet/dialogue";
 import {
   judgeHigherLower,
@@ -2057,6 +2058,99 @@ export function openDevTools(ctx: MenuCtx): void {
   tlWrap.append(tlLabel, tlRow);
   p.body.appendChild(tlWrap);
   paintTimeline();
+
+  // Stat levers stay in the panel (you're dialing a number in, not watching a
+  // moment) — every tap repaints all the readouts from the fresh state.
+  const repaints: (() => void)[] = [];
+  const repaintAll = () => repaints.forEach((f) => f());
+  const r1 = (v: number) => Math.round(v * 10) / 10;
+
+  const leverRow = (
+    parent: HTMLElement,
+    label: string,
+    current: () => number,
+    buttons: { text: string; target: () => number }[],
+    dispatch: (value: number) => void,
+  ) => {
+    const row = document.createElement("div");
+    row.className = "dev-stat";
+    const name = document.createElement("span");
+    name.className = "dev-stat-label";
+    name.textContent = label;
+    const value = document.createElement("span");
+    value.className = "dev-stat-value";
+    repaints.push(() => {
+      value.textContent = String(r1(current()));
+    });
+    row.appendChild(name);
+    for (const { text, target } of buttons) {
+      const b = document.createElement("button");
+      b.className = "btn secondary btn-small dev-step";
+      b.textContent = text;
+      b.setAttribute("aria-label", `${text} ${label}`);
+      b.addEventListener("click", () => {
+        dispatch(target());
+        repaintAll();
+      });
+      // The readout sits between the − and + steppers.
+      if (text === "−") row.append(b, value);
+      else row.appendChild(b);
+    }
+    parent.appendChild(row);
+  };
+
+  section("Set a stat:");
+  const stats = document.createElement("div");
+  stats.className = "dev-stats";
+  const statRow = (stat: DevStat, label: string, step: number) => {
+    const current = () => ctx.pet()[stat];
+    const { min, max } = DEV_STAT_RANGE[stat];
+    leverRow(
+      stats,
+      label,
+      current,
+      [
+        { text: "min", target: () => min },
+        { text: "−", target: () => current() - step },
+        { text: "+", target: () => current() + step },
+        { text: "max", target: () => max },
+      ],
+      (value) => ctx.devAction({ type: "stat", stat, value }),
+    );
+  };
+  statRow("energy", "Energy", 0.5);
+  statRow("happiness", "Happiness", 0.5);
+  statRow("health", "Health", 10);
+  statRow("discipline", "Discipline", 10);
+  statRow("weight", "Weight", 1);
+  p.body.appendChild(stats);
+
+  // The hidden ledger: evolution's actual inputs (see determineAdultForm)
+  // plus the care-mistake counter — nudged, not set, since they're tallies.
+  section("Hidden ledger:");
+  const ledger = document.createElement("div");
+  ledger.className = "dev-stats";
+  const hiddenRow = (stat: DevHidden, label: string) => {
+    const current = () => ctx.pet().hidden[stat];
+    leverRow(
+      ledger,
+      label,
+      current,
+      [
+        { text: "−", target: () => -1 },
+        { text: "+", target: () => 1 },
+      ],
+      (delta) => ctx.devAction({ type: "hidden", stat, delta }),
+    );
+  };
+  hiddenRow("careMistakes", "Care mistakes");
+  hiddenRow("discipline", "Discipline (hidden)");
+  hiddenRow("nightCare", "Night care");
+  hiddenRow("cakeEaten", "Cake eaten");
+  hiddenRow("cubeEaten", "Cubes eaten");
+  hiddenRow("carrotEaten", "Carrots eaten");
+  p.body.appendChild(ledger);
+  repaintAll();
 
   // Forced events close the panel — the payoff (the squat, the call bubble,
   // the evolution flash) plays out on the stage underneath.

@@ -39,6 +39,52 @@ describe("timeline lever", () => {
   });
 });
 
+describe("stat levers", () => {
+  it("sets a stat outright and logs it", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    const next = applyDevAction(pet, { type: "stat", stat: "health", value: 50 }, T0);
+    expect(next.health).toBe(50);
+    expect(next.diag.some((d) => d.kind === "dev" && d.note === "health set to 50")).toBe(true);
+  });
+
+  it("clamps to each stat's own range", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    expect(applyDevAction(pet, { type: "stat", stat: "energy", value: 99 }, T0).energy).toBe(4);
+    expect(applyDevAction(pet, { type: "stat", stat: "health", value: -5 }, T0).health).toBe(0);
+    expect(applyDevAction(pet, { type: "stat", stat: "weight", value: 0 }, T0).weight).toBe(1);
+  });
+
+  it("setting a stat to its current value is a no-op", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    const same = applyDevAction(pet, { type: "stat", stat: "energy", value: pet.energy }, T0);
+    expect(same.diag.some((d) => d.kind === "dev")).toBe(false);
+  });
+});
+
+describe("hidden ledger levers", () => {
+  it("nudges a hidden counter and logs the move", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    const next = applyDevAction(pet, { type: "hidden", stat: "careMistakes", delta: 1 }, T0);
+    expect(next.hidden.careMistakes).toBe(1);
+    expect(
+      next.diag.some((d) => d.kind === "dev" && d.note === "hidden careMistakes 0 → 1"),
+    ).toBe(true);
+  });
+
+  it("floors at zero rather than going negative", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    const same = applyDevAction(pet, { type: "hidden", stat: "nightCare", delta: -1 }, T0);
+    expect(same.hidden.nightCare).toBe(0);
+    expect(same.diag.some((d) => d.kind === "dev")).toBe(false);
+  });
+
+  it("never mutates the input's hidden stats", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    applyDevAction(pet, { type: "hidden", stat: "cakeEaten", delta: 3 }, T0);
+    expect(pet.hidden.cakeEaten).toBe(0);
+  });
+});
+
 describe("forced messes", () => {
   it("drops a mess on the floor and logs it", () => {
     const pet = asStage(createPet("Milo", T0), "child");

@@ -1721,6 +1721,35 @@ body {
   padding: 9px 12px;
 }
 
+.dev-stats {
+  margin: 8px 0 14px;
+}
+.dev-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+}
+.dev-stat-label {
+  flex: 1;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.dev-stat-value {
+  min-width: 40px;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.dev-stat .dev-step {
+  width: auto;
+  margin-top: 0;
+  padding: 7px 10px;
+  min-width: 34px;
+}
+
 /* --- Memorial --------------------------------------------------------------*/
 .memorial h1 {
   font-size: 1.15rem;
