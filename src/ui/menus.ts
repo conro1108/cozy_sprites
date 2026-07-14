@@ -2231,7 +2231,7 @@ export function openDevTools(ctx: MenuCtx): void {
   // debug report dumps it verbatim for pasting somewhere else.
   section("For explaining what happened, in detail:");
   const debugRow = document.createElement("div");
-  debugRow.className = "btn-pair";
+  debugRow.className = "btn-pair dev-tools-footer";
   const historyBtn = document.createElement("button");
   historyBtn.className = "btn secondary btn-small";
   historyBtn.textContent = "History";

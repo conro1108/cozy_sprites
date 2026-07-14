@@ -1750,6 +1750,26 @@ body {
   min-width: 34px;
 }
 
+/* This whole screen is levers, not primary actions — flatten every button to
+   the same no-shadow, no-border treatment as the Timeline/Sky toggles above
+   them (.notify-opt) instead of the raised wood-shadow .btn look used
+   everywhere else. One rule for the stat steppers, the force-event/illness
+   grids, and the History/debug-report row at the bottom. */
+.dev-grid .btn,
+.dev-stat .dev-step,
+.dev-tools-footer.btn-pair .btn {
+  background: var(--cream-2);
+  color: var(--wood-dark);
+  border: none;
+  box-shadow: none;
+}
+.dev-grid .btn:active,
+.dev-stat .dev-step:active,
+.dev-tools-footer.btn-pair .btn:active {
+  transform: none;
+  background: var(--heart-empty);
+}
+
 /* --- Memorial --------------------------------------------------------------*/
 .memorial h1 {
   font-size: 1.15rem;
