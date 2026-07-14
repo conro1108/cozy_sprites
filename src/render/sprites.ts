@@ -96,11 +96,24 @@ const DOG_HAPPY = DOG_NEUTRAL;
 const DOG_SAD = ["e...e", ".nnn.", "..e..", ".e.e.", "..e.."];
 const DOG_SLEEP = ["ee.ee", ".nnn.", "..e..", ".eee."];
 
+// The mole: eyes and a nose, no mouth. A mood-mouth drawn across a snout reads
+// as a lolling tongue, not an expression, so the mole doesn't get one — what
+// little it emotes, it emotes through its eyes (heavy lids when miserable).
+// The nose lives in the face grid rather than the body so it travels with the
+// gaze: the whole snout swings when the mole looks to one side.
+const MOLE_NEUTRAL = [".....", "e...e", ".....", ".ppp.", "..p.."];
+const MOLE_HAPPY = MOLE_NEUTRAL;
+// Hooded, not wide: a 1px lid directly over a 1px eye just makes a tall bar,
+// which reads as alarm. A 2px lid drooping *inward* over the eye below is what
+// reads as miserable.
+const MOLE_SAD = ["ee.ee", "e...e", ".....", ".ppp.", "..p.."];
+const MOLE_SLEEP = [".....", "ee.ee", ".....", ".ppp.", "..p.."];
+
 const FACE_PALETTE: Palette = { e: EYE, z: "#9a9ab0", n: "#2b2030" };
 
 export type Mood = "neutral" | "happy" | "sad" | "sleep";
 
-type FaceKind = "standard" | "small" | "dog";
+type FaceKind = "standard" | "small" | "dog" | "mole";
 
 function faceFor(kind: FaceKind, mood: Mood): string[] {
   if (kind === "standard") {
@@ -127,6 +140,18 @@ function faceFor(kind: FaceKind, mood: Mood): string[] {
         return DOG_NEUTRAL;
     }
   }
+  if (kind === "mole") {
+    switch (mood) {
+      case "happy":
+        return MOLE_HAPPY;
+      case "sad":
+        return MOLE_SAD;
+      case "sleep":
+        return MOLE_SLEEP;
+      default:
+        return MOLE_NEUTRAL;
+    }
+  }
   switch (mood) {
     case "happy":
       return SMALL_HAPPY;
@@ -150,6 +175,9 @@ interface BodyDef {
   face: FaceKind;
   faceDx: number;
   faceDy: number;
+  /** Extra colours available to the face grid (the mole's nose is part of its
+   *  face, not its body, so it can travel with the gaze). */
+  faceExtra?: Palette;
   /** Drawn after the face (glasses, eye bags…). */
   overlay?: { rows: string[]; palette: Palette };
   /** Full-frame patch for the "alt" pose frame (a raised tail). Blitted over
@@ -602,9 +630,9 @@ const MOLE: BodyDef = {
     "..kBBBBBBBBBBk..",
     "..kBBBBBBBBBBk..",
     "..kBBBBBBBBBBk..",
-    "..kBBBppppBBBk..",
-    "..kBBBppppBBBk..",
-    "..kBBBBppBBBBk..",
+    "..kBBBBBBBBBBk..",
+    "..kBBBBBBBBBBk..",
+    "..kBBBBBBBBBBk..",
     "..kBBBBBBBBBBk..",
     ".kBBBBBBBBBBBBk.",
     ".kSBBBBBBBBBBSk.",
@@ -612,30 +640,28 @@ const MOLE: BodyDef = {
     "..kkkkkkkkkkkk..",
     "................",
   ],
-  // Dusty rose, not tongue-pink — saturated pink under the mouth line reads as a
-  // tongue lolling out instead of a snout.
-  extra: { p: "#d7a9a4", c: "#f0dfc6" },
+  extra: { c: "#f0dfc6" },
+  // The snout is drawn by the face grid, not the body — see MOLE_NEUTRAL.
+  faceExtra: { p: "#d7a9a4" },
   fill: "#8a7466",
   shade: "#6b584c",
-  face: "small",
+  face: "mole",
   faceDx: 5,
-  faceDy: 5,
+  faceDy: 4,
   overlay: {
-    // Glasses at rows 4-6: solid glass (w) with a frame (f) — temple arms at
-    // cols 3/11 and a bridge at col 7. The lenses are *filled*, not hollow
-    // rings: glanceL/glanceR slide the eyes one column (to 4/6 and 8/10), so a
-    // ring would leave the vacated centre showing bare fur through the lens.
-    // Filling them means there's glass behind the gaze wherever it travels.
+    // Plain filled lenses, no frame. They must be *filled*, not hollow rings:
+    // glanceL/glanceR slide the eyes one column (to 4/6 and 8/10), and a ring
+    // would leave the vacated centre showing bare fur through the lens.
     rows: [
       "................",
       "................",
       "................",
       "................",
-      "...fwwwfwwwf....",
-      "...fwwwfwwwf....",
-      "...fwwwfwwwf....",
+      "....www.www.....",
+      "....www.www.....",
+      "....www.www.....",
     ],
-    palette: { w: "#dbe7ff", f: "#4f4a5e" },
+    palette: { w: "#dbe7ff" },
   },
 };
 
@@ -878,9 +904,14 @@ export const SPRITE_FRAMES: SpriteFrame[] = [
 /** First row of the face grid that belongs to the mouth (not the gaze) —
  *  everything above it shifts on a glance / closes on a blink. The dog's
  *  snout (nose/philtrum/mouth) is all below the split, so it stays anchored
- *  while the eyes glance and blink. */
+ *  while the eyes glance and blink. The mole is the opposite: it has no mouth
+ *  at all, and its whole face — nose included — rides above the split, so the
+ *  snout swings across with the gaze instead of sitting there while the eyes
+ *  slide out from under it. */
 function eyeSplit(kind: FaceKind): number {
-  return kind === "standard" ? 8 : 1;
+  if (kind === "standard") return 8;
+  if (kind === "mole") return MOLE_NEUTRAL.length;
+  return 1;
 }
 
 /**
@@ -919,8 +950,10 @@ export function renderPixels(
     if (accent) blit(buf, accent.rows, accent.palette);
   }
   // Face goes last so mood eyes/mouths always read over accessories.
-  const facePalette =
-    body.face === "small" ? { ...FACE_PALETTE, e: EYE } : FACE_PALETTE;
+  const facePalette = {
+    ...(body.face === "small" ? { ...FACE_PALETTE, e: EYE } : FACE_PALETTE),
+    ...body.faceExtra,
+  };
   let rows = faceFor(body.face, mood);
   const split = eyeSplit(body.face);
   if (frame === "blink") {

@@ -809,22 +809,41 @@ const ADULT: Record<AdultForm, Bank> = {
   },
   // The Software Mole — heads-down, half-blind, deep in a tunnel of its own
   // making. Moles navigate by touch and smell, which is roughly how it debugs.
+  // But the job is not the whole animal: it plays chess, it reads Vonnegut, and
+  // on a genuinely nice day it will close the laptop and go outside.
   mole: {
     idle: [
+      // The work.
       "I've been digging through the logs. It's logs all the way down.",
       "It works in my tunnel.",
       "That meeting could have been a smell.",
       "I can't see the bug. But I can feel where it is.",
       "Estimate: two days. I have lived here for six.",
-      "I refactored the burrow. Same rooms. Fewer regrets.",
       "Someone left a TODO down here in 2019. It's load-bearing now.",
       "I'm not blind, I'm heads-down.",
-      "I read the docs. I wrote the docs. I trust neither of us.",
-      "*surfaces, blinks at the sun, reconsiders, submerges*",
       "The tunnel is fine. The tunnel is fine. The tunnel is on fire.",
-      "I have been inside the same function since breakfast and I regret nothing.",
-      "Every problem is just a smaller problem you haven't dug into yet.",
       "I don't have a bug. I have an undocumented burrow.",
+      // Chess.
+      "I've been sitting on the same position for an hour. It's a good position.",
+      "Do you play? I'll go easy. I won't, but I'll say that.",
+      "I hung a rook on move nine and I have not made peace with it.",
+      "The knight is the only honest piece. It refuses to go in a straight line.",
+      "I lost on time. I had the win. I had it.",
+      "*studying a board that is not there*",
+      "Every endgame is just a smaller game you haven't dug into yet.",
+      // The outdoors, weather permitting.
+      "It's clear out. I should be outside. I'm going outside.",
+      "I walked to the fence and back. Enormous day. Big success.",
+      "The sun is a lot. But it's a *nice* lot, today.",
+      "There's a good smell coming off the grass. I recommend it.",
+      "I have decided the weather is worth surfacing for.",
+      // Vonnegut.
+      "\"Everything was beautiful and nothing hurt.\" I think about that one.",
+      "So it goes.",
+      "I've read Cat's Cradle four times. It gets worse. I love it.",
+      "Vonnegut said we're here to fart around. I'm doing my best.",
+      "\"God damn it, you've got to be kind.\" That's the whole thing, really.",
+      "Reading on the grass. Don't tell the standup.",
     ],
     tap: [
       "I was in flow. That's gone. That's fine. That's fine.",
@@ -842,13 +861,15 @@ const ADULT: Record<AdultForm, Bank> = {
     ],
     win: [
       "All green. I'm suspicious.",
-      "Passed first try. Something is deeply wrong.",
       "It compiles. Nobody touch anything.",
+      "I saw it four moves ago. I'm being modest about it.",
+      "Good game. Genuinely. I mean that and I'm also gloating.",
     ],
     lose: [
       "It works in my tunnel.",
       "That's a known issue. I've known it since just now.",
-      "I'll write a test for that. I will not write a test for that.",
+      "Rematch. Right now. I have thought of something.",
+      "So it goes.",
     ],
     feed_favorite: [
       "A cube. No edge cases. Beautiful.",
@@ -883,17 +904,20 @@ const ADULT: Record<AdultForm, Bank> = {
     sleep: [
       "Going offline. On-call is someone else's problem tonight.",
       "*sets status to away*",
-      "Deploying myself to bed.",
+      "One more chapter. That's a lie, but I mean it kindly.",
+      "*digs in*",
     ],
     wake: [
       "I dreamt the fix. I did not write it down. It is gone forever.",
       "Standup in five and I have nothing.",
       "*resurfaces, unrested, ready to dig*",
+      "I dreamt the whole endgame. I was winning. Then a horse arrived.",
     ],
     farm: [
       "Retirement. Finally, time for a side project.",
       "I'll maintain a small open-source burrow. Nobody will contribute.",
-      "Golden handshake. Golden shovel.",
+      "I'm taking the chess set and the Vonnegut. That's all I need.",
+      "A field. Weather. Nothing to ship. I could get used to this.",
     ],
   },
 };
@@ -998,9 +1022,10 @@ const TEEN_FLICKER: Record<AdultForm, string[]> = {
   ],
   mole: [
     "I dug a hole today. Then I sat in it. Then I improved it.",
-    "The sun is too bright and everything is too much. Is there a smaller room.",
     "I keep wanting to take things apart to see how they work. Sorry about the fence.",
     "I don't want to go outside. I want to go *further in*.",
+    "I read a book that ended sadly and I've decided that's fine, actually.",
+    "I've been thinking four moves ahead. About everything. It's exhausting.",
   ],
 };
 
