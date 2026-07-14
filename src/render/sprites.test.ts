@@ -156,13 +156,33 @@ describe("glance frames", () => {
   });
 });
 
-describe("alt frame (dog tail up)", () => {
+describe("alt frame (the dog's tail, flipped)", () => {
   const base = renderPixels("dog", "neutral");
   const alt = renderPixels("dog", "neutral", null, "alt");
-  it("erases the resting tail and raises it", () => {
-    expect(rgb(px(base, 13, 11))).toEqual(TAIL); // resting tail present…
-    expect(px(alt, 13, 11)[3]).toBe(0); // …vacated in the alt pose
-    expect(rgb(px(alt, 14, 8))).toEqual(TAIL); // raised tail up over the rump
+  // The wag is the same nub mirrored top-to-bottom about row 11, not a second,
+  // bigger tail: the fill sits on the mirror line and holds still while the
+  // outline swaps corners. Guards the flick against creeping back into a fin.
+  it("keeps the tail where it is and flips it", () => {
+    expect(rgb(px(base, 13, 11))).toEqual(TAIL); // the fill is the mirror line…
+    expect(rgb(px(alt, 13, 11))).toEqual(TAIL); // …so it doesn't move
+    // Base droops: outline at top-right and bottom-left. Alt cocks up: the two
+    // corners trade places.
+    expect(px(base, 14, 10)[3]).toBe(255);
+    expect(px(alt, 14, 10)[3]).toBe(0);
+    expect(px(base, 12, 12)[3]).toBe(255);
+    expect(px(alt, 12, 12)[3]).toBe(0);
+    expect(px(base, 12, 10)[3]).toBe(0);
+    expect(px(alt, 12, 10)[3]).toBe(255);
+    expect(px(base, 14, 12)[3]).toBe(0);
+    expect(px(alt, 14, 12)[3]).toBe(255);
+  });
+
+  it("never reaches above the rump — no fin on the dog's back", () => {
+    for (let y = 0; y < 10; y++) {
+      for (let x = 12; x < CELL; x++) {
+        expect(px(alt, x, y), `alt paints (${x},${y}), above the tail`).toEqual(px(base, x, y));
+      }
+    }
   });
   it("leaves the body untouched", () => {
     for (let y = 0; y < CELL; y++) {

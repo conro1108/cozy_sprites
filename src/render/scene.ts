@@ -239,14 +239,6 @@ function quirk(t: number, period: number, dur: number, offset = 0): number {
   return c < dur ? c / dur : -1;
 }
 
-/** Is the dog's tail up this frame? A moving dog's tail *beats* — pinning it to
- *  the raised pose for the whole walk is what read as a stiff fin. The two
- *  poses are all there is (base nub / alt raised), so the wag is the classic
- *  two-frame flip: `rate` is how hard it's going. */
-function dogTailUp(t: number, rate: number): boolean {
-  return Math.sin(t * rate) > 0;
-}
-
 // Standing still should read as a quiet breathe, not constant rocking — every
 // per-form idle motion gets damped by this before it hits the canvas.
 const IDLE_WIGGLE_SCALE = 0.5;
@@ -289,7 +281,7 @@ export class Scene {
   private creatureCacheKey = "";
   private mirrorCache = new WeakMap<HTMLCanvasElement, HTMLCanvasElement>();
 
-  private altFrame = false; // per-frame: use the alt pose (dog's tail up)
+  private altFrame = false; // per-frame: use the alt pose (dog's tail, flipped)
   private forceGlance: -1 | 0 | 1 = 0; // per-frame: a quirk overrides the gaze
   private extraAlpha = 1; // per-frame: ghost flicker translucency
   private patSquintUntil = 0; // eyes held shut until this time (a savoured pat)
@@ -2121,7 +2113,6 @@ export class Scene {
       m.sy = 1 + phase * 0.1;
       m.sx = 1 - phase * 0.06;
       m.rot = this.facing * 0.05; // leans into where it's going
-      if (key === "dog") this.altFrame = dogTailUp(t, 16); // the tail beats as it trots
       return m;
     }
     if (this.wanderPhase === "zoom") {
@@ -2131,7 +2122,6 @@ export class Scene {
       m.sy = 1 + phase * 0.16;
       m.sx = 1 - phase * 0.1;
       m.rot = this.facing * 0.09;
-      if (key === "dog") this.altFrame = dogTailUp(t, 26); // beating twice as hard
       return m;
     }
     if (this.wanderPhase === "interact") {
@@ -2474,7 +2464,6 @@ export class Scene {
         squashY *= 1 + ph * 0.08;
         squashX *= 1 - ph * 0.05;
         rot += this.facing * 0.05;
-        if (v.key === "dog") this.altFrame = dogTailUp(t, 16); // tail beating on the run
       }
       if (v.asleep) {
         bob = 2;

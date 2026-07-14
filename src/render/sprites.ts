@@ -186,8 +186,8 @@ interface BodyDef {
   faceExtra?: Palette;
   /** Drawn after the face (glasses, eye bags…). */
   overlay?: { rows: string[]; palette: Palette };
-  /** Full-frame patch for the "alt" pose frame (a raised tail). Blitted over
-   *  the body; "ERASE" palette entries remove pixels the pose vacates. */
+  /** Full-frame patch for the "alt" pose frame (the dog's tail, flicked). Blitted
+   *  over the body; "ERASE" palette entries remove pixels the pose vacates. */
   alt?: { rows: string[]; palette: Palette };
 }
 
@@ -297,10 +297,11 @@ const DOG: BodyDef = {
   face: "dog",
   faceDx: 5,
   faceDy: 6,
-  // Tail raised — swapped in while trotting or mid-wag. Erases the resting
-  // nub (x) and sweeps the tail up from the SAME place on the rump, curling to
-  // a tip about ear height. It has to leave the body where the resting tail
-  // does: hang it off the mid-back instead and the trotting dog grows a fin.
+  // The wag frame. Not a different tail — the SAME nub, mirrored top to bottom
+  // about its middle row, so it cocks up instead of hanging down. The fill (D)
+  // sits on the mirror line and never moves; only the outline swaps corners,
+  // which is the whole flick. Anything bigger (a tail that extends, or streams
+  // up while trotting) reads as the dog growing a fin.
   alt: {
     rows: [
       "................",
@@ -309,15 +310,15 @@ const DOG: BodyDef = {
       "................",
       "................",
       "................",
-      "..............k.",
-      ".............kDk",
-      ".............kDk",
-      "............kDk.",
-      "............Dkx.",
-      ".............xx.",
-      "............xx..",
+      "................",
+      "................",
+      "................",
+      "................",
+      "............kkx.",
+      "................",
+      "............x.k.",
     ],
-    palette: { k: OUTLINE, D: "#4a4a56", x: "ERASE" },
+    palette: { k: OUTLINE, x: "ERASE" },
   },
 };
 
@@ -897,7 +898,7 @@ function blit(
 /** The animation micro-frames every creature has. `base` is the resting pose;
  *  `blink` closes the eyes; `glanceL`/`glanceR` slide the gaze one pixel;
  *  `peek` cracks one eye open (only meaningful over the sleep mood — a poked
- *  sleeper); `alt` is a per-body pose patch (the dog's tail flicked up) and
+ *  sleeper); `alt` is a per-body pose patch (the dog's tail, flipped mid-wag) and
  *  falls back to `base` for bodies without one. */
 export type SpriteFrame = "base" | "blink" | "glanceL" | "glanceR" | "peek" | "alt";
 export const SPRITE_FRAMES: SpriteFrame[] = [
