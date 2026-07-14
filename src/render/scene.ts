@@ -2176,8 +2176,6 @@ export class Scene {
       if (key === "dog" && quirk(t, 13.5, 1.6, 1.3) >= 0) {
         this.altFrame = Math.sin(t * 16) > 0; // a lazy seated wag
       }
-      // A perched star still shimmers — same breath as its idle.
-      if (key === "cosmos") this.extraAlpha = 0.82 + 0.18 * Math.sin(t * 2.2);
       return m;
     }
     if (this.wanderPhase === "situp") {
@@ -2646,50 +2644,6 @@ export class Scene {
     if (burrow > 0) {
       ctx.restore();
       this.drawMolehill(cx, soilY, burrow, dark, night);
-    }
-    if (v.key === "cosmos") {
-      // Anchor the constellation to the body's position (bob included, via
-      // feetY) but not its lean — the stars are sky, not costume.
-      this.drawCosmosSparkles(t, cx, feetY - cw * 0.45, cw / CELL);
-    }
-  }
-
-  /** The Little Cosmos' companion stars: a slow constellation hanging around
-   *  it. Each of three stars fades in somewhere on the ring, burns for a few
-   *  seconds, fades out, and relights somewhere else. Everything derives from
-   *  t, so there's no state to desync; periods are staggered so no two stars
-   *  ever swap in unison. `scale` is buffer pixels per sprite cell. */
-  private drawCosmosSparkles(t: number, cx: number, cy: number, scale: number): void {
-    // Perch spots in sprite cells from the body's centre, all clear of the
-    // diamond silhouette so a star never lands on the body.
-    const SPOTS: [number, number][] = [
-      [-6.5, -3.5], [6, -4.5], [7.5, 1.5], [-7, 2.5],
-      [1.5, -6], [-2.5, 5.5], [5.5, 4.5], [-5.5, -5],
-    ];
-    const hash = (e: number, i: number) =>
-      Math.abs(Math.sin(e * 12.9898 + i * 78.233) * 43758.5453) % 1;
-    const pick = (e: number, i: number): number => {
-      const idx = Math.floor(hash(e, i) * SPOTS.length);
-      // Never relight the same spot twice in a row — the change is the point.
-      return idx === Math.floor(hash(e - 1, i) * SPOTS.length)
-        ? (idx + 1) % SPOTS.length
-        : idx;
-    };
-    const periods = [3.4, 4.7, 5.9];
-    for (let i = 0; i < periods.length; i++) {
-      const ph = t / periods[i] + i * 0.37;
-      const e = Math.floor(ph);
-      const a = Math.sin((ph - e) * Math.PI); // fade in, burn, fade out
-      if (a <= 0.05) continue;
-      const [ox, oy] = SPOTS[pick(e, i)];
-      const s = Math.max(1, Math.round(scale * (i === 2 ? 0.7 : 1)));
-      this.ctx.fillStyle = `rgba(255,255,255,${(0.85 * a).toFixed(3)})`;
-      this.ctx.fillRect(
-        Math.round(cx + ox * scale - s / 2),
-        Math.round(cy + oy * scale - s / 2),
-        s,
-        s,
-      );
     }
   }
 
