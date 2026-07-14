@@ -50,17 +50,6 @@ describe("sfx table", () => {
     }
   });
 
-  it("sweeps every noise band, with a resonance that can ring", () => {
-    // A noise tone's freq/to are the band's centre, not a pitch: a band that
-    // doesn't move is a hiss, and Q<=0 is a filter that can't be built.
-    for (const name of NAMES) {
-      for (const tone of SFX[name].filter((t) => t.noise)) {
-        expect(tone.to, `${name}: a noise band that doesn't sweep is a hiss`).toBeDefined();
-        expect(tone.q ?? 1).toBeGreaterThan(0);
-      }
-    }
-  });
-
   it("carries the sounds main.ts wires by exact name", () => {
     // main.ts calls playSfx("pat"); a rename here would silently break it.
     expect(SFX).toHaveProperty("pat");

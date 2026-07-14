@@ -31,8 +31,8 @@ export type SfxName =
   | "cubewrong" // the cube's hum: a broken chain
   | "bark"; // the dog thing, excited
 
-/** One beep. `at` is seconds from the start of the effect; `to` glides the pitch
- *  across `dur` (chirps up, sad slides down). */
+/** One oscillator beep. `at` is seconds from the start of the effect; `to`
+ *  glides the pitch across `dur` (chirps up, sad slides down). */
 export interface Tone {
   freq: number;
   dur: number;
@@ -40,14 +40,6 @@ export interface Tone {
   to?: number;
   type?: OscillatorType;
   gain?: number;
-  /** Play band-passed noise instead of an oscillator — freq/to then sweep the
-   *  centre of the band rather than a pitch. This is the only way to get a
-   *  *rasp*: an oscillator can only ever beep, and a dog's bark is mostly the
-   *  broadband snap of the mouth opening. Used by the bark; nothing else needs
-   *  it, and nothing else should — noise is a texture, not a tune. */
-  noise?: boolean;
-  /** How resonant that band is. Low Q is a breathy hiss, high Q a narrow bark. */
-  q?: number;
 }
 
 /** Everything is deliberately short — these fire constantly during play, and a
@@ -130,20 +122,10 @@ export const SFX: Record<SfxName, Tone[]> = {
   ],
   // The cube's hum: a sour descending buzz — you broke the chain.
   cubewrong: [{ freq: 300, to: 150, dur: 0.3, at: 0, type: "sawtooth", gain: 0.5 }],
-  // "Arf! arf!" — the one sound in here that isn't a beep, because a bark that
-  // beeps is just a buzz (which is exactly what two low sawtooths gave us).
-  // Each arf is built the way a real one is: the noisy SNAP of the mouth
-  // opening, an "ar" whose pitch collapses almost as fast as it starts, and the
-  // breathy "f" of it closing again. The pitch fall is what sells it — hold the
-  // note steady and you're back to a buzz. Second arf lands lower and softer,
-  // the way the second one always does.
+  // A gruff two-note "woof woof" — low sawtooth so it bites instead of beeps.
   bark: [
-    { noise: true, freq: 1600, to: 700, q: 0.9, dur: 0.03, at: 0, gain: 0.75 },
-    { freq: 520, to: 170, dur: 0.085, at: 0.005, type: "sawtooth", gain: 0.6 },
-    { noise: true, freq: 2600, to: 1500, q: 1.4, dur: 0.045, at: 0.07, gain: 0.3 },
-    { noise: true, freq: 1500, to: 650, q: 0.9, dur: 0.03, at: 0.17, gain: 0.65 },
-    { freq: 470, to: 150, dur: 0.085, at: 0.175, type: "sawtooth", gain: 0.5 },
-    { noise: true, freq: 2400, to: 1400, q: 1.4, dur: 0.045, at: 0.24, gain: 0.26 },
+    { freq: 220, to: 150, dur: 0.07, at: 0, type: "sawtooth", gain: 0.55 },
+    { freq: 210, to: 140, dur: 0.07, at: 0.11, type: "sawtooth", gain: 0.5 },
   ],
 };
 
@@ -213,7 +195,6 @@ function discard(): void {
   }
   ctx = null;
   master = null;
-  noise = null; // belongs to the context that made it
 }
 
 /** The context, after first discarding one that no gesture can save.
@@ -349,53 +330,16 @@ export function playCubeClear(streak: number): void {
   );
 }
 
-/** A half-second of white noise, built once and looped by every noise tone.
- *  Dropped with the context (discard) — an AudioBuffer belongs to the sample
- *  rate it was made at, and a rebuilt context may not share it. */
-let noise: AudioBuffer | null = null;
-function noiseBuffer(c: AudioContext): AudioBuffer {
-  if (noise && noise.sampleRate === c.sampleRate) return noise;
-  const len = Math.floor(c.sampleRate * 0.5);
-  const buf = c.createBuffer(1, len, c.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
-  noise = buf;
-  return buf;
-}
-
 function scheduleTone(c: AudioContext, out: GainNode, tone: Tone, start: number): void {
   const t0 = start + tone.at;
   const t1 = t0 + tone.dur;
-
-  // The source, and the node the envelope hangs off — for noise that's the
-  // band-pass, since sweeping the band is the whole point (freq/to are the
-  // band's centre, not a pitch).
-  let source: AudioScheduledSourceNode;
-  let tail: AudioNode;
-  if (tone.noise) {
-    const src = c.createBufferSource();
-    src.buffer = noiseBuffer(c);
-    src.loop = true;
-    const band = c.createBiquadFilter();
-    band.type = "bandpass";
-    band.Q.value = tone.q ?? 1;
-    band.frequency.setValueAtTime(tone.freq, t0);
-    if (tone.to !== undefined) band.frequency.exponentialRampToValueAtTime(tone.to, t1);
-    src.connect(band);
-    source = src;
-    tail = band;
-  } else {
-    const osc = c.createOscillator();
-    osc.type = tone.type ?? "square";
-    osc.frequency.setValueAtTime(tone.freq, t0);
-    if (tone.to !== undefined) {
-      // exponentialRamp refuses to touch zero, and these are all audible anyway.
-      osc.frequency.exponentialRampToValueAtTime(tone.to, t1);
-    }
-    source = osc;
-    tail = osc;
+  const osc = c.createOscillator();
+  osc.type = tone.type ?? "square";
+  osc.frequency.setValueAtTime(tone.freq, t0);
+  if (tone.to !== undefined) {
+    // exponentialRamp refuses to touch zero, and these are all audible anyway.
+    osc.frequency.exponentialRampToValueAtTime(tone.to, t1);
   }
-
   const env = c.createGain();
   const peak = tone.gain ?? 0.5;
   // Tiny attack keeps square waves from clicking; exponential release so the
@@ -403,14 +347,13 @@ function scheduleTone(c: AudioContext, out: GainNode, tone: Tone, start: number)
   env.gain.setValueAtTime(0.0001, t0);
   env.gain.exponentialRampToValueAtTime(peak, t0 + 0.008);
   env.gain.exponentialRampToValueAtTime(0.0001, t1);
-  tail.connect(env);
+  osc.connect(env);
   env.connect(out);
-  source.start(t0);
-  source.stop(t1 + 0.02);
+  osc.start(t0);
+  osc.stop(t1 + 0.02);
   // Let the graph collect itself; nodes are one-shot.
-  source.onended = () => {
-    source.disconnect();
-    tail.disconnect();
+  osc.onended = () => {
+    osc.disconnect();
     env.disconnect();
   };
 }
