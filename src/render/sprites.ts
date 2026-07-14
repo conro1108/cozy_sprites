@@ -621,18 +621,21 @@ const MOLE: BodyDef = {
   faceDx: 5,
   faceDy: 5,
   overlay: {
-    // Glasses ride at rows 4-6, framing the eyes at (5,5) and (9,5) — the lens
-    // centres are left hollow so the mood eyes read through them.
+    // Glasses at rows 4-6: solid glass (w) with a frame (f) — temple arms at
+    // cols 3/11 and a bridge at col 7. The lenses are *filled*, not hollow
+    // rings: glanceL/glanceR slide the eyes one column (to 4/6 and 8/10), so a
+    // ring would leave the vacated centre showing bare fur through the lens.
+    // Filling them means there's glass behind the gaze wherever it travels.
     rows: [
       "................",
       "................",
       "................",
       "................",
-      "....www.www.....",
-      "....w.w.w.w.....",
-      "....www.www.....",
+      "...fwwwfwwwf....",
+      "...fwwwfwwwf....",
+      "...fwwwfwwwf....",
     ],
-    palette: { w: "#dbe7ff" },
+    palette: { w: "#dbe7ff", f: "#4f4a5e" },
   },
 };
 

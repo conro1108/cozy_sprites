@@ -276,6 +276,9 @@ export class Scene {
 
   // When the pet last fell asleep — eases the settle-down and times the Zzz.
   private sleepStart = -Infinity;
+  // …and when it last woke. Only the mole cares: it has to climb back out of
+  // its burrow, and without this it would pop out of the ground instantly.
+  private wakeStart = -Infinity;
 
   // Idle singing: music notes float up like the Zzz, and a callback fires the
   // sound once as the window opens. nextSongAt is a scene-clock deadline,
@@ -311,6 +314,7 @@ export class Scene {
 
   update(view: SceneView): void {
     if (view.asleep && !this.view.asleep) this.sleepStart = performance.now();
+    if (!view.asleep && this.view.asleep) this.wakeStart = performance.now();
     this.view = view;
     const cacheKey = `${view.key}:${view.mood}:${view.variant ?? ""}`;
     if (cacheKey !== this.creatureCacheKey) {
@@ -2380,6 +2384,16 @@ export class Scene {
     this.curDy = dy;
     const groundY = this.floorY + dy;
 
+    // A mole doesn't sleep on the grass — it digs in. Once the loaf-settle has
+    // landed it sinks straight down through the floor, clipped at the soil line
+    // so it vanishes into the earth rather than drawing over the meadow, and the
+    // displaced dirt piles into a molehill on top. The Zzz are anchored to the
+    // ground rather than the sprite, so they go on drifting up out of the mound
+    // and the burrow still reads as sleep and not as a pet that despawned.
+    const burrow = v.key === "mole" ? this.burrowAmount() : 0;
+    const soilY = Math.round(groundY + 12); // where the feet meet the earth
+    bob += burrow * (cw + 2);
+
     // --- Face life: quirk-driven glances only (no idle blink/glance jitter) -
     let sprite = this.creatureCanvas;
     if (v.asleep) {
@@ -2405,7 +2419,8 @@ export class Scene {
     const shW = cw * squashX * (isGhost ? 0.5 : 0.7);
     // Moonlit ground gives a softer, cooler-toned shadow than daylight's hard black.
     const shRgb = dark ? "12,10,36" : "0,0,0";
-    const shMul = dark ? 0.65 : 1;
+    // Nothing casts a shadow on ground it's underneath — fade it out as it digs.
+    const shMul = (dark ? 0.65 : 1) * (1 - burrow);
     const seated =
       ambient &&
       (this.wanderPhase === "sitdown" ||
@@ -2452,6 +2467,14 @@ export class Scene {
     // Anchor at the feet so vertical squash reads as sitting into the ground
     // instead of floating up off it.
     const feetY = Math.round(baseY + cw + bob);
+    // Clip to the soil line while it's underground: the sprite is *below* the
+    // meadow now, and without this it would draw straight over the grass.
+    if (burrow > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, 0, SCENE_W, soilY);
+      ctx.clip();
+    }
     this.drawSpriteQuantized(
       sprite,
       cx,
@@ -2477,6 +2500,79 @@ export class Scene {
         flip,
         this.extraAlpha * flash,
       );
+    }
+    // Drop the soil-line clip, then pile the earth on top of it.
+    if (burrow > 0) {
+      ctx.restore();
+      this.drawMolehill(cx, soilY, burrow, dark, v.night);
+    }
+  }
+
+  /**
+   * How far the mole is into the earth: 0 = standing on the grass, 1 = fully
+   * under, with only its molehill left on the surface. It digs in a beat after
+   * the loaf-settle lands (so you see it flatten, *then* dig), and climbs back
+   * out a little quicker than it went down.
+   */
+  private burrowAmount(): number {
+    const ease = (q: number): number => {
+      const c = Math.max(0, Math.min(1, q));
+      return c * c * (3 - 2 * c);
+    };
+    const since = (performance.now() - (this.view.asleep ? this.sleepStart : this.wakeStart)) / 1000;
+    // wakeStart is -Infinity until the first wake, which lands this at 0 — an
+    // awake mole that has never slept is simply on the surface, as it should be.
+    return this.view.asleep ? ease((since - 0.7) / 1.2) : ease(1 - since / 0.8);
+  }
+
+  /**
+   * The molehill a sleeping mole leaves on the surface: the earth it displaced,
+   * piled up over the tunnel mouth. Grows with the dig, and the mouth of the
+   * tunnel opens at the crest once it's most of the way down. Integer rows only
+   * — this has to sit on the same pixel grid as the meadow it's made of.
+   */
+  private drawMolehill(cx: number, soilY: number, p: number, dark: boolean, night: boolean): void {
+    if (p <= 0) return;
+    const ctx = this.ctx;
+    // Freshly turned earth, deliberately *not* the trodden dirt patch's colour —
+    // the mound sits directly on that patch, and matching it makes the molehill
+    // disappear into the ground, which reads as the pet despawning rather than
+    // digging in. Lighter than the patch so it catches the light as a raised heap.
+    const soil = dark ? "#4c4234" : night ? "#6f5a42" : "#a67f47";
+    const shade = dark ? "#332c22" : night ? "#54432f" : "#82602f";
+    const crest = dark ? "#5d5142" : night ? "#846d51" : "#c49a5c";
+    const mouth = dark ? "#15110c" : night ? "#241c12" : "#3b2b18";
+    const h = Math.max(1, Math.round(p * 7));
+    const baseHw = Math.round(4 + p * 6);
+    // Domed, not a trapezoid: a linear taper builds a tent with straight sides
+    // and a flat top, which reads as a pitched roof rather than a heap of loose
+    // earth. Squaring the term rounds the shoulders and narrows the crest.
+    const halfWidth = (i: number): number =>
+      Math.max(0, Math.round(baseHw * (1 - (i / h) ** 2)));
+    for (let i = 0; i < h; i++) {
+      const y = soilY - 1 - i;
+      const hw = halfWidth(i);
+      // Base sits in its own shadow; the crest catches the light.
+      ctx.fillStyle = i < 2 ? shade : i === h - 1 ? crest : soil;
+      ctx.fillRect(cx - hw, y, hw * 2 + 1, 1);
+    }
+    // Crumbs of turned earth flung out around the base.
+    ctx.fillStyle = shade;
+    for (let k = 0; k < 4; k++) {
+      const sx = cx + (k % 2 === 0 ? -1 : 1) * (baseHw + 1 + ((k * 3) % 3));
+      if ((sx ^ soilY) & 1) ctx.fillRect(sx, soilY - 1, 1, 1);
+    }
+    // The tunnel mouth: sunk *into* the crest, never proud of it. Drawn only on
+    // rows whose soil is wide enough to leave a lip of earth on either side, so
+    // it reads as a hole in the mound instead of a box balanced on top of one.
+    const open = Math.max(0, (p - 0.6) / 0.4);
+    if (open > 0) {
+      const hw = Math.round(open * 1.5);
+      ctx.fillStyle = mouth;
+      for (let i = h - 1; i >= 0 && i >= h - 2; i--) {
+        if (halfWidth(i) <= hw) continue; // no lip left — would breach the side
+        ctx.fillRect(cx - hw, soilY - 1 - i, hw * 2 + 1, 1);
+      }
     }
   }
 
