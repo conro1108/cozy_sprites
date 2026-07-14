@@ -1770,6 +1770,57 @@ body {
   background: var(--heart-empty);
 }
 
+/* The body you already are, in the Become grid — same darker-tan fill and
+   weight bump that marks a selection everywhere else (.notify-opt.active). */
+.dev-grid .btn.active {
+  background: var(--heart-empty);
+  font-weight: 800;
+}
+
+/* Each lever family folds behind a flat cream bar, so the panel opens as a
+   short table of contents instead of one endless scroll. Same no-shadow
+   treatment as the levers; the caret is the only ornament, and an open
+   drawer takes the selection fill like any other active toggle. */
+.dev-drawer {
+  margin: 10px 0;
+}
+.dev-drawer summary {
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--cream-2);
+  color: var(--wood-dark);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.dev-drawer summary::-webkit-details-marker {
+  display: none;
+}
+.dev-drawer summary::after {
+  content: "▸";
+}
+.dev-drawer[open] summary {
+  background: var(--heart-empty);
+  font-weight: 800;
+}
+.dev-drawer[open] summary::after {
+  content: "▾";
+}
+.dev-drawer-body {
+  padding: 0 2px;
+}
+/* The Become stage chips sit bare in the drawer (no .notify-settings label
+   block above them) — give the row its own breathing room. */
+.dev-drawer-body > .notify-row {
+  margin: 10px 0 2px;
+}
+
 /* --- Memorial --------------------------------------------------------------*/
 .memorial h1 {
   font-size: 1.15rem;

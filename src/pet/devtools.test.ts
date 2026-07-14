@@ -265,6 +265,73 @@ describe("forced growth", () => {
   });
 });
 
+describe("become lever", () => {
+  it("jumps straight to a stage and restarts the stage clock", () => {
+    const pet = asStage(createPet("Milo", T0), "baby");
+    const next = applyDevAction(pet, { type: "become", stage: "teen" }, T0);
+    expect(next.stage).toBe("teen");
+    expect(next.stageElapsedMs).toBe(0);
+    expect(next.stageStartedAt).toBe(T0);
+    expect(next.diag.some((d) => d.kind === "stage" && d.note === "teen (dev)")).toBe(true);
+  });
+
+  it("becomes a chosen adult form directly", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    const next = applyDevAction(pet, { type: "become", stage: "adult", form: "ghost" }, T0);
+    expect(next.stage).toBe("adult");
+    expect(next.form).toBe("ghost");
+    expect(next.diag.some((d) => d.kind === "stage" && d.note === "adult (ghost) (dev)")).toBe(
+      true,
+    );
+  });
+
+  it("swaps one adult form for another and restarts the retirement clock", () => {
+    const pet = asStage(createPet("Milo", T0), "adult");
+    const dog = applyDevAction(pet, { type: "become", stage: "adult", form: "dog" }, T0);
+    const ready = applyDevAction(dog, { type: "retire-ready" }, T0);
+    const cosmos = applyDevAction(ready, { type: "become", stage: "adult", form: "cosmos" }, T0);
+    expect(cosmos.form).toBe("cosmos");
+    expect(cosmos.adultLifeMs).toBe(0);
+  });
+
+  it("growing down from adult clears the form", () => {
+    const pet = { ...asStage(createPet("Milo", T0), "adult"), form: "blob" as const };
+    const next = applyDevAction(pet, { type: "become", stage: "child" }, T0);
+    expect(next.stage).toBe("child");
+    expect(next.form).toBeNull();
+  });
+
+  it("keeps stats and the hidden ledger — a costume change, not a rebirth", () => {
+    const pet = {
+      ...asStage(createPet("Milo", T0), "teen"),
+      health: 42,
+      hidden: { ...createPet("Milo", T0).hidden, cakeEaten: 5 },
+    };
+    const next = applyDevAction(pet, { type: "become", stage: "adult", form: "blob" }, T0);
+    expect(next.health).toBe(42);
+    expect(next.hidden.cakeEaten).toBe(5);
+  });
+
+  it("becoming an egg wakes the pet and hangs up any call", () => {
+    const teen = asStage(createPet("Milo", T0), "teen");
+    const called = applyDevAction(teen, { type: "call", fake: false }, T0);
+    const egg = applyDevAction({ ...called, asleep: true }, { type: "become", stage: "egg" }, T0);
+    expect(egg.stage).toBe("egg");
+    expect(egg.asleep).toBe(false);
+    expect(egg.wantsAttention).toBe(false);
+    expect(egg.attentionWant).toBeNull();
+  });
+
+  it("becoming the body it already has is a no-op", () => {
+    const pet = { ...asStage(createPet("Milo", T0), "adult"), form: "dog" as const };
+    const next = applyDevAction(pet, { type: "become", stage: "adult", form: "dog" }, T0);
+    expect(next.diag.some((d) => d.kind === "stage")).toBe(false);
+    const child = asStage(createPet("Milo", T0), "child");
+    const same = applyDevAction(child, { type: "become", stage: "child" }, T0);
+    expect(same.diag.some((d) => d.kind === "stage")).toBe(false);
+  });
+});
+
 describe("forced retirement readiness", () => {
   it("fills the adult's retirement clock", () => {
     const pet = asStage(createPet("Milo", T0), "adult");

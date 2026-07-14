@@ -4,7 +4,7 @@
 // acts, and all result text comes out of the sprite's mouth.
 
 import { ILLNESSES } from "../pet/types";
-import type { FoodId, GameId, IllnessId, PetState, FarmEntry, AdultForm } from "../pet/types";
+import type { FoodId, GameId, IllnessId, PetState, FarmEntry, AdultForm, Stage } from "../pet/types";
 import { FOODS, FOOD_ORDER, ADULTS, ADULT_ORDER } from "../pet/roster";
 import { ageLabel } from "../pet/format";
 import { formatDebugReport } from "../pet/debug";
@@ -2023,82 +2023,152 @@ function farmYard(farm: FarmEntry[], onBarnTap?: () => void): HTMLElement {
 // The gear in the Status margin. Timeline switching, loaded dice for every
 // event the game normally rolls for, and the diagnostic views (History, the
 // debug report) that used to hide in the Backup panel.
+
+/** Which Dev Tools drawers were left open. Session-only, like the sky pin —
+ *  remembered here because the force-event levers close the whole panel, and
+ *  re-hunting your drawer on every reopen would get old fast. */
+const devOpenDrawers = new Set<string>();
+
 export function openDevTools(ctx: MenuCtx): void {
   const p = openPanel("Dev Tools", "Levers behind the meadow.");
 
-  const section = (text: string) => {
+  // Each lever family folds into its own drawer, so the panel reads as a short
+  // table of contents instead of one endless scroll. Native <details> — the
+  // toggle behaviour and keyboard handling come free.
+  const drawer = (title: string, build: (body: HTMLElement) => void) => {
+    const d = document.createElement("details");
+    d.className = "dev-drawer";
+    d.open = devOpenDrawers.has(title);
+    const sum = document.createElement("summary");
+    sum.textContent = title;
+    const body = document.createElement("div");
+    body.className = "dev-drawer-body";
+    build(body);
+    d.addEventListener("toggle", () => {
+      if (d.open) devOpenDrawers.add(title);
+      else devOpenDrawers.delete(title);
+    });
+    d.append(sum, body);
+    p.body.appendChild(d);
+  };
+
+  const hint = (parent: HTMLElement, text: string) => {
     const el = document.createElement("p");
     el.className = "muted";
     el.textContent = text;
-    p.body.appendChild(el);
-    return el;
+    parent.appendChild(el);
   };
 
-  // Timeline: real wall-clock pacing, or everything at demo speed.
-  const tlWrap = document.createElement("div");
-  tlWrap.className = "notify-settings";
-  const tlLabel = document.createElement("p");
-  tlLabel.className = "muted";
-  tlLabel.textContent = `Timeline — demo runs game-time ${TIMELINE_SPEED.demo}× faster`;
-  const tlRow = document.createElement("div");
-  tlRow.className = "notify-row";
-  const paintTimeline = () => {
-    const active = ctx.pet().timeline === "demo" ? "demo" : "real";
-    tlRow.querySelectorAll("button").forEach((b) => {
-      b.classList.toggle("active", b.dataset.tl === active);
-    });
-  };
-  for (const t of ["real", "demo"] as const) {
-    const b = document.createElement("button");
-    b.className = "notify-opt";
-    b.dataset.tl = t;
-    b.textContent = t === "real" ? "Real" : "Demo";
-    b.addEventListener("click", () => {
-      ctx.devAction({ type: "timeline", timeline: t });
-      paintTimeline();
-    });
-    tlRow.appendChild(b);
-  }
-  tlWrap.append(tlLabel, tlRow);
-  p.body.appendChild(tlWrap);
-  paintTimeline();
+  drawer("Timeline & sky", (body) => {
+    // Timeline: real wall-clock pacing, or everything at demo speed.
+    const tlWrap = document.createElement("div");
+    tlWrap.className = "notify-settings";
+    const tlLabel = document.createElement("p");
+    tlLabel.className = "muted";
+    tlLabel.textContent = `Timeline — demo runs game-time ${TIMELINE_SPEED.demo}× faster`;
+    const tlRow = document.createElement("div");
+    tlRow.className = "notify-row";
+    const paintTimeline = () => {
+      const active = ctx.pet().timeline === "demo" ? "demo" : "real";
+      tlRow.querySelectorAll("button").forEach((b) => {
+        b.classList.toggle("active", b.dataset.tl === active);
+      });
+    };
+    for (const t of ["real", "demo"] as const) {
+      const b = document.createElement("button");
+      b.className = "notify-opt";
+      b.dataset.tl = t;
+      b.textContent = t === "real" ? "Real" : "Demo";
+      b.addEventListener("click", () => {
+        ctx.devAction({ type: "timeline", timeline: t });
+        paintTimeline();
+      });
+      tlRow.appendChild(b);
+    }
+    tlWrap.append(tlLabel, tlRow);
+    body.appendChild(tlWrap);
+    paintTimeline();
 
-  // Sky: pin an hour instead of waiting for it. Session-only — it isn't saved,
-  // so a reload hands the clock back. Dusk still counts as day and dawn as
-  // night: pinning them repaints the sky without touching sleep or decay.
-  const skyWrap = document.createElement("div");
-  skyWrap.className = "notify-settings";
-  const skyLabel = document.createElement("p");
-  skyLabel.className = "muted";
-  skyLabel.textContent = "Sky — pinned until reload";
-  const skyRow = document.createElement("div");
-  skyRow.className = "notify-row";
-  const paintSky = () => {
-    skyRow.querySelectorAll("button").forEach((b) => {
-      b.classList.toggle("active", b.dataset.sky === getSkyMode());
-    });
-  };
-  const SKY_LABELS: Record<SkyMode, string> = {
-    auto: "Clock",
-    day: "Day",
-    dusk: "Dusk",
-    night: "Night",
-    dawn: "Dawn",
-  };
-  for (const m of ["auto", "day", "dusk", "night", "dawn"] as const) {
-    const b = document.createElement("button");
-    b.className = "notify-opt";
-    b.dataset.sky = m;
-    b.textContent = SKY_LABELS[m];
-    b.addEventListener("click", () => {
-      ctx.devAction({ type: "sky", mode: m });
-      paintSky();
-    });
-    skyRow.appendChild(b);
-  }
-  skyWrap.append(skyLabel, skyRow);
-  p.body.appendChild(skyWrap);
-  paintSky();
+    // Sky: pin an hour instead of waiting for it. Session-only — it isn't
+    // saved, so a reload hands the clock back. Dusk still counts as day and
+    // dawn as night: pinning them repaints the sky without touching sleep.
+    const skyWrap = document.createElement("div");
+    skyWrap.className = "notify-settings";
+    const skyLabel = document.createElement("p");
+    skyLabel.className = "muted";
+    skyLabel.textContent = "Sky — pinned until reload";
+    const skyRow = document.createElement("div");
+    skyRow.className = "notify-row";
+    const paintSky = () => {
+      skyRow.querySelectorAll("button").forEach((b) => {
+        b.classList.toggle("active", b.dataset.sky === getSkyMode());
+      });
+    };
+    const SKY_LABELS: Record<SkyMode, string> = {
+      auto: "Clock",
+      day: "Day",
+      dusk: "Dusk",
+      night: "Night",
+      dawn: "Dawn",
+    };
+    for (const m of ["auto", "day", "dusk", "night", "dawn"] as const) {
+      const b = document.createElement("button");
+      b.className = "notify-opt";
+      b.dataset.sky = m;
+      b.textContent = SKY_LABELS[m];
+      b.addEventListener("click", () => {
+        ctx.devAction({ type: "sky", mode: m });
+        paintSky();
+      });
+      skyRow.appendChild(b);
+    }
+    skyWrap.append(skyLabel, skyRow);
+    body.appendChild(skyWrap);
+    paintSky();
+  });
+
+  drawer("Become", (body) => {
+    // Pick the body outright — any stage, any adult. Selection closes the
+    // panel so the transformation flash plays on the stage underneath; the
+    // current body is highlighted so you know where you're jumping from.
+    hint(body, "Swap the body — stats and history stay put.");
+    const pet = ctx.pet();
+    const stageRow = document.createElement("div");
+    stageRow.className = "notify-row";
+    const STAGES: { id: Exclude<Stage, "adult">; label: string }[] = [
+      { id: "egg", label: "Egg" },
+      { id: "baby", label: "Baby" },
+      { id: "child", label: "Child" },
+      { id: "teen", label: "Teen" },
+    ];
+    for (const { id, label } of STAGES) {
+      const b = document.createElement("button");
+      b.className = "notify-opt";
+      b.classList.toggle("active", pet.stage === id);
+      b.textContent = label;
+      b.addEventListener("click", () => {
+        p.close();
+        ctx.devAction({ type: "become", stage: id });
+      });
+      stageRow.appendChild(b);
+    }
+    body.appendChild(stageRow);
+
+    const forms = document.createElement("div");
+    forms.className = "dev-grid";
+    for (const f of ADULT_ORDER) {
+      const b = document.createElement("button");
+      b.className = "btn secondary btn-small";
+      b.classList.toggle("active", pet.stage === "adult" && pet.form === f);
+      b.textContent = ADULTS[f].name;
+      b.addEventListener("click", () => {
+        p.close();
+        ctx.devAction({ type: "become", stage: "adult", form: f });
+      });
+      forms.appendChild(b);
+    }
+    body.appendChild(forms);
+  });
 
   // Stat levers stay in the panel (you're dialing a number in, not watching a
   // moment) — every tap repaints all the readouts from the fresh state.
@@ -2140,57 +2210,59 @@ export function openDevTools(ctx: MenuCtx): void {
     parent.appendChild(row);
   };
 
-  section("Set a stat:");
-  const stats = document.createElement("div");
-  stats.className = "dev-stats";
-  const statRow = (stat: DevStat, label: string, step: number) => {
-    const current = () => ctx.pet()[stat];
-    const { min, max } = DEV_STAT_RANGE[stat];
-    leverRow(
-      stats,
-      label,
-      current,
-      [
-        { text: "min", target: () => min },
-        { text: "−", target: () => current() - step },
-        { text: "+", target: () => current() + step },
-        { text: "max", target: () => max },
-      ],
-      (value) => ctx.devAction({ type: "stat", stat, value }),
-    );
-  };
-  statRow("energy", "Energy", 0.5);
-  statRow("happiness", "Happiness", 0.5);
-  statRow("health", "Health", 10);
-  statRow("discipline", "Discipline", 10);
-  statRow("weight", "Weight", 1);
-  p.body.appendChild(stats);
+  drawer("Set a stat", (body) => {
+    const stats = document.createElement("div");
+    stats.className = "dev-stats";
+    const statRow = (stat: DevStat, label: string, step: number) => {
+      const current = () => ctx.pet()[stat];
+      const { min, max } = DEV_STAT_RANGE[stat];
+      leverRow(
+        stats,
+        label,
+        current,
+        [
+          { text: "min", target: () => min },
+          { text: "−", target: () => current() - step },
+          { text: "+", target: () => current() + step },
+          { text: "max", target: () => max },
+        ],
+        (value) => ctx.devAction({ type: "stat", stat, value }),
+      );
+    };
+    statRow("energy", "Energy", 0.5);
+    statRow("happiness", "Happiness", 0.5);
+    statRow("health", "Health", 10);
+    statRow("discipline", "Discipline", 10);
+    statRow("weight", "Weight", 1);
+    body.appendChild(stats);
+  });
 
   // The hidden ledger: evolution's actual inputs (see determineAdultForm)
   // plus the care-mistake counter — nudged, not set, since they're tallies.
-  section("Hidden ledger:");
-  const ledger = document.createElement("div");
-  ledger.className = "dev-stats";
-  const hiddenRow = (stat: DevHidden, label: string) => {
-    const current = () => ctx.pet().hidden[stat];
-    leverRow(
-      ledger,
-      label,
-      current,
-      [
-        { text: "−", target: () => -1 },
-        { text: "+", target: () => 1 },
-      ],
-      (delta) => ctx.devAction({ type: "hidden", stat, delta }),
-    );
-  };
-  hiddenRow("careMistakes", "Care mistakes");
-  hiddenRow("discipline", "Discipline (hidden)");
-  hiddenRow("nightCare", "Night care");
-  hiddenRow("cakeEaten", "Cake eaten");
-  hiddenRow("cubeEaten", "Cubes eaten");
-  hiddenRow("carrotEaten", "Carrots eaten");
-  p.body.appendChild(ledger);
+  drawer("Hidden ledger", (body) => {
+    const ledger = document.createElement("div");
+    ledger.className = "dev-stats";
+    const hiddenRow = (stat: DevHidden, label: string) => {
+      const current = () => ctx.pet().hidden[stat];
+      leverRow(
+        ledger,
+        label,
+        current,
+        [
+          { text: "−", target: () => -1 },
+          { text: "+", target: () => 1 },
+        ],
+        (delta) => ctx.devAction({ type: "hidden", stat, delta }),
+      );
+    };
+    hiddenRow("careMistakes", "Care mistakes");
+    hiddenRow("discipline", "Discipline (hidden)");
+    hiddenRow("nightCare", "Night care");
+    hiddenRow("cakeEaten", "Cake eaten");
+    hiddenRow("cubeEaten", "Cubes eaten");
+    hiddenRow("carrotEaten", "Carrots eaten");
+    body.appendChild(ledger);
+  });
   repaintAll();
 
   // Forced events close the panel — the payoff (the squat, the call bubble,
@@ -2206,30 +2278,35 @@ export function openDevTools(ctx: MenuCtx): void {
     grid.appendChild(b);
   };
 
-  section("Force an event:");
-  const events = document.createElement("div");
-  events.className = "dev-grid";
-  devBtn(events, "Mess", { type: "poop", bad: false });
-  devBtn(events, "Bad mess", { type: "poop", bad: true });
-  devBtn(events, "Attention call", { type: "call", fake: false });
-  devBtn(events, "Fake call", { type: "call", fake: true });
-  devBtn(events, "Zoomies", { type: "zoomies" });
-  devBtn(events, "Grow up", { type: "grow" });
-  devBtn(events, "Ready to retire", { type: "retire-ready" });
-  p.body.appendChild(events);
+  drawer("Force an event", (body) => {
+    const events = document.createElement("div");
+    events.className = "dev-grid";
+    devBtn(events, "Mess", { type: "poop", bad: false });
+    devBtn(events, "Bad mess", { type: "poop", bad: true });
+    devBtn(events, "Attention call", { type: "call", fake: false });
+    devBtn(events, "Fake call", { type: "call", fake: true });
+    devBtn(events, "Zoomies", { type: "zoomies" });
+    devBtn(events, "Grow up", { type: "grow" });
+    devBtn(events, "Ready to retire", { type: "retire-ready" });
+    body.appendChild(events);
+  });
 
-  section("Inflict an illness:");
-  const illnesses = document.createElement("div");
-  illnesses.className = "dev-grid";
-  for (const id of Object.keys(ILLNESSES) as IllnessId[]) {
-    devBtn(illnesses, ILLNESSES[id].label, { type: "illness", illness: id });
-  }
-  p.body.appendChild(illnesses);
+  drawer("Inflict an illness", (body) => {
+    const illnesses = document.createElement("div");
+    illnesses.className = "dev-grid";
+    for (const id of Object.keys(ILLNESSES) as IllnessId[]) {
+      devBtn(illnesses, ILLNESSES[id].label, { type: "illness", illness: id });
+    }
+    body.appendChild(illnesses);
+  });
 
   // Two views onto the same diagnostic trail, both deliberately understated —
   // neither is a save format. History reads it in plain language, in-game; the
   // debug report dumps it verbatim for pasting somewhere else.
-  section("For explaining what happened, in detail:");
+  const footerLabel = document.createElement("p");
+  footerLabel.className = "muted";
+  footerLabel.textContent = "For explaining what happened, in detail:";
+  p.body.appendChild(footerLabel);
   const debugRow = document.createElement("div");
   debugRow.className = "btn-pair dev-tools-footer";
   const historyBtn = document.createElement("button");

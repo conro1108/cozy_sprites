@@ -936,6 +936,14 @@ function doDevAction(action: DevAction): void {
     case "grow":
       if (pet.stage !== prev.stage) handleStageChange(prev.stage, pet.stage);
       break;
+    case "become":
+      // A costume change gets the flash but not the milestone chatter — the
+      // same body-swap moment as evolving, without pretending a life happened.
+      if (pet.stage !== prev.stage || pet.form !== prev.form) {
+        scene?.triggerEvolve();
+        playSfx("evolve");
+      }
+      break;
     case "retire-ready":
       if (retirementPhase(prev) !== "ready" && retirementPhase(pet) === "ready") {
         say(retirementLine("ready"));

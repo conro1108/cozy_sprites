@@ -6,7 +6,7 @@
 // the organic events use, so a forced illness reads in History exactly like
 // a caught one.
 
-import type { AttentionWant, IllnessId, PetState, Timeline } from "./types";
+import type { AdultForm, AttentionWant, IllnessId, PetState, Stage, Timeline } from "./types";
 import {
   ADULT_LIFESPAN_MS,
   MAX_HEARTS,
@@ -43,7 +43,9 @@ export type DevAction =
   | { type: "call"; fake: boolean }
   | { type: "zoomies" }
   | { type: "grow" }
-  | { type: "retire-ready" };
+  | { type: "retire-ready" }
+  | { type: "become"; stage: Exclude<Stage, "adult"> }
+  | { type: "become"; stage: "adult"; form: AdultForm };
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
 
@@ -152,6 +154,28 @@ export function applyDevAction(state: PetState, action: DevAction, now: number):
       if (s.stage !== "adult" || s.adultLifeMs >= ADULT_LIFESPAN_MS) return settled;
       s.adultLifeMs = ADULT_LIFESPAN_MS;
       logEvent(s, now, "retirement", "ready (dev)");
+      return s;
+    }
+    case "become": {
+      // A costume change, not a life event: swap the body outright, keep every
+      // stat and ledger as-is. The stage clock restarts (this body is new) and
+      // so does the retirement clock — an old adult reborn isn't ready to leave.
+      const form = action.stage === "adult" ? action.form : null;
+      if (s.stage === action.stage && s.form === form) return settled;
+      s.stage = action.stage;
+      s.form = form;
+      s.stageStartedAt = now;
+      s.stageElapsedMs = 0;
+      s.adultLifeMs = 0;
+      if (action.stage === "egg") {
+        // Eggs don't sleep and don't ask for things — same as before hatching.
+        s.asleep = false;
+        s.wantsAttention = false;
+        s.fakeCall = false;
+        s.attentionWant = null;
+        s.callStartedAt = null;
+      }
+      logEvent(s, now, "stage", form ? `adult (${form}) (dev)` : `${action.stage} (dev)`);
       return s;
     }
   }
