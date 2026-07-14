@@ -297,11 +297,12 @@ const DOG: BodyDef = {
   face: "dog",
   faceDx: 5,
   faceDy: 6,
-  // The wag frame. Not a different tail — the SAME nub, mirrored top to bottom
-  // about its middle row, so it cocks up instead of hanging down. The fill (D)
-  // sits on the mirror line and never moves; only the outline swaps corners,
-  // which is the whole flick. Anything bigger (a tail that extends, or streams
-  // up while trotting) reads as the dog growing a fin.
+  // The wag frame. Not a different tail — the SAME nub, inverted end over end.
+  // The two pixels where it meets the body (col 12, rows 11-12) are the hinge:
+  // the mirror runs BETWEEN them, so they map onto each other and hold still
+  // while the tip (D) and its outline cap swing to the other side. That's the
+  // whole flick — a tail that grows, or streams up while trotting, just reads
+  // as the dog sprouting a fin.
   alt: {
     rows: [
       "................",
@@ -314,11 +315,12 @@ const DOG: BodyDef = {
       "................",
       "................",
       "................",
-      "............kkx.",
-      "................",
-      "............x.k.",
+      ".............xx.", // the cap the tip vacates
+      ".............kx.", // tip was here; now it's the top outline
+      ".............Dk.", // tip, swung one row down
+      ".............kk.", // its cap, on the underside now
     ],
-    palette: { k: OUTLINE, x: "ERASE" },
+    palette: { k: OUTLINE, D: "#4a4a56", x: "ERASE" },
   },
 };
 

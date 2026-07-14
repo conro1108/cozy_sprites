@@ -159,22 +159,23 @@ describe("glance frames", () => {
 describe("alt frame (the dog's tail, flipped)", () => {
   const base = renderPixels("dog", "neutral");
   const alt = renderPixels("dog", "neutral", null, "alt");
-  // The wag is the same nub mirrored top-to-bottom about row 11, not a second,
-  // bigger tail: the fill sits on the mirror line and holds still while the
-  // outline swaps corners. Guards the flick against creeping back into a fin.
-  it("keeps the tail where it is and flips it", () => {
-    expect(rgb(px(base, 13, 11))).toEqual(TAIL); // the fill is the mirror line…
-    expect(rgb(px(alt, 13, 11))).toEqual(TAIL); // …so it doesn't move
-    // Base droops: outline at top-right and bottom-left. Alt cocks up: the two
-    // corners trade places.
-    expect(px(base, 14, 10)[3]).toBe(255);
-    expect(px(alt, 14, 10)[3]).toBe(0);
-    expect(px(base, 12, 12)[3]).toBe(255);
-    expect(px(alt, 12, 12)[3]).toBe(0);
-    expect(px(base, 12, 10)[3]).toBe(0);
-    expect(px(alt, 12, 10)[3]).toBe(255);
-    expect(px(base, 14, 12)[3]).toBe(0);
-    expect(px(alt, 14, 12)[3]).toBe(255);
+  // The wag inverts the same nub end over end about the hinge where it meets
+  // the body, rather than swapping in a second, bigger tail. Guards the flick
+  // against creeping back into a fin.
+  it("hinges on the body: the two pixels where the tail attaches never move", () => {
+    for (const y of [11, 12]) {
+      expect(px(alt, 12, y), `the hinge moved at (12,${y})`).toEqual(px(base, 12, y));
+      expect(px(base, 12, y)[3]).toBe(255); // and it's really there to begin with
+    }
+  });
+
+  it("swings the tip to the other side of the hinge", () => {
+    expect(rgb(px(base, 13, 11))).toEqual(TAIL); // tip rides high at rest…
+    expect(px(alt, 13, 11)[3]).not.toBe(0); // …and drops a row on the wag,
+    expect(rgb(px(alt, 13, 12))).toEqual(TAIL); // landing under the hinge line
+    expect(px(base, 13, 10)[3]).toBe(255); // its outline cap follows it over:
+    expect(px(alt, 13, 10)[3]).toBe(0); // vacated above…
+    expect(px(alt, 13, 13)[3]).toBe(255); // …and drawn below
   });
 
   it("never reaches above the rump — no fin on the dog's back", () => {
@@ -183,6 +184,15 @@ describe("alt frame (the dog's tail, flipped)", () => {
         expect(px(alt, x, y), `alt paints (${x},${y}), above the tail`).toEqual(px(base, x, y));
       }
     }
+  });
+
+  it("is the same size tail, not a bigger one", () => {
+    const lit = (b: ReturnType<typeof renderPixels>) => {
+      let n = 0;
+      for (let y = 0; y < CELL; y++) for (let x = 12; x < CELL; x++) if (px(b, x, y)[3] > 0) n++;
+      return n;
+    };
+    expect(lit(alt)).toBe(lit(base));
   });
   it("leaves the body untouched", () => {
     for (let y = 0; y < CELL; y++) {
