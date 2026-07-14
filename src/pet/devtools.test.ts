@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { applyDevAction } from "./devtools";
-import { ADULT_LIFESPAN_MS, createPet, retirementPhase } from "./state";
+import {
+  ADULT_LIFESPAN_MS,
+  applyElapsedDecay,
+  createPet,
+  isNight,
+  retirementPhase,
+  setNightMode,
+} from "./state";
 import type { PetState } from "./types";
 
 /** Local wall-clock time on a fixed summer Monday — same convention as
@@ -58,6 +65,62 @@ describe("stat levers", () => {
     const pet = asStage(createPet("Milo", T0), "child");
     const same = applyDevAction(pet, { type: "stat", stat: "energy", value: pet.energy }, T0);
     expect(same.diag.some((d) => d.kind === "dev")).toBe(false);
+  });
+});
+
+describe("sky lever", () => {
+  // The lever lives outside PetState (state.ts's module-level nightMode), so
+  // every test here has to hand the clock back or it leaks into the next one.
+  afterEach(() => setNightMode("auto"));
+
+  it("pins night at 10am, and the pet sleeps in the dark", () => {
+    const pet = { ...asStage(createPet("Milo", T0), "child"), lightsOn: false };
+    expect(isNight(T0)).toBe(false);
+    const night = applyDevAction(pet, { type: "night", mode: "night" }, T0);
+    expect(isNight(T0)).toBe(true);
+    expect(night.asleep).toBe(true);
+    expect(night.diag.some((d) => d.kind === "dev" && d.note === "sky pinned to night")).toBe(true);
+  });
+
+  it("a lit lantern keeps the pet awake under a pinned night", () => {
+    const pet = { ...asStage(createPet("Milo", T0), "child"), lightsOn: true };
+    expect(applyDevAction(pet, { type: "night", mode: "night" }, T0).asleep).toBe(false);
+  });
+
+  it("pinning day wakes a sleeper and relights the lantern, as dawn does", () => {
+    const pet = { ...asStage(createPet("Milo", at(23)), "child"), lightsOn: false, asleep: true };
+    const day = applyDevAction(pet, { type: "night", mode: "day" }, at(23));
+    expect(isNight(at(23))).toBe(false);
+    expect(day.asleep).toBe(false);
+    expect(day.lightsOn).toBe(true);
+  });
+
+  it("an egg never sleeps, pinned night or not", () => {
+    const pet = { ...createPet("Milo", T0), lightsOn: false };
+    expect(applyDevAction(pet, { type: "night", mode: "night" }, T0).asleep).toBe(false);
+  });
+
+  it("auto hands the clock back", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    applyDevAction(pet, { type: "night", mode: "night" }, T0);
+    applyDevAction(pet, { type: "night", mode: "auto" }, T0);
+    expect(isNight(T0)).toBe(false); // 10am again
+    expect(isNight(at(23))).toBe(true);
+  });
+
+  it("re-pinning the mode it's already in is a no-op", () => {
+    const pet = asStage(createPet("Milo", T0), "child");
+    const same = applyDevAction(pet, { type: "night", mode: "auto" }, T0);
+    expect(same.diag.some((d) => d.kind === "dev")).toBe(false);
+  });
+
+  it("a pinned sky has no dawn: decay never settles the night ledger", () => {
+    setNightMode("night");
+    const pet = { ...asStage(createPet("Milo", T0), "child"), lightsOn: false };
+    // 10am → 10pm: on the real clock this would cross dusk AND log a dawn.
+    const later = applyElapsedDecay(pet, T0 + 12 * 60 * 60_000);
+    expect(later.asleep).toBe(true);
+    expect(later.diag.some((d) => d.kind === "dawn")).toBe(false);
   });
 });
 

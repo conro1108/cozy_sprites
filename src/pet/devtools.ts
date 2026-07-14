@@ -12,7 +12,11 @@ import {
   MAX_HEARTS,
   advanceOne,
   applyElapsedDecay,
+  getNightMode,
+  isNight,
   logEvent,
+  setNightMode,
+  type NightMode,
 } from "./state";
 
 /** The visible stats the panel can set outright. Clamped to each stat's own
@@ -31,6 +35,7 @@ export type DevHidden =
 
 export type DevAction =
   | { type: "timeline"; timeline: Timeline }
+  | { type: "night"; mode: NightMode }
   | { type: "stat"; stat: DevStat; value: number }
   | { type: "hidden"; stat: DevHidden; delta: number }
   | { type: "poop"; bad: boolean }
@@ -56,7 +61,9 @@ const r1 = (v: number): number => Math.round(v * 10) / 10;
 
 /** Apply one dev lever. Returns a new state (never mutates the input); levers
  *  that don't apply right now (growing an adult, sickening the sick…) hand the
- *  settled state back unchanged. */
+ *  settled state back unchanged. The one lever that reaches outside the state
+ *  is "night" — the sky isn't the pet's to own, so it lives in state.ts's
+ *  module-level nightMode. */
 export function applyDevAction(state: PetState, action: DevAction, now: number): PetState {
   // Settle time first — a timeline switch must bank the elapsed span at the
   // old speed, and a forced event should land on up-to-date stats. Then clone:
@@ -69,6 +76,18 @@ export function applyDevAction(state: PetState, action: DevAction, now: number):
       if (s.timeline === action.timeline) return settled;
       s.timeline = action.timeline;
       logEvent(s, now, "timeline", action.timeline);
+      return s;
+    }
+    case "night": {
+      if (getNightMode() === action.mode) return settled;
+      setNightMode(action.mode);
+      // The sky moved without any time passing, so applyElapsedDecay above
+      // couldn't act on it: settle sleep by hand, the same way dawn does —
+      // waking into a day relights the lantern nobody was there to switch on.
+      const night = isNight(now);
+      if (s.asleep && !night) s.lightsOn = true;
+      s.asleep = night && !s.lightsOn && s.stage !== "egg";
+      logEvent(s, now, "dev", `sky pinned to ${action.mode}`);
       return s;
     }
     case "stat": {

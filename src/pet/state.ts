@@ -351,8 +351,22 @@ function clamp100(v: number): number {
 export const NIGHT_START_HOUR = 20;
 export const NIGHT_END_HOUR = 8;
 
+/** Dev Tools can pin the sky. Deliberately NOT in PetState: it's a lever on the
+ *  world, not a fact about the pet, so it never persists or exports — reload and
+ *  the wall clock is back in charge. While pinned there is no dusk or dawn, so
+ *  the night ledger never settles (see nextDayNightBoundary). */
+export type NightMode = "auto" | "day" | "night";
+let nightMode: NightMode = "auto";
+export function setNightMode(mode: NightMode): void {
+  nightMode = mode;
+}
+export function getNightMode(): NightMode {
+  return nightMode;
+}
+
 /** Whether it's night. Drives sleep, the Light button, and the scene sky. */
 export function isNight(now: number): boolean {
+  if (nightMode !== "auto") return nightMode === "night";
   const h = new Date(now).getHours();
   return h >= NIGHT_START_HOUR || h < NIGHT_END_HOUR;
 }
@@ -362,6 +376,7 @@ export function isNight(now: number): boolean {
  *  (and thus ages at one constant rate). Built with the Date constructor so
  *  local DST shifts land where the wall clock says they should. */
 function nextDayNightBoundary(t: number): number {
+  if (nightMode !== "auto") return Infinity; // pinned sky: the edge never comes
   const d = new Date(t);
   const h = d.getHours();
   // Before 8am → today's dawn; 8am–7:59pm → today's dusk; 8pm+ → tomorrow's
