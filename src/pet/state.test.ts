@@ -22,6 +22,7 @@ import {
   feed,
   giveMedicine,
   isNight,
+  skyPhase,
   pat,
   retirementPhase,
   rollIllness,
@@ -59,6 +60,22 @@ describe("day/night clock", () => {
     expect(isNight(at(23))).toBe(true);
     expect(isNight(at(7, 59))).toBe(true);
     expect(isNight(at(8))).toBe(false);
+  });
+
+  it("twilight takes the hour either side of night", () => {
+    expect(skyPhase(at(18, 59))).toBe("day");
+    expect(skyPhase(at(19))).toBe("dusk");
+    expect(skyPhase(at(19, 59))).toBe("dusk");
+    expect(skyPhase(at(20))).toBe("night");
+    expect(skyPhase(at(6, 59))).toBe("night");
+    expect(skyPhase(at(7))).toBe("dawn");
+    expect(skyPhase(at(7, 59))).toBe("dawn");
+    expect(skyPhase(at(8))).toBe("day");
+  });
+
+  it("is only paint: dusk still counts as day, dawn still as night", () => {
+    expect(isNight(at(19, 30))).toBe(false);
+    expect(isNight(at(7, 30))).toBe(true);
   });
 });
 

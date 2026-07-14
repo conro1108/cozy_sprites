@@ -17,7 +17,7 @@
 
 import { CELL, buildCreatureFrames, type SpriteFrame } from "./sprites";
 import type { Mood } from "./sprites";
-import type { AdultForm } from "../pet/types";
+import type { AdultForm, SkyPhase } from "../pet/types";
 import { iconCanvas } from "./icons";
 import type { IconName } from "./icons";
 import { HIDE_SPOTS, type FetchVariant, type HideSpot } from "../pet/games";
@@ -68,6 +68,60 @@ const MOON_ROWS: [number, number][] = [
   [-3, 2], [-2, 3], [-1, 3], [0, 3], [1, 3], [2, 3], [3, 2],
 ];
 
+// --- Twilight ----------------------------------------------------------------
+// Dusk and dawn (the hour either side of night) trade the flat sky for a ramp:
+// colour stops from zenith (0) to horizon (1), interpolated one 1px row at a
+// time. Rows, not a canvas gradient — browsers dither gradient fills, and at
+// this buffer size the dither speckle survives the upscale and reads as noise.
+// Dusk sinks the sun behind the right-hand hill peak and dawn floats it back up
+// over the left one, so the sun tracks left→right across the day.
+type SkyStop = [number, [number, number, number]];
+const TWILIGHT_SKY: Record<"dusk" | "dawn", SkyStop[]> = {
+  dusk: [
+    [0, [43, 37, 82]], // the night indigo it's about to become
+    [0.3, [82, 52, 110]],
+    [0.55, [141, 72, 110]],
+    [0.75, [206, 106, 86]],
+    [0.9, [235, 150, 84]],
+    [1, [246, 199, 120]], // molten gold on the horizon
+  ],
+  dawn: [
+    [0, [38, 41, 92]], // the night, not quite let go
+    [0.3, [77, 74, 134]],
+    [0.55, [125, 98, 152]],
+    [0.75, [206, 124, 138]],
+    [0.9, [233, 163, 146]],
+    [1, [246, 208, 168]], // pale peach, still cold out
+  ],
+};
+const TWILIGHT_CLOUD: Record<"dusk" | "dawn", string> = {
+  dusk: "#f2a078", // lit from below, salmon
+  dawn: "#eeb2b6", // barely pink
+};
+// dy hangs the sun off the floor line: the hill peaks reach 18px, so a sun
+// centred just above that is bitten into by the ridge. The core has to fight
+// the gradient's own glow at the horizon — a sun the same gold as the sky it
+// sets into simply disappears — so dusk burns orange and dawn goes near-white.
+const TWILIGHT_SUN: Record<
+  "dusk" | "dawn",
+  { x: number; dy: number; core: string; rim: string; glow: string }
+> = {
+  dusk: { x: 94, dy: -21, core: "#ef6a3d", rim: "#ffb877", glow: "255,130,60" },
+  dawn: { x: 18, dy: -18, core: "#ffdc8a", rim: "#fff6d4", glow: "255,205,150" },
+};
+
+/** The sky's colour at row `y` of `h`, interpolated between the stops. */
+function twilightRow(stops: SkyStop[], y: number, h: number): string {
+  const p = h > 1 ? y / (h - 1) : 0;
+  let i = 1;
+  while (i < stops.length - 1 && p > stops[i][0]) i++;
+  const [p0, c0] = stops[i - 1];
+  const [p1, c1] = stops[i];
+  const k = p1 === p0 ? 0 : (p - p0) / (p1 - p0);
+  const mix = (a: number, b: number) => Math.round(a + (b - a) * k);
+  return `rgb(${mix(c0[0], c1[0])},${mix(c0[1], c1[1])},${mix(c0[2], c1[2])})`;
+}
+
 // Cloud variants — each a set of [dx, dy, w, h] puffs riding on a base, so none
 // read flat. A drifting cloud re-rolls which variant (and how high it floats)
 // every time it wraps the sky, so it's never the same two clouds twice.
@@ -77,6 +131,12 @@ const CLOUD_SHAPES: [number, number, number, number][][] = [
   [[1, 2, 9, 2], [2, 0, 6, 3], [4, -1, 3, 2]], // tall little tuft
   [[0, 3, 17, 2], [1, 1, 5, 2], [6, 0, 6, 3], [12, 1, 5, 2]], // long, rolling humps
 ];
+
+/** Is the ground in darkness? Dawn is still night as far as the meadow's
+ *  palette (and the pet's sleep) is concerned — only the sky knows better. */
+function isNightSky(sky: SkyPhase): boolean {
+  return sky === "night" || sky === "dawn";
+}
 
 /** Cheap deterministic 0..1 hash of an integer — picks a cloud's look/height
  *  per drift cycle without any stored state. */
@@ -89,7 +149,9 @@ export interface SceneView {
   key: string; // creature key
   mood: Mood;
   poops: number;
-  night: boolean;
+  /** The sky overhead. Dusk paints as day + a sunset, dawn as night + a
+   *  sunrise — see isNightSky, which is what the meadow's palette keys off. */
+  sky: SkyPhase;
   asleep: boolean;
   lightsOn: boolean;
   /** Teen "audition" leaning — tints the sprite with an adult-hint accent. */
@@ -210,7 +272,7 @@ export class Scene {
     key: "egg",
     mood: "neutral",
     poops: 0,
-    night: false,
+    sky: "day",
     asleep: false,
     lightsOn: true,
   };
@@ -606,62 +668,28 @@ export class Scene {
     const ctx = this.ctx;
     const t = (now - this.t0) / 1000;
     const v = this.view;
-    const dark = v.night && !v.lightsOn;
+    const night = isNightSky(v.sky);
+    const dark = night && !v.lightsOn;
     const FLOOR_Y = this.floorY;
     const SCENE_H = this.sh;
 
-    // --- Sky ------------------------------------------------------------------
-    ctx.fillStyle = dark ? "#141232" : v.night ? "#2b2552" : "#a8dcec";
-    ctx.fillRect(0, 0, SCENE_W, FLOOR_Y);
-    ctx.fillStyle = dark ? "#1d1940" : v.night ? "#3a3462" : "#cfeef8";
-    ctx.fillRect(0, FLOOR_Y - HILL_MIN_H, SCENE_W, HILL_MIN_H);
-
-    if (v.night) {
-      // moon + twinkling stars
-      ctx.fillStyle = "#f3edd0";
-      this.fillDisc(92, 13, MOON_ROWS);
-      // Carve the crescent: the same disc in the sky colour, nudged right.
-      ctx.fillStyle = dark ? "#141232" : "#2b2552";
-      this.fillDisc(95, 13, MOON_ROWS);
-      ctx.fillStyle = "#fff";
-      const stars = [
-        [10, 14],
-        [26, 30],
-        [44, 10],
-        [62, 24],
-        [78, 42],
-        [18, 46],
-        [98, 34],
-      ];
-      for (const [sx, sy] of stars) {
-        if (Math.sin(t * 2 + sx) > -0.3) ctx.fillRect(sx, sy, 1, 1);
-      }
-    } else {
-      // sun + drifting clouds
-      ctx.fillStyle = "#ffe9a3";
-      this.fillDisc(94, 12, SUN_ROWS);
-      ctx.fillStyle = "#fff2c8"; // top-left glint
-      ctx.fillRect(91, 9, 3, 1);
-      ctx.fillRect(92, 8, 2, 1);
-      ctx.fillStyle = "#ffffff";
-      this.drawClouds(t);
-    }
+    this.drawSky(t, dark);
 
     // --- Distant hills ----------------------------------------------------------
     // A rolling ridge of soft, symmetric mounds (see hillHeightAt) drawn as
     // solid 1px-wide columns down to the floor — single-toned so it stays quiet
     // background rather than reading as a hard-edged prop.
-    ctx.fillStyle = dark ? "#22303a" : v.night ? "#33484a" : "#7ab35e";
+    ctx.fillStyle = dark ? "#22303a" : night ? "#33484a" : "#7ab35e";
     for (let x = 0; x < SCENE_W; x++) {
       const h = Math.round(hillHeightAt(x));
       ctx.fillRect(x, FLOOR_Y - h, 1, h);
     }
 
     // --- Grass -------------------------------------------------------------------
-    ctx.fillStyle = dark ? "#2c3c2c" : v.night ? "#3f5a3c" : "#9cc85a";
+    ctx.fillStyle = dark ? "#2c3c2c" : night ? "#3f5a3c" : "#9cc85a";
     ctx.fillRect(0, FLOOR_Y, SCENE_W, SCENE_H - FLOOR_Y);
     // tufts
-    ctx.fillStyle = dark ? "#26342a" : v.night ? "#38503a" : "#84b348";
+    ctx.fillStyle = dark ? "#26342a" : night ? "#38503a" : "#84b348";
     for (let i = 0; i < 14; i++) {
       const gx = (i * 37) % SCENE_W;
       const gy = FLOOR_Y + 4 + ((i * 13) % (SCENE_H - FLOOR_Y - 8));
@@ -672,7 +700,7 @@ export class Scene {
     // ellipse) so it matches the meadow's hard-edged pixels — but its rim is
     // stippled, dirt fading to grass in a checkerboard, so it reads as trodden
     // ground rather than a drawn oval competing with the props.
-    ctx.fillStyle = dark ? "#3a3228" : v.night ? "#5c4c38" : "#c9a96a";
+    ctx.fillStyle = dark ? "#3a3228" : night ? "#5c4c38" : "#c9a96a";
     const dcx = CREATURE_X;
     const dcy = FLOOR_Y + 12;
     const dirtRim: [number, number][] = [
@@ -694,13 +722,13 @@ export class Scene {
     // Everything standing on the grass sorts by where it meets the ground, so
     // the creature can wander behind the stump or in front of the flowers.
     const layers: Layer[] = [
-      { y: FLOOR_Y + 4, draw: () => this.drawFence(dark, v.night) },
-      { y: FLOOR_Y + 13, draw: () => this.drawStump(dark, v.night) },
+      { y: FLOOR_Y + 4, draw: () => this.drawFence(dark, night) },
+      { y: FLOOR_Y + 13, draw: () => this.drawStump(dark, night) },
       { y: FLOOR_Y + 4, draw: () => this.drawLantern(t, dark, v) },
-      { y: FLOOR_Y + 16, draw: () => this.drawMushroom(dark, v.night) },
+      { y: FLOOR_Y + 16, draw: () => this.drawMushroom(dark, night) },
     ];
     for (const [fx, fy, color] of this.flowerPatch()) {
-      layers.push({ y: fy + 4, draw: () => this.drawFlower(fx, fy, color, t, dark, v.night) });
+      layers.push({ y: fy + 4, draw: () => this.drawFlower(fx, fy, color, t, dark, night) });
     }
     this.syncPoopSpots();
     for (const spot of this.poopSpots.slice(0, 4)) {
@@ -728,8 +756,16 @@ export class Scene {
         if (Math.sin(t * 3 + i * 2.4) > 0.2) ctx.fillRect(Math.round(fx), Math.round(fy), 1, 1);
       }
     }
+    // Twilight wash. The meadow keeps its day palette at dusk and its night one
+    // at dawn — a single low-alpha pass over the whole scene is what sells the
+    // hour, and costs a lot less than a third colour ramp for every prop.
+    if (v.sky === "dusk" || v.sky === "dawn") {
+      ctx.fillStyle = v.sky === "dusk" ? "rgba(255,132,58,0.18)" : "rgba(255,150,170,0.12)";
+      ctx.fillRect(0, 0, SCENE_W, SCENE_H);
+    }
+
     // Warm lantern glow washing over the clearing when lit at night
-    if (v.night && v.lightsOn) {
+    if (night && v.lightsOn) {
       const g = ctx.createRadialGradient(33, FLOOR_Y - 33, 5, 33, FLOOR_Y - 33, 85);
       g.addColorStop(0, "rgba(255,220,150,0.45)");
       g.addColorStop(0.5, "rgba(255,220,150,0.18)");
@@ -971,13 +1007,14 @@ export class Scene {
 
   private drawLantern(t: number, dark: boolean, v: SceneView): void {
     const ctx = this.ctx;
+    const night = isNightSky(v.sky);
     const lx = 32;
     const top = this.floorY - 40; // taller: the lantern is the heart of the clearing
     const lit = v.lightsOn;
     // a soft halo right around the glass, day or night, whenever it's lit
     if (lit) {
       const g = ctx.createRadialGradient(lx + 1, top + 7, 2, lx + 1, top + 7, 16);
-      g.addColorStop(0, v.night ? "rgba(255,223,142,0.55)" : "rgba(255,233,163,0.35)");
+      g.addColorStop(0, night ? "rgba(255,223,142,0.55)" : "rgba(255,233,163,0.35)");
       g.addColorStop(1, "rgba(255,223,142,0)");
       ctx.fillStyle = g;
       ctx.fillRect(lx - 16, top - 10, 34, 34);
@@ -990,7 +1027,7 @@ export class Scene {
     // lantern box — bigger glass, proper frame
     ctx.fillStyle = dark ? "#241f1a" : "#4a3527";
     ctx.fillRect(lx - 3, top, 9, 13);
-    ctx.fillStyle = lit ? (v.night ? "#ffdf8e" : "#f5e6bc") : "#3a3448";
+    ctx.fillStyle = lit ? (night ? "#ffdf8e" : "#f5e6bc") : "#3a3448";
     ctx.fillRect(lx - 2, top + 1, 7, 11);
     if (lit) {
       // the flame itself, flickering
@@ -1004,6 +1041,87 @@ export class Scene {
     ctx.fillStyle = dark ? "#241f1a" : "#4a3527";
     ctx.fillRect(lx - 4, top - 2, 11, 2);
     ctx.fillRect(lx, top - 4, 3, 2);
+  }
+
+  /**
+   * The sky, in four hours: flat blue by day, flat indigo by night, and a
+   * painted ramp at dusk and dawn (TWILIGHT_SKY). The twilight sun hangs low
+   * enough that the hills — drawn after this — bite into it, so it reads as
+   * setting behind the ridge rather than pasted on it.
+   */
+  private drawSky(t: number, dark: boolean): void {
+    const ctx = this.ctx;
+    const sky = this.view.sky;
+    const FLOOR_Y = this.floorY;
+
+    if (sky === "dusk" || sky === "dawn") {
+      const stops = TWILIGHT_SKY[sky];
+      for (let y = 0; y < FLOOR_Y; y++) {
+        ctx.fillStyle = twilightRow(stops, y, FLOOR_Y);
+        ctx.fillRect(0, y, SCENE_W, 1);
+      }
+      // The sun, half-drowned in the ridge, with the air glowing around it.
+      const sun = TWILIGHT_SUN[sky];
+      const cy = FLOOR_Y + sun.dy;
+      const glow = ctx.createRadialGradient(sun.x, cy, 2, sun.x, cy, 34);
+      glow.addColorStop(0, `rgba(${sun.glow},0.38)`);
+      glow.addColorStop(1, `rgba(${sun.glow},0)`);
+      ctx.fillStyle = glow;
+      ctx.fillRect(sun.x - 34, cy - 34, 68, 68);
+      ctx.fillStyle = sun.core;
+      this.fillDisc(sun.x, cy, SUN_ROWS);
+      ctx.fillStyle = sun.rim; // the lit upper edge
+      ctx.fillRect(sun.x - 2, cy - 4, 5, 1);
+      // First stars out / last stars left, depending which way the hour runs.
+      ctx.fillStyle = sky === "dusk" ? "#d8d4f0" : "#cdd2ee";
+      for (const [sx, sy] of [
+        [22, 9],
+        [58, 6],
+        [74, 15],
+      ]) {
+        if (Math.sin(t * 1.4 + sx) > -0.1) ctx.fillRect(sx, sy, 1, 1);
+      }
+      ctx.fillStyle = TWILIGHT_CLOUD[sky]; // clouds lit from underneath
+      this.drawClouds(t);
+      return;
+    }
+
+    const night = sky === "night";
+    ctx.fillStyle = dark ? "#141232" : night ? "#2b2552" : "#a8dcec";
+    ctx.fillRect(0, 0, SCENE_W, FLOOR_Y);
+    ctx.fillStyle = dark ? "#1d1940" : night ? "#3a3462" : "#cfeef8";
+    ctx.fillRect(0, FLOOR_Y - HILL_MIN_H, SCENE_W, HILL_MIN_H);
+
+    if (night) {
+      // moon + twinkling stars
+      ctx.fillStyle = "#f3edd0";
+      this.fillDisc(92, 13, MOON_ROWS);
+      // Carve the crescent: the same disc in the sky colour, nudged right.
+      ctx.fillStyle = dark ? "#141232" : "#2b2552";
+      this.fillDisc(95, 13, MOON_ROWS);
+      ctx.fillStyle = "#fff";
+      const stars = [
+        [10, 14],
+        [26, 30],
+        [44, 10],
+        [62, 24],
+        [78, 42],
+        [18, 46],
+        [98, 34],
+      ];
+      for (const [sx, sy] of stars) {
+        if (Math.sin(t * 2 + sx) > -0.3) ctx.fillRect(sx, sy, 1, 1);
+      }
+    } else {
+      // sun + drifting clouds
+      ctx.fillStyle = "#ffe9a3";
+      this.fillDisc(94, 12, SUN_ROWS);
+      ctx.fillStyle = "#fff2c8"; // top-left glint
+      ctx.fillRect(91, 9, 3, 1);
+      ctx.fillRect(92, 8, 2, 1);
+      ctx.fillStyle = "#ffffff";
+      this.drawClouds(t);
+    }
   }
 
   /** Fill a round pixel disc from 1px rows (half-width per row). The current
@@ -2299,7 +2417,8 @@ export class Scene {
   ): void {
     const ctx = this.ctx;
     const v = this.view;
-    const dark = v.night && !v.lightsOn;
+    const night = isNightSky(v.sky);
+    const dark = night && !v.lightsOn;
     const scale = 3 * scaleMul * this.depthScale(dy);
     // Round to a whole buffer pixel like the translate origin below — dy (and
     // so depthScale) crawls continuously while walking, and drawing a
@@ -2504,7 +2623,7 @@ export class Scene {
     // Drop the soil-line clip, then pile the earth on top of it.
     if (burrow > 0) {
       ctx.restore();
-      this.drawMolehill(cx, soilY, burrow, dark, v.night);
+      this.drawMolehill(cx, soilY, burrow, dark, night);
     }
   }
 

@@ -12,11 +12,11 @@ import {
   MAX_HEARTS,
   advanceOne,
   applyElapsedDecay,
-  getNightMode,
+  getSkyMode,
   isNight,
   logEvent,
-  setNightMode,
-  type NightMode,
+  setSkyMode,
+  type SkyMode,
 } from "./state";
 
 /** The visible stats the panel can set outright. Clamped to each stat's own
@@ -35,7 +35,7 @@ export type DevHidden =
 
 export type DevAction =
   | { type: "timeline"; timeline: Timeline }
-  | { type: "night"; mode: NightMode }
+  | { type: "sky"; mode: SkyMode }
   | { type: "stat"; stat: DevStat; value: number }
   | { type: "hidden"; stat: DevHidden; delta: number }
   | { type: "poop"; bad: boolean }
@@ -62,8 +62,8 @@ const r1 = (v: number): number => Math.round(v * 10) / 10;
 /** Apply one dev lever. Returns a new state (never mutates the input); levers
  *  that don't apply right now (growing an adult, sickening the sick…) hand the
  *  settled state back unchanged. The one lever that reaches outside the state
- *  is "night" — the sky isn't the pet's to own, so it lives in state.ts's
- *  module-level nightMode. */
+ *  is "sky" — the sky isn't the pet's to own, so it lives in state.ts's
+ *  module-level skyMode. */
 export function applyDevAction(state: PetState, action: DevAction, now: number): PetState {
   // Settle time first — a timeline switch must bank the elapsed span at the
   // old speed, and a forced event should land on up-to-date stats. Then clone:
@@ -78,12 +78,13 @@ export function applyDevAction(state: PetState, action: DevAction, now: number):
       logEvent(s, now, "timeline", action.timeline);
       return s;
     }
-    case "night": {
-      if (getNightMode() === action.mode) return settled;
-      setNightMode(action.mode);
+    case "sky": {
+      if (getSkyMode() === action.mode) return settled;
+      setSkyMode(action.mode);
       // The sky moved without any time passing, so applyElapsedDecay above
       // couldn't act on it: settle sleep by hand, the same way dawn does —
       // waking into a day relights the lantern nobody was there to switch on.
+      // (Dusk counts as day and dawn as night, exactly as on the clock.)
       const night = isNight(now);
       if (s.asleep && !night) s.lightsOn = true;
       s.asleep = night && !s.lightsOn && s.stage !== "egg";

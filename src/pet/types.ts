@@ -23,6 +23,11 @@ export type AdultForm =
 
 export type FoodId = "burger" | "cake" | "carrot" | "salad" | "cube" | "soup";
 
+/** What the sky looks like right now. Dusk and dawn are the hour either side of
+ *  night and are purely cosmetic: to every rule in the game, dusk is day and
+ *  dawn is night (see skyPhase / isNight in state.ts). */
+export type SkyPhase = "day" | "dusk" | "night" | "dawn";
+
 /** Which clock the pet lives on. "real" is the wall-clock game (stages take
  *  days); "demo" runs game-time at TIMELINE_SPEED (state.ts) so a whole life
  *  plays out in a sitting. A dev/demo lever, switched from the Dev Tools

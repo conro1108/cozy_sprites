@@ -20,6 +20,7 @@ import type {
   GameId,
   IllnessId,
   PetState,
+  SkyPhase,
   Stage,
   Timeline,
 } from "./types";
@@ -350,25 +351,41 @@ function clamp100(v: number): number {
 // the scene sky, and every "nothing bad happens overnight" rule in this file.
 export const NIGHT_START_HOUR = 20;
 export const NIGHT_END_HOUR = 8;
+// The last hour of the day and the last hour of the night are painted as
+// twilight (see the scene's sky). They are ONLY a look: dusk is still day and
+// dawn is still night to every rule below, so sleep, decay and the night ledger
+// don't move an inch.
+export const DUSK_START_HOUR = 19;
+export const DAWN_START_HOUR = 7;
 
 /** Dev Tools can pin the sky. Deliberately NOT in PetState: it's a lever on the
  *  world, not a fact about the pet, so it never persists or exports — reload and
- *  the wall clock is back in charge. While pinned there is no dusk or dawn, so
- *  the night ledger never settles (see nextDayNightBoundary). */
-export type NightMode = "auto" | "day" | "night";
-let nightMode: NightMode = "auto";
-export function setNightMode(mode: NightMode): void {
-  nightMode = mode;
+ *  the wall clock is back in charge. While pinned there is no dusk or dawn
+ *  *crossing*, so the night ledger never settles (see nextDayNightBoundary). */
+export type SkyMode = "auto" | SkyPhase;
+let skyMode: SkyMode = "auto";
+export function setSkyMode(mode: SkyMode): void {
+  skyMode = mode;
 }
-export function getNightMode(): NightMode {
-  return nightMode;
+export function getSkyMode(): SkyMode {
+  return skyMode;
+}
+
+/** Which of the four skies is overhead. Drives the scene's sky and nothing else
+ *  — everything that *matters* asks isNight. */
+export function skyPhase(now: number): SkyPhase {
+  if (skyMode !== "auto") return skyMode;
+  const h = new Date(now).getHours();
+  if (h >= NIGHT_START_HOUR || h < DAWN_START_HOUR) return "night";
+  if (h < NIGHT_END_HOUR) return "dawn";
+  if (h >= DUSK_START_HOUR) return "dusk";
+  return "day";
 }
 
 /** Whether it's night. Drives sleep, the Light button, and the scene sky. */
 export function isNight(now: number): boolean {
-  if (nightMode !== "auto") return nightMode === "night";
-  const h = new Date(now).getHours();
-  return h >= NIGHT_START_HOUR || h < NIGHT_END_HOUR;
+  const phase = skyPhase(now);
+  return phase === "night" || phase === "dawn";
 }
 
 /** The next dusk or dawn strictly after `t`. Lets applyElapsedDecay cut the
@@ -376,7 +393,7 @@ export function isNight(now: number): boolean {
  *  (and thus ages at one constant rate). Built with the Date constructor so
  *  local DST shifts land where the wall clock says they should. */
 function nextDayNightBoundary(t: number): number {
-  if (nightMode !== "auto") return Infinity; // pinned sky: the edge never comes
+  if (skyMode !== "auto") return Infinity; // pinned sky: the edge never comes
   const d = new Date(t);
   const h = d.getHours();
   // Before 8am → today's dawn; 8am–7:59pm → today's dusk; 8pm+ → tomorrow's

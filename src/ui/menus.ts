@@ -8,7 +8,8 @@ import type { FoodId, GameId, IllnessId, PetState, FarmEntry, AdultForm } from "
 import { FOODS, FOOD_ORDER, ADULTS, ADULT_ORDER } from "../pet/roster";
 import { ageLabel } from "../pet/format";
 import { formatDebugReport } from "../pet/debug";
-import { MAX_HEARTS, TIMELINE_SPEED, getNightMode, retirementPhase } from "../pet/state";
+import { MAX_HEARTS, TIMELINE_SPEED, getSkyMode, retirementPhase } from "../pet/state";
+import type { SkyMode } from "../pet/state";
 import { DEV_STAT_RANGE } from "../pet/devtools";
 import type { DevAction, DevHidden, DevStat } from "../pet/devtools";
 import { farmConfirmLine, farewellWalkLine, describeCondition } from "../pet/dialogue";
@@ -2062,8 +2063,9 @@ export function openDevTools(ctx: MenuCtx): void {
   p.body.appendChild(tlWrap);
   paintTimeline();
 
-  // Sky: pin day or night instead of waiting for 8pm. Session-only — it isn't
-  // saved, so a reload hands the clock back.
+  // Sky: pin an hour instead of waiting for it. Session-only — it isn't saved,
+  // so a reload hands the clock back. Dusk still counts as day and dawn as
+  // night: pinning them repaints the sky without touching sleep or decay.
   const skyWrap = document.createElement("div");
   skyWrap.className = "notify-settings";
   const skyLabel = document.createElement("p");
@@ -2073,16 +2075,23 @@ export function openDevTools(ctx: MenuCtx): void {
   skyRow.className = "notify-row";
   const paintSky = () => {
     skyRow.querySelectorAll("button").forEach((b) => {
-      b.classList.toggle("active", b.dataset.sky === getNightMode());
+      b.classList.toggle("active", b.dataset.sky === getSkyMode());
     });
   };
-  for (const m of ["auto", "day", "night"] as const) {
+  const SKY_LABELS: Record<SkyMode, string> = {
+    auto: "Clock",
+    day: "Day",
+    dusk: "Dusk",
+    night: "Night",
+    dawn: "Dawn",
+  };
+  for (const m of ["auto", "day", "dusk", "night", "dawn"] as const) {
     const b = document.createElement("button");
     b.className = "notify-opt";
     b.dataset.sky = m;
-    b.textContent = m === "auto" ? "Clock" : m === "day" ? "Day" : "Night";
+    b.textContent = SKY_LABELS[m];
     b.addEventListener("click", () => {
-      ctx.devAction({ type: "night", mode: m });
+      ctx.devAction({ type: "sky", mode: m });
       paintSky();
     });
     skyRow.appendChild(b);
