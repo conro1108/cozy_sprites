@@ -101,13 +101,17 @@ const DOG_SLEEP = ["ee.ee", ".nnn.", "..e..", ".eee."];
 // little it emotes, it emotes through its eyes (heavy lids when miserable).
 // The nose lives in the face grid rather than the body so it travels with the
 // gaze: the whole snout swings when the mole looks to one side.
-const MOLE_NEUTRAL = [".....", "e...e", ".....", ".ppp.", "..p.."];
+// The snout tapers 5 → 3 → 1 to a dark tip: a mole's nose is the whole point of
+// its face, and it has to have some bulk behind the point or it stops reading as
+// a snout and turns into a small pink smudge.
+const MOLE_SNOUT = ["ppppp", ".ppp.", "..q.."];
+const MOLE_NEUTRAL = [".....", "e...e", ".....", ...MOLE_SNOUT];
 const MOLE_HAPPY = MOLE_NEUTRAL;
 // Hooded, not wide: a 1px lid directly over a 1px eye just makes a tall bar,
 // which reads as alarm. A 2px lid drooping *inward* over the eye below is what
 // reads as miserable.
-const MOLE_SAD = ["ee.ee", "e...e", ".....", ".ppp.", "..p.."];
-const MOLE_SLEEP = [".....", "ee.ee", ".....", ".ppp.", "..p.."];
+const MOLE_SAD = ["ee.ee", "e...e", ".....", ...MOLE_SNOUT];
+const MOLE_SLEEP = [".....", "ee.ee", ".....", ...MOLE_SNOUT];
 
 const FACE_PALETTE: Palette = { e: EYE, z: "#9a9ab0", n: "#2b2030" };
 
@@ -641,8 +645,8 @@ const MOLE: BodyDef = {
     "................",
   ],
   extra: { c: "#f0dfc6" },
-  // The snout is drawn by the face grid, not the body — see MOLE_NEUTRAL.
-  faceExtra: { p: "#d7a9a4" },
+  // The snout is drawn by the face grid, not the body — see MOLE_SNOUT.
+  faceExtra: { p: "#d7a9a4", q: "#b0817c" },
   fill: "#8a7466",
   shade: "#6b584c",
   face: "mole",
