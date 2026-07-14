@@ -2156,7 +2156,9 @@ export function openDevTools(ctx: MenuCtx): void {
 
     const forms = document.createElement("div");
     forms.className = "dev-grid";
-    for (const f of ADULT_ORDER) {
+    // `hidden` forms (the mole) keep their no-in-game-trace promise even here —
+    // a dev panel is still a screen, and the only way in is still the name.
+    for (const f of ADULT_ORDER.filter((f) => !ADULTS[f].hidden)) {
       const b = document.createElement("button");
       b.className = "btn secondary btn-small";
       b.classList.toggle("active", pet.stage === "adult" && pet.form === f);
