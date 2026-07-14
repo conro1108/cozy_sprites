@@ -592,18 +592,20 @@ const CARROT: BodyDef = {
 };
 
 // The Little Cosmos — a plump four-point star: amethyst points (U), a rose
-// corona (N), and a radiant pale core (P) the face floats in, with two loose
-// sparkles (w) drifting beside it. The core is the one pale sprite in the
-// roster, so the shared dark eyes read at any scene brightness; the widest row
-// is all core, so glance-slid eyes never leave it. The whole star shimmers in
-// the scene (see scene.ts). Bottom tip lands on the shared baseline (row 14).
+// corona (N), and a radiant pale core (P) the face floats in. The core is the
+// one pale sprite in the roster, so the shared dark eyes read at any scene
+// brightness; the widest row is all core, so glance-slid eyes never leave it.
+// Its companion stars aren't in the sprite at all — the scene draws a slow
+// constellation around it (see drawCosmosSparkles) so they can drift and
+// relight, which baked pixels can't. The whole star shimmers in the scene
+// (see scene.ts). Bottom tip lands on the shared baseline (row 14).
 const COSMOS: BodyDef = {
   rows: [
     "................",
     "................",
     "................",
     ".......kk.......",
-    "......kNNk...w..",
+    "......kNNk......",
     ".....kUNNUk.....",
     "...kkUNPPNUkk...",
     ".kkUUNPPPPNUUkk.",
@@ -612,7 +614,7 @@ const COSMOS: BodyDef = {
     "..kkUNPPPPNUkk..",
     "....kUNPPNUk....",
     ".....kUNNUk.....",
-    "..w...kNNk......",
+    "......kNNk......",
     ".......kk.......",
     "................",
   ],
@@ -620,7 +622,6 @@ const COSMOS: BodyDef = {
     U: "#6a4a9e", // amethyst points
     N: "#e07ac2", // rose corona
     P: "#f6d7ee", // radiant core
-    w: "#ffffff", // companion sparkles
     k: "#241d47", // night outline
   },
   fill: "#6a4a9e",
@@ -630,28 +631,28 @@ const COSMOS: BodyDef = {
   faceDy: 8,
   alt: {
     // The twinkle pose: four white glints flare on the diagonals — halfway
-    // between the points, where a lens would flare — while the companion
-    // sparkles wink out. Alternated fast (see scene.ts) the star reads as
-    // spinning its points without ever leaving the pixel grid.
+    // between the points, where a lens would flare. Alternated fast (see
+    // scene.ts) the star reads as spinning its points without ever leaving
+    // the pixel grid.
     rows: [
       "................",
       "................",
       "................",
       "................",
-      ".............x..",
-      "...w........w...",
-      "................",
-      "................",
-      "................",
-      "................",
-      "................",
       "................",
       "...w........w...",
-      "..x.............",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "...w........w...",
+      "................",
       "................",
       "................",
     ],
-    palette: { w: "#ffffff", x: "ERASE" },
+    palette: { w: "#ffffff" },
   },
 };
 
