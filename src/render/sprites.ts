@@ -101,10 +101,12 @@ const DOG_SLEEP = ["ee.ee", ".nnn.", "..e..", ".eee."];
 // little it emotes, it emotes through its eyes (heavy lids when miserable).
 // The nose lives in the face grid rather than the body so it travels with the
 // gaze: the whole snout swings when the mole looks to one side.
-// The snout tapers 5 → 3 → 1 to a dark tip: a mole's nose is the whole point of
-// its face, and it has to have some bulk behind the point or it stops reading as
-// a snout and turns into a small pink smudge.
-const MOLE_SNOUT = ["ppppp", ".ppp.", "..q.."];
+// A dark nose tucked right under the glasses, sitting on a pink muzzle that
+// bulges below it and tapers off. (`n` is the shared dark nose colour the dog
+// already uses.) Nose-on-top is the whole trick: run it the other way — pink
+// first, dark tip at the bottom — and the snout stops reading as a face and
+// starts reading as a beak.
+const MOLE_SNOUT = [".nnn.", "ppppp", ".ppp."];
 const MOLE_NEUTRAL = [".....", "e...e", ".....", ...MOLE_SNOUT];
 const MOLE_HAPPY = MOLE_NEUTRAL;
 // Hooded, not wide: a 1px lid directly over a 1px eye just makes a tall bar,
@@ -646,7 +648,7 @@ const MOLE: BodyDef = {
   ],
   extra: { c: "#f0dfc6" },
   // The snout is drawn by the face grid, not the body — see MOLE_SNOUT.
-  faceExtra: { p: "#d7a9a4", q: "#b0817c" },
+  faceExtra: { p: "#d7a9a4" },
   fill: "#8a7466",
   shade: "#6b584c",
   face: "mole",
