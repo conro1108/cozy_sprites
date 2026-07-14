@@ -628,6 +628,31 @@ const COSMOS: BodyDef = {
   face: "small",
   faceDx: 6,
   faceDy: 8,
+  alt: {
+    // The twinkle pose: four white glints flare on the diagonals — halfway
+    // between the points, where a lens would flare — while the companion
+    // sparkles wink out. Alternated fast (see scene.ts) the star reads as
+    // spinning its points without ever leaving the pixel grid.
+    rows: [
+      "................",
+      "................",
+      "................",
+      "................",
+      ".............x..",
+      "...w........w...",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+      "...w........w...",
+      "..x.............",
+      "................",
+      "................",
+    ],
+    palette: { w: "#ffffff", x: "ERASE" },
+  },
 };
 
 // The Software Mole (easter egg) — a velvety taupe loaf with no visible ears,

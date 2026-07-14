@@ -2106,6 +2106,15 @@ export class Scene {
       return m;
     }
     if (this.wanderPhase === "walk") {
+      if (key === "cosmos") {
+        // Stars don't hop. It glides: held aloft, leaning into the drift,
+        // shimmering all the way (the resting shimmer lives in idleMotion,
+        // which a walking creature never reaches).
+        m.bob = -3 + Math.sin(t * 2.2) * 1.2;
+        m.rot = this.facing * 0.08;
+        this.extraAlpha = 0.82 + 0.18 * Math.sin(t * 2.2);
+        return m;
+      }
       // a clean hop along the ground — no side-to-side rock, just bounce,
       // with a touch of squash-stretch to sell the airborne moment
       const phase = Math.abs(Math.sin(t * 9));
@@ -2116,6 +2125,15 @@ export class Scene {
       return m;
     }
     if (this.wanderPhase === "zoom") {
+      if (key === "cosmos") {
+        // Zoomies for a star are a shooting star: a hard lean, held higher
+        // aloft, points flaring as fast as they can flicker.
+        m.bob = -5 + Math.sin(t * 3.2) * 1.2;
+        m.rot = this.facing * 0.16;
+        this.altFrame = Math.sin(t * 24) > 0;
+        this.extraAlpha = 0.7 + 0.3 * Math.sin(t * 9);
+        return m;
+      }
       // The zoomies: the same trot, cranked — a much faster, bouncier blur.
       const phase = Math.abs(Math.sin(t * 22));
       m.bob = -phase * 4;
@@ -2280,11 +2298,16 @@ export class Scene {
       case "cosmos":
         m.bob = Math.sin(t * 1.15) * 1.6 - 3; // held a little aloft, drifting
         m.dx = Math.sin(t * 0.6) * 1.2; // never quite anchored to the ground
-        // The shimmer: the whole nebula breathes like far starlight, always —
-        // with an occasional deeper twinkle laid over it.
+        // The shimmer: the whole star breathes like far starlight, always —
+        // and the body pulses in the same phase, swelling as it brightens.
+        m.sy = 1 + Math.sin(t * 2.2) * 0.025;
+        m.sx = 1 - Math.sin(t * 2.2) * 0.02;
         this.extraAlpha = 0.82 + 0.18 * Math.sin(t * 2.2);
         if ((q = quirk(t, 16.7, 1.2)) >= 0) {
+          // The deep twinkle: brightness dives and spikes while the diagonal
+          // glints flick on and off — the points seem to spin.
           this.extraAlpha = 0.55 + 0.45 * Math.abs(Math.cos(q * Math.PI * 3));
+          this.altFrame = Math.sin(t * 14) > 0;
         }
         break;
       case "mole":
