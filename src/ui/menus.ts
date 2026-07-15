@@ -2155,7 +2155,7 @@ export function openDevTools(ctx: MenuCtx): void {
     body.appendChild(stageRow);
 
     const forms = document.createElement("div");
-    forms.className = "dev-grid";
+    forms.className = "dev-grid dev-form-grid";
     // `hidden` forms (the mole) keep their no-in-game-trace promise even here —
     // a dev panel is still a screen, and the only way in is still the name.
     for (const f of ADULT_ORDER.filter((f) => !ADULTS[f].hidden)) {
