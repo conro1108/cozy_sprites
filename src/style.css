@@ -1720,6 +1720,10 @@ body {
   margin-top: 0;
   padding: 9px 12px;
 }
+.dev-grid .dev-form-btn {
+  padding: 4px;
+  display: flex;
+}
 
 .dev-stats {
   margin: 8px 0 14px;

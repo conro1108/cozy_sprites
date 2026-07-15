@@ -2160,9 +2160,10 @@ export function openDevTools(ctx: MenuCtx): void {
     // a dev panel is still a screen, and the only way in is still the name.
     for (const f of ADULT_ORDER.filter((f) => !ADULTS[f].hidden)) {
       const b = document.createElement("button");
-      b.className = "btn secondary btn-small";
+      b.className = "btn secondary btn-small dev-form-btn";
       b.classList.toggle("active", pet.stage === "adult" && pet.form === f);
-      b.textContent = ADULTS[f].name;
+      b.title = ADULTS[f].name;
+      b.appendChild(portrait(f));
       b.addEventListener("click", () => {
         p.close();
         ctx.devAction({ type: "become", stage: "adult", form: f });
