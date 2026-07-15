@@ -25,6 +25,7 @@ export type Category =
   | "cube"
   | "soup"
   | "soup_cure" // soup fed to a soup-curable illness — the folk remedy landing
+  | "nap_cure" // woke up cured after a daytime lie-down (the vapors)
   | "medicine"
   | "dose" // first plague shot: cured of nothing yet
   | "clean"
@@ -410,6 +411,14 @@ const GENERAL: Bank = {
     "I can feel my face again.",
     "Warm. Fixed. Grateful.",
     "This is why I keep you around.",
+  ],
+  // Woke up cured after a proper daytime lie-down (the vapors' one folk cure).
+  nap_cure: [
+    "Oh. That worked.",
+    "The nap fixed me. Don't tell science.",
+    "I feel unwavery.",
+    "Rested. Cured. Smug about both.",
+    "The vapors have left the building.",
   ],
   dose: [
     "One down. I still feel historic.",

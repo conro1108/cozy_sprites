@@ -997,6 +997,7 @@ function stepPet(now: number, withEvents: boolean): boolean {
   const prevStage = pet.stage;
   const prevEnergy = pet.energy;
   const prevAsleep = pet.asleep;
+  const prevIllness = pet.illness;
   const wasDead = pet.deadAt !== null;
   const wasNight = isNight(pet.lastUpdated);
   const prevPhase = retirementPhase(pet);
@@ -1056,6 +1057,11 @@ function stepPet(now: number, withEvents: boolean): boolean {
   } else if (prevAsleep && !pet.asleep && pet.lightsOn) {
     // The lantern relit itself with the dawn — nobody touched the switch.
     sayCat("wake");
+  } else if (prevIllness === "vapors" && !pet.sick) {
+    // Cured itself mid-nap — the lights are still off, so this doesn't route
+    // through the dawn "wake" branch above.
+    sayCat("nap_cure");
+    notify("care", "Cozy Sprites", `${pet.name}'s nap worked — the vapors are gone.`);
   } else if (!wasNight && isNight(now) && !pet.asleep && pet.stage !== "egg") {
     // Dusk with the lantern still lit: the bedtime nudge. Sleeping through the
     // night is worth health; missing it entirely is a care mistake at dawn.

@@ -456,6 +456,7 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
     return { ...state, lastUpdated: now };
   }
   const wasAsleep = state.asleep;
+  const wasNight = isNight(state.lastUpdated);
   const s: PetState = {
     ...state,
     hidden: { ...state.hidden },
@@ -478,7 +479,7 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
     const boundary = nextDayNightBoundary(cursor);
     if (boundary < segEnd) segEnd = boundary;
     const night = isNight(cursor);
-    const asleep = night && !s.lightsOn && s.stage !== "egg";
+    const asleep = computeAsleep(s, night);
     const ageRate = asleep ? SLEEP_AGE_RATE : 1;
 
     // 2) Cut where this stage's awake-time budget runs out, so the overshoot
@@ -532,9 +533,10 @@ export function applyElapsedDecay(state: PetState, now: number): PetState {
   if (s.deadAt === null && s.departedAt === null) {
     const stillNight = isNight(now);
     // Dawn: nobody relights the lantern by hand every morning — it comes back
-    // on by itself, and that's what wakes it up.
-    if (wasAsleep && !stillNight) s.lightsOn = true;
-    s.asleep = stillNight && !s.lightsOn && s.stage !== "egg";
+    // on by itself, and that's what wakes it up. Gated on an actual night→day
+    // crossing so an in-progress daytime vapors nap doesn't get relit by this.
+    if (wasAsleep && wasNight && !stillNight) s.lightsOn = true;
+    s.asleep = computeAsleep(s, stillNight);
   }
   s.lastUpdated = now;
   return s;
@@ -590,6 +592,17 @@ function clearCall(s: PetState): void {
   s.callStartedAt = null;
 }
 
+/** Whether the pet is visually asleep: always at night with the lights off,
+ *  or — with a nap-curable illness (the vapors) — a deliberate daytime
+ *  lie-down. Lights off in broad daylight for no reason stays awake (see
+ *  DAY_DARK_LINES in main.ts); only an illness that actually needs the nap
+ *  puts it under. */
+function computeAsleep(s: PetState, night: boolean): boolean {
+  if (s.stage === "egg" || s.lightsOn) return false;
+  if (night) return true;
+  return s.sick && s.illness !== null && ILLNESSES[s.illness].napCure;
+}
+
 /** Cure the current illness (medicine, nap, or time) with a health bump. */
 function cureIllness(s: PetState, healthBonus: number, at: number, via: string): void {
   logEvent(s, at, "cured", `${s.illness ?? "ailment"} (${via})`);
@@ -615,7 +628,7 @@ function decaySegment(
   night: boolean,
   wallSeg: number = seg,
 ): void {
-  const asleep = night && !s.lightsOn && s.stage !== "egg";
+  const asleep = computeAsleep(s, night);
   const day = !night;
   const hours = seg / HOUR;
   const fx = s.sick && s.illness ? ILLNESSES[s.illness] : null;
@@ -1062,7 +1075,7 @@ export function discipline(state: PetState, now: number): ActionResult {
 export function toggleLight(state: PetState, now: number): PetState {
   let s = applyElapsedDecay(state, now);
   s = { ...s, lightsOn: !s.lightsOn, diag: [...s.diag] };
-  s.asleep = isNight(now) && !s.lightsOn && s.stage !== "egg";
+  s.asleep = computeAsleep(s, isNight(now));
   // Turning lights off at night to let it sleep counts toward the Ghost path.
   if (isNight(now) && !s.lightsOn) {
     s.hidden = { ...s.hidden, nightCare: s.hidden.nightCare + 1 };
@@ -1289,10 +1302,14 @@ export function stepEvents(
     const chunk = Math.min(EVENT_CHUNK_MS / speed, elapsed - offset);
     const chunkStart = start + offset;
     offset += chunk;
-    // Egg is already excluded above, so this mirrors applyElapsedDecay's own
-    // asleep test exactly: night and lights off. Note this reads the caller's
-    // snapshot, NOT s.lightsOn — see lightsOnDuringSpan on the signature.
-    if (isNight(chunkStart) && !lightsOnDuringSpan) continue;
+    // Egg is already excluded above, so this mirrors computeAsleep: night and
+    // lights off, or (with a nap-curable illness) lights off by day. Note
+    // this reads the caller's snapshot, NOT s.lightsOn — see
+    // lightsOnDuringSpan on the signature.
+    const chunkNight = isNight(chunkStart);
+    if (!lightsOnDuringSpan && (chunkNight || (s.sick && s.illness !== null && ILLNESSES[s.illness].napCure))) {
+      continue;
+    }
     const perHour = (chunk * speed) / HOUR;
 
     // Pooping happens on a regular per-stage schedule, at most one mess per

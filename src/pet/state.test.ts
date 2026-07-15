@@ -512,6 +512,39 @@ describe("illness particulars", () => {
     const rested = applyElapsedDecay(fainted, T0 + 90 * 60_000);
     expect(rested.sick).toBe(false);
     expect(rested.illness).toBeNull();
+    // Cured, so lights-off-by-day goes back to just being weird, not a nap.
+    expect(rested.asleep).toBe(false);
+  });
+
+  it("a daytime nap actually looks asleep — but only with a nap-curable illness", () => {
+    const healthy = asStage({ ...createPet("Milo", T0), lightsOn: true }, "adult");
+    const litOff = toggleLight(healthy, T0);
+    expect(litOff.asleep).toBe(false); // mood lighting, not a nap — DAY_DARK_LINES territory
+
+    const woozy = asStage(
+      { ...createPet("Milo", T0), lightsOn: true, sick: true, illness: "vapors" as const },
+      "adult",
+    );
+    const napping = toggleLight(woozy, T0);
+    expect(napping.asleep).toBe(true);
+  });
+
+  it("an in-progress daytime nap doesn't get relit by the dawn logic", () => {
+    const napping = asStage(
+      {
+        ...createPet("Milo", T0),
+        lightsOn: false,
+        asleep: true,
+        sick: true,
+        illness: "vapors" as const,
+      },
+      "adult",
+    );
+    // Advance a little, still well short of the cure and nowhere near dawn —
+    // the dawn auto-relight must not fire just because it's daytime.
+    const later = applyElapsedDecay(napping, T0 + 10 * 60_000);
+    expect(later.lightsOn).toBe(false);
+    expect(later.asleep).toBe(true);
   });
 
   it("trimethylaminuria: the pat lands but pays nothing", () => {
