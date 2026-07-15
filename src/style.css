@@ -1720,9 +1720,14 @@ body {
   margin-top: 0;
   padding: 9px 12px;
 }
+/* Sprite forms fill each row edge-to-edge like every other row in this panel
+   (the same flex:1-per-line trick as .notify-opt), instead of clumping left
+   at their natural width. */
 .dev-grid .dev-form-btn {
+  flex: 1 1 48px;
   padding: 4px;
   display: flex;
+  justify-content: center;
 }
 
 .dev-stats {
