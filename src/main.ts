@@ -842,7 +842,16 @@ function doDiscipline(): void {
   commit();
 }
 
-const DAY_DARK_LINES = ["It is not even dark.", "Mood lighting. Bold.", "Ambience, I suppose."];
+const DAY_DARK_LINES = [
+  "It is not even dark.",
+  "Mood lighting. Bold.",
+  "Ambience, I suppose.",
+  "The sun is still out. We are ignoring that.",
+  "A statement, apparently.",
+  "Noon, but make it ominous.",
+  "This is a choice.",
+  "Bold of you, given the sun.",
+];
 
 const SICK_PLAY_LINES = [
   "No games. I am unwell.",
