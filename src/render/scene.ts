@@ -375,7 +375,14 @@ export class Scene {
   }
 
   update(view: SceneView): void {
-    if (view.asleep && !this.view.asleep) this.sleepStart = performance.now();
+    if (view.asleep && !this.view.asleep) {
+      // The mole walks back to centre before settling (see updateWander),
+      // which stamps sleepStart itself on arrival; stamping it here too
+      // would start the settle/burrow animation early, before it's home.
+      if (view.key !== "mole" || (this.wanderX === 0 && this.wanderY === 0)) {
+        this.sleepStart = performance.now();
+      }
+    }
     if (!view.asleep && this.view.asleep) this.wakeStart = performance.now();
     this.view = view;
     const cacheKey = `${view.key}:${view.mood}:${view.variant ?? ""}`;
@@ -1882,11 +1889,37 @@ export class Scene {
     const dt = this.lastFrame ? Math.min(0.05, (now - this.lastFrame) / 1000) : 0;
     this.lastFrame = now;
     const v = this.view;
-    // Egg stays put; sleep, tantrum, flourish and the age-up suspend wandering.
-    if (v.key === "egg" || v.asleep || v.tantrum || this.flourishing() || this.evolving()) {
+    // Egg stays put; tantrum, flourish and the age-up suspend wandering.
+    if (v.key === "egg" || v.tantrum || this.flourishing() || this.evolving()) {
       if (v.key === "egg") {
         this.wanderX = 0;
         this.wanderY = 0;
+      }
+      return;
+    }
+    if (v.asleep) {
+      // Every other creature just settles wherever it already was. The mole
+      // digs into a molehill that has to land in the same spot every time, so
+      // it walks back to centre first instead of burrowing in wherever it
+      // happened to be wandering — see ambientMotion's matching walk-phase
+      // exception, and burrowAmount, which won't start the dig until
+      // sleepStart is stamped below on arrival.
+      if (v.key === "mole" && (this.wanderX !== 0 || this.wanderY !== 0)) {
+        this.wanderPhase = "walk";
+        const step = WALK_SPEED * dt;
+        const remaining = Math.hypot(this.wanderX, this.wanderY);
+        if (remaining <= step + 0.4) {
+          this.wanderX = 0;
+          this.wanderY = 0;
+          this.sleepStart = now;
+          // Home — hand off from the walk-cycle to the settle/burrow animation
+          // (ambientMotion keys off "walk" to tell the two apart), and land on
+          // "dwell" rather than leftover state so waking resumes cleanly.
+          this.wanderPhase = "dwell";
+        } else {
+          this.wanderX -= (this.wanderX / remaining) * step;
+          this.wanderY -= (this.wanderY / remaining) * step;
+        }
       }
       return;
     }
@@ -2069,9 +2102,11 @@ export class Scene {
 
     // The age-up owns the body outright — nothing else gets a say while it runs.
     if (this.evolving()) return this.evolveMotion();
-    if (v.asleep) {
+    if (v.asleep && !(v.key === "mole" && this.wanderPhase === "walk")) {
       // Settle down into the grass like a little loaf, breathing slowly —
-      // unmistakably asleep, not just standing there with its eyes shut.
+      // unmistakably asleep, not just standing there with its eyes shut. (A
+      // mole mid-walk back to its molehill falls through to the ordinary
+      // walk-cycle animation below instead — see updateWander.)
       const settle = Math.min(1, (performance.now() - this.sleepStart) / 700);
       m.sy = 1 - settle * (0.16 - Math.sin(t * 1.1) * 0.015);
       m.sx = 1 + settle * 0.1;
@@ -2654,6 +2689,12 @@ export class Scene {
    * out a little quicker than it went down.
    */
   private burrowAmount(): number {
+    // Still walking back to the molehill — sleepStart hasn't been stamped for
+    // this nap yet (see updateWander), so the elapsed-since-sleep math below
+    // would divide against whatever it was left at (or -Infinity, the very
+    // first nap), reading as "long since asleep" and popping it underground
+    // before it's even home.
+    if (this.wanderPhase === "walk") return 0;
     const ease = (q: number): number => {
       const c = Math.max(0, Math.min(1, q));
       return c * c * (3 - 2 * c);
