@@ -99,14 +99,29 @@ const DOG_SLEEP = ["ee.ee", ".nnn.", "..e..", ".eee."];
 // The mole: eyes and a nose, no mouth. A mood-mouth drawn across a snout reads
 // as a lolling tongue, not an expression, so the mole doesn't get one — what
 // little it emotes, it emotes through its eyes (heavy lids when miserable).
-// The nose lives in the face grid rather than the body so it travels with the
-// gaze: the whole snout swings when the mole looks to one side.
+// The nose tip lives in the face grid rather than the body so it travels with
+// the gaze like the eyes do — but only the tip. If the pink muzzle slid along
+// with it the whole snout would just translate sideways; leaving the muzzle
+// planted and swinging only the dark tip reads as the head actually turning.
 // A dark nose tucked right under the glasses, sitting on a pink muzzle that
 // bulges below it and tapers off. (`n` is the shared dark nose colour the dog
 // already uses.) Nose-on-top is the whole trick: run it the other way — pink
 // first, dark tip at the bottom — and the snout stops reading as a face and
 // starts reading as a beak.
-const MOLE_SNOUT = [".nnn.", "ppppp", ".ppp."];
+const MOLE_NOSE_TIP_CENTER = ".nnn.";
+// Mid-turn the tip trails one pink pixel behind it — the edge of muzzle it
+// just swung off of — so it never reads as pinned to bare fur. Centered, it
+// carries none: both edges already sit on the muzzle below.
+const MOLE_NOSE_TIP_LEFT = "nnnp.";
+const MOLE_NOSE_TIP_RIGHT = ".pnnn";
+const MOLE_MUZZLE = ["ppppp", ".ppp."];
+const MOLE_SNOUT = [MOLE_NOSE_TIP_CENTER, ...MOLE_MUZZLE];
+// Rows 0-2 are the eye complex (padding/eye/padding, or a mood's lids in place
+// of the padding); the tip is the row right after — swapped for a
+// direction-specific variant in renderPixels instead of sliding generically
+// like the eyes, so it can trail that one pink pixel. The muzzle past it never
+// moves at all.
+const MOLE_EYE_ROWS = 3;
 const MOLE_NEUTRAL = [".....", "e...e", ".....", ...MOLE_SNOUT];
 const MOLE_HAPPY = MOLE_NEUTRAL;
 // Hooded, not wide: a 1px lid directly over a 1px eye just makes a tall bar,
@@ -663,19 +678,19 @@ const MOLE: BodyDef = {
   rows: [
     "................",
     "................",
-    ".....kkkkkk.....",
-    "...kkBBBBBBkk...",
-    "..kBBBBBBBBBBk..",
-    "..kBBBBBBBBBBk..",
-    "..kBBBBBBBBBBk..",
-    "..kBBBBBBBBBBk..",
-    "..kBBBBBBBBBBk..",
-    "..kBBBBBBBBBBk..",
-    "..kBBBBBBBBBBk..",
-    ".kBBBBBBBBBBBBk.",
-    ".kSBBBBBBBBBBSk.",
-    ".kcccSSSSSSccck.",
-    "..kkkkkkkkkkkk..",
+    ".....kkkkk......",
+    "...kkBBBBBkk....",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kBBBBBBBBBk...",
+    "..kSBBBBBBBSk...",
+    "..kcccSSSccck...",
+    "..kkkkkkkkkkk...",
     "................",
   ],
   extra: { c: "#f0dfc6" },
@@ -942,13 +957,13 @@ export const SPRITE_FRAMES: SpriteFrame[] = [
 /** First row of the face grid that belongs to the mouth (not the gaze) —
  *  everything above it shifts on a glance / closes on a blink. The dog's
  *  snout (nose/philtrum/mouth) is all below the split, so it stays anchored
- *  while the eyes glance and blink. The mole is the opposite: it has no mouth
- *  at all, and its whole face — nose included — rides above the split, so the
- *  snout swings across with the gaze instead of sitting there while the eyes
- *  slide out from under it. */
+ *  while the eyes glance and blink. The mole has no mouth at all — its split
+ *  falls between the nose tip and the muzzle below it, so the tip swivels
+ *  with the eyes (reading as the head turning) while the muzzle stays put;
+ *  if the whole snout rode along it would just slide sideways instead. */
 function eyeSplit(kind: FaceKind): number {
   if (kind === "standard") return 8;
-  if (kind === "mole") return MOLE_NEUTRAL.length;
+  if (kind === "mole") return MOLE_EYE_ROWS;
   return 1;
 }
 
@@ -1010,6 +1025,13 @@ export function renderPixels(
     });
   }
   const shift = frame === "glanceL" ? -1 : frame === "glanceR" ? 1 : 0;
+  if (body.face === "mole" && shift !== 0) {
+    // The tip doesn't go through the generic per-pixel slide below — it's
+    // swapped for a variant that already has the trailing pink pixel baked
+    // in on the correct side, then blitted fixed like the rest of the snout.
+    rows = [...rows];
+    rows[split] = shift < 0 ? MOLE_NOSE_TIP_LEFT : MOLE_NOSE_TIP_RIGHT;
+  }
   if (shift === 0) {
     blit(buf, rows, facePalette, body.faceDx, body.faceDy);
   } else {
