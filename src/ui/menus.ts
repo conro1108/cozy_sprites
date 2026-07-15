@@ -2094,9 +2094,6 @@ export function openDevTools(ctx: MenuCtx): void {
     // dawn as night: pinning them repaints the sky without touching sleep.
     const skyWrap = document.createElement("div");
     skyWrap.className = "notify-settings";
-    const skyLabel = document.createElement("p");
-    skyLabel.className = "muted";
-    skyLabel.textContent = "Sky — pinned until reload";
     const skyRow = document.createElement("div");
     skyRow.className = "notify-row";
     const paintSky = () => {
@@ -2122,7 +2119,7 @@ export function openDevTools(ctx: MenuCtx): void {
       });
       skyRow.appendChild(b);
     }
-    skyWrap.append(skyLabel, skyRow);
+    skyWrap.append(skyRow);
     body.appendChild(skyWrap);
     paintSky();
   });
