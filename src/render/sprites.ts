@@ -108,13 +108,19 @@ const DOG_SLEEP = ["ee.ee", ".nnn.", "..e..", ".eee."];
 // already uses.) Nose-on-top is the whole trick: run it the other way — pink
 // first, dark tip at the bottom — and the snout stops reading as a face and
 // starts reading as a beak.
-const MOLE_NOSE_TIP_CENTER = ".nnn.";
+// The face grid is 7 wide (not 5) so the sad/sleep lid can add its second
+// pixel outward, past the neutral eye, instead of inward toward the nose —
+// the glasses lenses (see overlay below) are already sized to cols 4-6/8-10,
+// wider than a single-pixel eye needs, so this fills them out instead of
+// squeezing the eyes toward each other, matching the wide-eyed look the other
+// sprites' faces share.
+const MOLE_NOSE_TIP_CENTER = "..nnn..";
 // Mid-turn the tip trails one pink pixel behind it — the edge of muzzle it
 // just swung off of — so it never reads as pinned to bare fur. Centered, it
 // carries none: both edges already sit on the muzzle below.
-const MOLE_NOSE_TIP_LEFT = "nnnp.";
-const MOLE_NOSE_TIP_RIGHT = ".pnnn";
-const MOLE_MUZZLE = ["ppppp", ".ppp."];
+const MOLE_NOSE_TIP_LEFT = ".nnnp..";
+const MOLE_NOSE_TIP_RIGHT = "..pnnn.";
+const MOLE_MUZZLE = [".ppppp.", "..ppp.."];
 const MOLE_SNOUT = [MOLE_NOSE_TIP_CENTER, ...MOLE_MUZZLE];
 // Rows 0-2 are the eye complex (padding/eye/padding, or a mood's lids in place
 // of the padding); the tip is the row right after — swapped for a
@@ -122,13 +128,13 @@ const MOLE_SNOUT = [MOLE_NOSE_TIP_CENTER, ...MOLE_MUZZLE];
 // like the eyes, so it can trail that one pink pixel. The muzzle past it never
 // moves at all.
 const MOLE_EYE_ROWS = 3;
-const MOLE_NEUTRAL = [".....", "e...e", ".....", ...MOLE_SNOUT];
+const MOLE_NEUTRAL = [".......", ".e...e.", ".......", ...MOLE_SNOUT];
 const MOLE_HAPPY = MOLE_NEUTRAL;
 // Hooded, not wide: a 1px lid directly over a 1px eye just makes a tall bar,
-// which reads as alarm. A 2px lid drooping *inward* over the eye below is what
-// reads as miserable.
-const MOLE_SAD = ["ee.ee", "e...e", ".....", ...MOLE_SNOUT];
-const MOLE_SLEEP = [".....", "ee.ee", ".....", ...MOLE_SNOUT];
+// which reads as alarm. A 2px lid extending *outward* past the eye below is
+// what reads as miserable, without narrowing the gap between the eyes.
+const MOLE_SAD = ["ee...ee", ".e...e.", ".......", ...MOLE_SNOUT];
+const MOLE_SLEEP = [".......", "ee...ee", ".......", ...MOLE_SNOUT];
 
 const FACE_PALETTE: Palette = { e: EYE, z: "#9a9ab0", n: "#2b2030" };
 
@@ -699,7 +705,7 @@ const MOLE: BodyDef = {
   fill: "#8a7466",
   shade: "#6b584c",
   face: "mole",
-  faceDx: 5,
+  faceDx: 4,
   faceDy: 4,
   overlay: {
     // Plain filled lenses, no frame. They must be *filled*, not hollow rings:
