@@ -2298,7 +2298,10 @@ export function openDevTools(ctx: MenuCtx): void {
     const illnesses = document.createElement("div");
     illnesses.className = "dev-grid";
     for (const id of Object.keys(ILLNESSES) as IllnessId[]) {
-      devBtn(illnesses, ILLNESSES[id].label, { type: "illness", illness: id });
+      // ILLNESSES[id].label is lowercase for mid-sentence prose ("caught the
+      // sniffles"); every other button on this screen is capitalized.
+      const label = ILLNESSES[id].label;
+      devBtn(illnesses, label[0].toUpperCase() + label.slice(1), { type: "illness", illness: id });
     }
     body.appendChild(illnesses);
   });
