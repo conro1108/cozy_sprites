@@ -846,11 +846,9 @@ const DAY_DARK_LINES = [
   "It is not even dark.",
   "Mood lighting. Bold.",
   "Ambience, I suppose.",
-  "The sun is still out. We are ignoring that.",
-  "A statement, apparently.",
-  "Noon, but make it ominous.",
   "This is a choice.",
-  "Bold of you, given the sun.",
+  "It's not bedtime.",
+  "No naps for me.",
 ];
 
 const SICK_PLAY_LINES = [
