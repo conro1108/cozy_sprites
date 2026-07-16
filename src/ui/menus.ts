@@ -2061,6 +2061,22 @@ export function openDevTools(ctx: MenuCtx): void {
     parent.appendChild(el);
   };
 
+  // A plain read-only "label : value" row, repainted from live state.
+  const readRow = (parent: HTMLElement, label: string, value: () => string) => {
+    const row = document.createElement("div");
+    row.className = "dev-stat";
+    const name = document.createElement("span");
+    name.className = "dev-stat-label";
+    name.textContent = label;
+    const val = document.createElement("span");
+    val.className = "dev-stat-value";
+    repaints.push(() => {
+      val.textContent = value();
+    });
+    row.append(name, val);
+    parent.appendChild(row);
+  };
+
   drawer("Timeline & sky", (body) => {
     // Timeline: real wall-clock pacing, or everything at demo speed.
     const tlWrap = document.createElement("div");
@@ -2267,29 +2283,9 @@ export function openDevTools(ctx: MenuCtx): void {
     hiddenRow("cubeEaten", "Cubes eaten");
     hiddenRow("carrotEaten", "Carrots eaten");
     body.appendChild(ledger);
-  });
 
-  // Read-only mirror of evolution.ts: the game tally that decides the "favorite
-  // game" input, and the live per-form scores it (and the rest of the ledger)
-  // produce. Purely diagnostic — it never dispatches, it just reflects whatever
-  // the levers above set, so you can watch the projected adult move as you tune.
-  drawer("Evolution", (body) => {
-    // A plain read-only "label : value" row, repainted from live state.
-    const readRow = (parent: HTMLElement, label: string, value: () => string) => {
-      const row = document.createElement("div");
-      row.className = "dev-stat";
-      const name = document.createElement("span");
-      name.className = "dev-stat-label";
-      name.textContent = label;
-      const val = document.createElement("span");
-      val.className = "dev-stat-value";
-      repaints.push(() => {
-        val.textContent = value();
-      });
-      row.append(name, val);
-      parent.appendChild(row);
-    };
-
+    // Read-only mirror of evolution.ts: the game tally that feeds the
+    // "favorite game" input — a tally, not a lever, so it's shown, not stepped.
     hint(body, "Game plays — the favorite counts only if one game leads outright.");
     const plays = document.createElement("div");
     plays.className = "dev-stats";
@@ -2303,7 +2299,12 @@ export function openDevTools(ctx: MenuCtx): void {
       });
     }
     body.appendChild(plays);
+  });
 
+  // Read-only mirror of evolution.ts: the live per-form scores the ledger
+  // above produces. Purely diagnostic — it never dispatches, it just reflects
+  // whatever the levers set, so you can watch the projected adult move as you tune.
+  drawer("Evolution", (body) => {
     hint(body, "Live form scores — the leader wins; a face within 0.5 (≈) ties and breaks at random. Tap a face for its breakdown.");
     const board = document.createElement("div");
     board.className = "dev-stats dev-scoreboard";
