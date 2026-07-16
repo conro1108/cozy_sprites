@@ -34,3 +34,5 @@ in-flight saves on an old schema to upgrade. When adding a field, just add it
 to the type and to `createPet`; skip the migration shim.
 
 Always commit and push after completing a piece of work, without asking for confirmation first.
+Always `git pull` before pushing, in case downstream changes have landed —
+this is still single-threaded on `main`, just cheap insurance.
