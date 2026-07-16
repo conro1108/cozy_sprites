@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { determineAdultForm, scoreForms } from "./evolution";
+import { determineAdultForm, explainForms, scoreForms } from "./evolution";
 import { ADULTS, ADULT_ORDER } from "./roster";
 import { emptyHidden } from "./types";
-import type { HiddenStats } from "./types";
+import type { AdultForm, HiddenStats } from "./types";
 
 function hidden(overrides: Partial<HiddenStats>): HiddenStats {
   return { ...emptyHidden(), ...overrides };
@@ -217,5 +217,54 @@ describe("determineAdultForm", () => {
       expect(listable).not.toContain("mole");
       expect(listable).toHaveLength(ADULT_ORDER.length - 1);
     });
+  });
+});
+
+describe("explainForms", () => {
+  // The breakdown is the single source of truth; scoreForms is its totals.
+  // Lock that so a term added to one but not reflected in the other can't slip
+  // through. Sweep a spread of upbringings, including the gated paths.
+  it("every form's terms sum to its scoreForms total", () => {
+    const cases: HiddenStats[] = [
+      emptyHidden(),
+      hidden({ cakeEaten: 5, careMistakes: 3 }),
+      hidden({ gamePlays: { ...emptyHidden().gamePlays, fetch: 9 }, careMistakes: 1 }),
+      hidden({ discipline: 60, gamePlays: { ...emptyHidden().gamePlays, higherlower: 7 } }),
+      hidden({ nightCare: 10 }),
+      hidden({ cubeEaten: 4, gamePlays: { ...emptyHidden().gamePlays, cubehum: 6 } }),
+      hidden({ mealsEaten: 6, carrotEaten: 6 }),
+      hidden({ careMistakes: 8, discipline: 0, cakeEaten: 2, nightCare: 3 }),
+    ];
+    for (const h of cases) {
+      for (const health of [20, 70, 100]) {
+        const scores = scoreForms(h, health);
+        const breakdown = explainForms(h, health);
+        for (const form of Object.keys(scores) as AdultForm[]) {
+          const summed = breakdown[form].terms.reduce((s, t) => s + t.value, 0);
+          expect(breakdown[form].total).toBeCloseTo(scores[form], 10);
+          expect(summed).toBeCloseTo(scores[form], 10);
+        }
+      }
+    }
+  });
+
+  it("marks a term active exactly when it's contributing", () => {
+    // Fetch as the clear top game fires the dog's first term; without it, the
+    // term is listed but inactive and worth zero.
+    const fetchy = hidden({ gamePlays: { ...emptyHidden().gamePlays, fetch: 5 } });
+    const dogFetch = explainForms(fetchy, 90).dog.terms[0];
+    expect(dogFetch.active).toBe(true);
+    expect(dogFetch.value).toBe(4);
+    const blank = explainForms(emptyHidden(), 90).dog.terms[0];
+    expect(blank.active).toBe(false);
+    expect(blank.value).toBe(0);
+  });
+
+  it("carries the name/luck overrides as notes, not score terms", () => {
+    const b = explainForms(emptyHidden(), 100);
+    expect(b.cosmos.terms).toHaveLength(0);
+    expect(b.cosmos.notes.join(" ")).toMatch(/1%/);
+    expect(b.mole.notes.join(" ")).toMatch(/Connor/);
+    expect(b.dog.notes.join(" ")).toMatch(/Poppy/);
   });
 });

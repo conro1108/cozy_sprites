@@ -1778,15 +1778,27 @@ body {
   min-width: 34px;
 }
 
-/* The Evolution drawer's sprite leaderboard: each form is a little card with
-   its face on the left, name in the middle, live score on the right. Cards
-   re-sort on every repaint, so a soft transition keeps the reshuffle from
-   snapping. The current leader gets the same selection fill as an active
-   toggle, plus a faint lift, so the projected adult reads at a glance. */
+/* The Evolution drawer's sprite leaderboard: each form is a tappable card with
+   its face on the left, name in the middle, live score on the right, and a
+   fold-out term breakdown beneath. Entries re-sort on every repaint; the
+   current leader takes the same selection fill as an active toggle so the
+   projected adult reads at a glance. */
+.dev-score-entry {
+  margin: 4px 0;
+}
 .dev-score-card {
+  width: 100%;
+  margin: 0;
   padding: 3px 6px;
+  border: none;
+  background: transparent;
   border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
   transition: background 0.15s ease;
+}
+.dev-score-card:active {
+  background: var(--cream-2);
 }
 .dev-score-face {
   width: 32px;
@@ -1794,11 +1806,67 @@ body {
   flex: none;
   image-rendering: pixelated;
 }
-.dev-score-card.leader {
+.dev-score-caret {
+  flex: none;
+  font-size: 0.7rem;
+  color: var(--wood-dark);
+  opacity: 0.55;
+  transition: transform 0.15s ease;
+}
+.dev-score-entry.open .dev-score-caret {
+  transform: rotate(180deg);
+}
+.dev-score-entry.leader .dev-score-card {
   background: var(--heart-empty);
 }
-.dev-score-card.leader .dev-stat-label {
+.dev-score-entry.leader .dev-stat-label {
   font-weight: 800;
+}
+
+/* The fold-out breakdown: one row per term (label + signed value), inactive
+   terms dimmed, with a small hint line under each and the name/luck notes at
+   the foot. Indented under the face so it reads as belonging to the card. */
+.dev-score-detail {
+  display: none;
+  padding: 4px 6px 8px 44px;
+}
+.dev-score-entry.open .dev-score-detail {
+  display: block;
+}
+.dev-term {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 5px 0 1px;
+}
+.dev-term-label {
+  flex: 1;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.dev-term-value {
+  flex: none;
+  font-size: 0.82rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.dev-term.inactive .dev-term-label,
+.dev-term.inactive .dev-term-value {
+  opacity: 0.45;
+  font-weight: 600;
+}
+.dev-term-hint {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--wood-dark);
+  opacity: 0.75;
+}
+.dev-term-note {
+  margin-top: 6px;
+  font-style: italic;
 }
 
 /* This whole screen is levers, not primary actions — flatten every button to

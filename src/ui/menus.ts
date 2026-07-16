@@ -12,7 +12,8 @@ import { MAX_HEARTS, TIMELINE_SPEED, getSkyMode, retirementPhase } from "../pet/
 import type { SkyMode } from "../pet/state";
 import { DEV_STAT_RANGE } from "../pet/devtools";
 import type { DevAction, DevHidden, DevStat } from "../pet/devtools";
-import { scoreForms, mostPlayed } from "../pet/evolution";
+import { explainForms, mostPlayed } from "../pet/evolution";
+import type { FormBreakdown } from "../pet/evolution";
 import { farmConfirmLine, farewellWalkLine, describeCondition } from "../pet/dialogue";
 import {
   judgeHigherLower,
@@ -2303,17 +2304,54 @@ export function openDevTools(ctx: MenuCtx): void {
     }
     body.appendChild(plays);
 
-    hint(body, "Live form scores — the leader wins; a face within 0.5 (≈) ties and breaks at random.");
+    hint(body, "Live form scores — the leader wins; a face within 0.5 (≈) ties and breaks at random. Tap a face for its breakdown.");
     const board = document.createElement("div");
     board.className = "dev-stats dev-scoreboard";
     // A sprite leaderboard. `hidden` forms (the mole) stay out — a dev panel is
     // still a screen, and its no-in-game-trace promise holds here too, same as
-    // the Become grid. Each face gets a card; on repaint we refresh the score
-    // and re-sort the cards so the pack always ranks top-to-bottom live.
+    // the Become grid. Each face is a tappable card that folds open a full
+    // term-by-term breakdown; on repaint we refresh scores, re-render any open
+    // breakdown, and re-sort the pack so it always ranks top-to-bottom live.
     const rankable = ADULT_ORDER.filter((f) => !ADULTS[f].hidden);
-    const cards = new Map<AdultForm, { el: HTMLElement; value: HTMLElement }>();
+
+    // Render one form's breakdown into its detail panel — every term, even the
+    // inactive ones (dimmed, worth 0), so you can see what *could* move it.
+    const paintDetail = (host: HTMLElement, bd: FormBreakdown) => {
+      host.replaceChildren();
+      for (const t of bd.terms) {
+        const row = document.createElement("div");
+        row.className = "dev-term";
+        row.classList.toggle("inactive", !t.active);
+        const label = document.createElement("span");
+        label.className = "dev-term-label";
+        label.textContent = t.label;
+        const val = document.createElement("span");
+        val.className = "dev-term-value";
+        const n = r1(t.value);
+        val.textContent = n > 0 ? `+${n}` : String(n); // signed; −0 never shows
+        row.append(label, val);
+        host.appendChild(row);
+        if (t.hint) {
+          const hintEl = document.createElement("p");
+          hintEl.className = "dev-term-hint";
+          hintEl.textContent = t.hint;
+          host.appendChild(hintEl);
+        }
+      }
+      for (const note of bd.notes) {
+        const noteEl = document.createElement("p");
+        noteEl.className = "dev-term-hint dev-term-note";
+        noteEl.textContent = note;
+        host.appendChild(noteEl);
+      }
+    };
+
+    const cards = new Map<AdultForm, { entry: HTMLElement; value: HTMLElement; detail: HTMLElement }>();
     for (const form of rankable) {
-      const card = document.createElement("div");
+      const entry = document.createElement("div");
+      entry.className = "dev-score-entry";
+      const card = document.createElement("button");
+      card.type = "button";
       card.className = "dev-stat dev-score-card";
       const face = portrait(form);
       face.className = "dev-score-face";
@@ -2322,31 +2360,39 @@ export function openDevTools(ctx: MenuCtx): void {
       name.textContent = ADULTS[form].name;
       const value = document.createElement("span");
       value.className = "dev-stat-value";
-      card.append(face, name, value);
-      board.appendChild(card);
-      cards.set(form, { el: card, value });
+      const caret = document.createElement("span");
+      caret.className = "dev-score-caret";
+      caret.textContent = "▾";
+      card.append(face, name, value, caret);
+      const detail = document.createElement("div");
+      detail.className = "dev-score-detail";
+      card.addEventListener("click", () => {
+        const open = entry.classList.toggle("open");
+        if (open) paintDetail(detail, explainForms(ctx.pet().hidden, ctx.pet().health)[form]);
+      });
+      entry.append(card, detail);
+      board.appendChild(entry);
+      cards.set(form, { entry, value, detail });
     }
     repaints.push(() => {
-      const table = scoreForms(ctx.pet().hidden, ctx.pet().health);
-      const top = Math.max(...rankable.map((f) => table[f]));
+      const table = explainForms(ctx.pet().hidden, ctx.pet().health);
+      const top = Math.max(...rankable.map((f) => table[f].total));
       for (const form of rankable) {
-        const { el, value } = cards.get(form)!;
-        const v = table[form];
+        const { entry, value, detail } = cards.get(form)!;
+        const v = table[form].total;
         const leader = v === top;
         value.textContent = `${r1(v)}${leader ? " ★" : top - v < 0.5 ? " ≈" : ""}`;
-        el.classList.toggle("leader", leader);
+        entry.classList.toggle("leader", leader);
+        // Keep an already-open breakdown current as levers move.
+        if (entry.classList.contains("open")) paintDetail(detail, table[form]);
       }
       // Re-append in descending score order (ties keep ADULT_ORDER's order,
       // since sort is stable) so the board reads as a live ranking.
       [...rankable]
-        .sort((a, b) => table[b] - table[a])
-        .forEach((f) => board.appendChild(cards.get(f)!.el));
+        .sort((a, b) => table[b].total - table[a].total)
+        .forEach((f) => board.appendChild(cards.get(f)!.entry));
     });
     body.appendChild(board);
-    hint(
-      body,
-      "Off the board: Poppy → dog and Connor → mole (by name), and the cosmos (a flat 1% luck roll). These bypass the table entirely.",
-    );
   });
   repaintAll();
 
