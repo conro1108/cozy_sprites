@@ -12,6 +12,7 @@ import { MAX_HEARTS, TIMELINE_SPEED, getSkyMode, retirementPhase } from "../pet/
 import type { SkyMode } from "../pet/state";
 import { DEV_STAT_RANGE } from "../pet/devtools";
 import type { DevAction, DevHidden, DevStat } from "../pet/devtools";
+import { scoreForms, mostPlayed } from "../pet/evolution";
 import { farmConfirmLine, farewellWalkLine, describeCondition } from "../pet/dialogue";
 import {
   judgeHigherLower,
@@ -2265,6 +2266,87 @@ export function openDevTools(ctx: MenuCtx): void {
     hiddenRow("cubeEaten", "Cubes eaten");
     hiddenRow("carrotEaten", "Carrots eaten");
     body.appendChild(ledger);
+  });
+
+  // Read-only mirror of evolution.ts: the game tally that decides the "favorite
+  // game" input, and the live per-form scores it (and the rest of the ledger)
+  // produce. Purely diagnostic — it never dispatches, it just reflects whatever
+  // the levers above set, so you can watch the projected adult move as you tune.
+  drawer("Evolution", (body) => {
+    // A plain read-only "label : value" row, repainted from live state.
+    const readRow = (parent: HTMLElement, label: string, value: () => string) => {
+      const row = document.createElement("div");
+      row.className = "dev-stat";
+      const name = document.createElement("span");
+      name.className = "dev-stat-label";
+      name.textContent = label;
+      const val = document.createElement("span");
+      val.className = "dev-stat-value";
+      repaints.push(() => {
+        val.textContent = value();
+      });
+      row.append(name, val);
+      parent.appendChild(row);
+    };
+
+    hint(body, "Game plays — the favorite counts only if one game leads outright.");
+    const plays = document.createElement("div");
+    plays.className = "dev-stats";
+    const gameIds = Object.keys(GAME_NAMES) as GameId[];
+    for (const g of gameIds) {
+      readRow(plays, GAME_NAMES[g], () => {
+        const { game, count, unique } = mostPlayed(ctx.pet().hidden.gamePlays);
+        const n = ctx.pet().hidden.gamePlays[g];
+        const isTop = unique && count > 0 && game === g;
+        return isTop ? `${n} ★` : String(n);
+      });
+    }
+    body.appendChild(plays);
+
+    hint(body, "Live form scores — the leader wins; a face within 0.5 (≈) ties and breaks at random.");
+    const board = document.createElement("div");
+    board.className = "dev-stats dev-scoreboard";
+    // A sprite leaderboard. `hidden` forms (the mole) stay out — a dev panel is
+    // still a screen, and its no-in-game-trace promise holds here too, same as
+    // the Become grid. Each face gets a card; on repaint we refresh the score
+    // and re-sort the cards so the pack always ranks top-to-bottom live.
+    const rankable = ADULT_ORDER.filter((f) => !ADULTS[f].hidden);
+    const cards = new Map<AdultForm, { el: HTMLElement; value: HTMLElement }>();
+    for (const form of rankable) {
+      const card = document.createElement("div");
+      card.className = "dev-stat dev-score-card";
+      const face = portrait(form);
+      face.className = "dev-score-face";
+      const name = document.createElement("span");
+      name.className = "dev-stat-label";
+      name.textContent = ADULTS[form].name;
+      const value = document.createElement("span");
+      value.className = "dev-stat-value";
+      card.append(face, name, value);
+      board.appendChild(card);
+      cards.set(form, { el: card, value });
+    }
+    repaints.push(() => {
+      const table = scoreForms(ctx.pet().hidden, ctx.pet().health);
+      const top = Math.max(...rankable.map((f) => table[f]));
+      for (const form of rankable) {
+        const { el, value } = cards.get(form)!;
+        const v = table[form];
+        const leader = v === top;
+        value.textContent = `${r1(v)}${leader ? " ★" : top - v < 0.5 ? " ≈" : ""}`;
+        el.classList.toggle("leader", leader);
+      }
+      // Re-append in descending score order (ties keep ADULT_ORDER's order,
+      // since sort is stable) so the board reads as a live ranking.
+      [...rankable]
+        .sort((a, b) => table[b] - table[a])
+        .forEach((f) => board.appendChild(cards.get(f)!.el));
+    });
+    body.appendChild(board);
+    hint(
+      body,
+      "Off the board: Poppy → dog and Connor → mole (by name), and the cosmos (a flat 1% luck roll). These bypass the table entirely.",
+    );
   });
   repaintAll();
 

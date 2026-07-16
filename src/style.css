@@ -1778,6 +1778,29 @@ body {
   min-width: 34px;
 }
 
+/* The Evolution drawer's sprite leaderboard: each form is a little card with
+   its face on the left, name in the middle, live score on the right. Cards
+   re-sort on every repaint, so a soft transition keeps the reshuffle from
+   snapping. The current leader gets the same selection fill as an active
+   toggle, plus a faint lift, so the projected adult reads at a glance. */
+.dev-score-card {
+  padding: 3px 6px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+.dev-score-face {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  image-rendering: pixelated;
+}
+.dev-score-card.leader {
+  background: var(--heart-empty);
+}
+.dev-score-card.leader .dev-stat-label {
+  font-weight: 800;
+}
+
 /* This whole screen is levers, not primary actions — flatten every button to
    the same no-shadow, no-border treatment as the Timeline/Sky toggles above
    them (.notify-opt) instead of the raised wood-shadow .btn look used

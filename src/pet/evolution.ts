@@ -8,8 +8,9 @@ import type { AdultForm, GameId, HiddenStats } from "./types";
  * The pet's favourite game — but only if it's *uniquely* most-played. Playing
  * everything equally is not an enthusiasm, and must not silently count as one
  * (it used to resolve to whichever game iterated first, biasing evolution).
+ * Exported so Dev Tools can surface which game (if any) currently counts.
  */
-function mostPlayed(
+export function mostPlayed(
   plays: Record<GameId, number>,
 ): { game: GameId; count: number; unique: boolean } {
   let best: GameId = "fetch";
