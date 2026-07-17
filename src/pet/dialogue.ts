@@ -816,7 +816,7 @@ const ADULT: Record<AdultForm, Bank> = {
     sleep: ["I return to the dark. Only briefly.", "Goodnight. I'll be overhead.", "*dims, contentedly*"],
     farm: ["I'll hang over the fields.", "Every night sky needs one of me.", "The pasture looks lovely from up here."],
   },
-  // The Software Mole — heads-down, half-blind, deep in a tunnel of its own
+  // Maverick Mole — heads-down, half-blind, deep in a tunnel of its own
   // making. Moles navigate by touch and smell, which is roughly how it debugs.
   // But the job is not the whole animal: it plays chess, it reads Vonnegut, and
   // on a genuinely nice day it will close the laptop and go outside.

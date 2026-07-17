@@ -398,7 +398,7 @@ describe("soup, the folk remedy", () => {
   });
 
   it("the cure note outranks a favorite-food note", () => {
-    // The Little Cosmos's favorite is soup — the sickness lifting is the
+    // Stray Cosmos's favorite is soup — the sickness lifting is the
     // headline, but it still pockets the favorite happiness bonus.
     const cosmos = asStage(
       {

@@ -583,7 +583,7 @@ const HUMCUBE: BodyDef = {
   faceDy: 8,
 };
 
-// The Blessed Carrot — dietary purity made flesh. A plump taper balancing
+// Blessed Carrot — dietary purity made flesh. A plump taper balancing
 // improbably on its tip, with a proud spray of greens on top.
 const CARROT: BodyDef = {
   rows: [
@@ -612,7 +612,7 @@ const CARROT: BodyDef = {
   faceDy: 6,
 };
 
-// The Little Cosmos — a plump four-point star: amethyst points (U), a rose
+// Stray Cosmos — a plump four-point star: amethyst points (U), a rose
 // corona (N), and a radiant pale core (P) the face floats in, with two loose
 // sparkles (w) drifting beside it. The core is the one pale sprite in the
 // roster, so the shared dark eyes read at any scene brightness; the widest row
@@ -676,7 +676,7 @@ const COSMOS: BodyDef = {
   },
 };
 
-// The Software Mole (easter egg) — a velvety taupe loaf with no visible ears,
+// Maverick Mole (easter egg) — a velvety taupe loaf with no visible ears,
 // a pink snout (p) that the shared mood-mouth lands right on top of, and two
 // pale digging claws (c) it uses, exclusively, for typing. The wire-rim glasses
 // are an overlay, hollow like the scholar's so every mood's eyes show through.

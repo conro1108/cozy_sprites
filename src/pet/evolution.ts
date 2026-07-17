@@ -219,7 +219,7 @@ export function explainForms(
       },
     ]),
 
-    // The Humming Cube (secret) — cube devotion done calmly: its humming game,
+    // Humming Cube (secret) — cube devotion done calmly: its humming game,
     // reinforced by an actual cube diet. Cube eaten alone is neutral; it only
     // counts once the game proves the devotion is real.
     humcube: build([
@@ -245,7 +245,7 @@ export function explainForms(
       },
     ]),
 
-    // The Blessed Carrot (secret) — absolute dietary purity. A single non-carrot
+    // Blessed Carrot (secret) — absolute dietary purity. A single non-carrot
     // meal breaks the vow: no partial credit.
     carrot: build([
       {
@@ -305,7 +305,7 @@ export function determineAdultForm(
 ): AdultForm {
   // A pet named Poppy is always the Loyal Dog Thing — no upbringing overrides it.
   if (name?.trim().toLowerCase() === "poppy") return "dog";
-  // The Software Mole: an easter egg, not a personality. Naming your pet Connor
+  // Maverick Mole: an easter egg, not a personality. Naming your pet Connor
   // is the only way to get one, and it is the *whole* way — this returns before
   // scoring and before the cosmos roll below, so no upbringing earns it and no
   // luck takes it away. Nothing in the collection ever hints it exists.
