@@ -20,8 +20,8 @@ deformation (squash/tilt/flip) goes through `drawSpriteQuantized` in
 `src/render/scene.ts`; read its docblock before changing animation or adding
 draw paths. Squash must *thin* rows (±1px), never drop whole rows — 1px
 features disappear otherwise. Unit tests can't catch visual regressions here:
-verify rendering changes with the `verify-full` skill (headless browser
-screenshots) before calling them done.
+for large rendering changes, verify with the `verify-heavy` skill (headless
+browser screenshots) before calling them done.
 
 This project merges straight to `main` — no feature branches or PRs.
 
