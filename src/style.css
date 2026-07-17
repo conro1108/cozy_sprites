@@ -473,7 +473,8 @@ body {
   background: #fdf1d6;
 }
 
-.tile.secret .secret-badge {
+.tile.secret .secret-badge,
+.tile.cosmic .secret-badge {
   position: absolute;
   top: -6px;
   right: -6px;
