@@ -1882,13 +1882,13 @@ export function openCollection(ctx: MenuCtx): void {
     if (found) {
       // Discovered secrets wear a golden frame + star so they read as rare
       // catches, not just another face in the regular crew. The one ultra
-      // secret gets a whole starfield of its own (see .tile.cosmic) — a
-      // different order of rare.
+      // secret gets a whole night-sky card of its own (see .tile.cosmic) — a
+      // different order of rare, but the same star badge marks both.
       if (def.secret) {
         el.classList.add(def.ultra ? "cosmic" : "secret");
         const badge = document.createElement("span");
         badge.className = "secret-badge";
-        badge.appendChild(iconEl(def.ultra ? "sparkle" : "star", 16));
+        badge.appendChild(iconEl("star", 16));
         el.appendChild(badge);
       }
       // Built with createElement — innerHTML += would re-serialize the canvas
