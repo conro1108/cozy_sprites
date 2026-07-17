@@ -117,7 +117,7 @@ describe("determineAdultForm", () => {
     expect(determineAdultForm(h, 90, () => 0)).not.toBe("carrot");
   });
 
-  it("ignores a 'favourite game' that is only tied for most-played", () => {
+  it("ignores a 'favorite game' that is only tied for most-played", () => {
     // One play of everything is not a fetch enthusiasm — this used to count
     // whichever game iterated first and bias every run the same way.
     const plays = { ...emptyHidden().gamePlays };

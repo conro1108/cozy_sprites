@@ -21,7 +21,7 @@ function fmtTime(t: number): string {
 
 export function formatDebugReport(pet: PetState, now: number = Date.now()): string {
   const lines: string[] = [];
-  lines.push(`Cozy Sprites debug report — ${pet.name}`);
+  lines.push(`The Meadow debug report — ${pet.name}`);
   lines.push(
     `Stage: ${pet.stage}${pet.form ? ` (${pet.form})` : ""}${pet.sick && pet.illness ? ` — sick: ${ILLNESSES[pet.illness].label}` : ""}`,
   );

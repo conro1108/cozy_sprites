@@ -738,7 +738,7 @@ const ADULT: Record<AdultForm, Bank> = {
       "Everything tessellates, if you believe in it.",
       "I aligned with true north for a while. Just to feel something. I felt ninety degrees.",
     ],
-    tap: ["*a low hum, in acknowledgement*", "You touched a face. It was fine.", "..."],
+    tap: ["*a low hum, in acknowledgment*", "You touched a face. It was fine.", "..."],
     pat: ["*the hum warms by a fraction of a tone*", "Contact on the top face. Sanctioned.", "You may resonate with me. Briefly."],
     win: ["The pattern was always going to be this.", "I heard it coming. I always do.", "The cube keeps score. The cube says: yes."],
     lose: ["The hum went on without me. No matter.", "A wrong note. I forgive it. Mostly.", "Even the cube misses one. Allegedly."],
@@ -816,7 +816,7 @@ const ADULT: Record<AdultForm, Bank> = {
     sleep: ["I return to the dark. Only briefly.", "Goodnight. I'll be overhead.", "*dims, contentedly*"],
     farm: ["I'll hang over the fields.", "Every night sky needs one of me.", "The pasture looks lovely from up here."],
   },
-  // The Software Mole — heads-down, half-blind, deep in a tunnel of its own
+  // Maverick Mole — heads-down, half-blind, deep in a tunnel of its own
   // making. Moles navigate by touch and smell, which is roughly how it debugs.
   // But the job is not the whole animal: it plays chess, it reads Vonnegut, and
   // on a genuinely nice day it will close the laptop and go outside.

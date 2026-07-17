@@ -166,10 +166,14 @@ let activeGameClose: (() => void) | null = null;
 
 /** Wrap a game's close/dismiss fn so it self-deregisters on every exit path
  *  (Done button, natural finish, or a forced close) and register it as the
- *  currently active game. Use the returned fn in place of the raw one. */
-function registerActiveGame(close: () => void): () => void {
+ *  currently active game. Use the returned fn in place of the raw one. Also
+ *  holds the pet centered on the stage for as long as the game's open, so
+ *  prompts aren't playing out behind an idle wander off to a corner. */
+function registerActiveGame(ctx: MenuCtx, close: () => void): () => void {
+  ctx.scene().setGameHold(true);
   const wrapped = () => {
     activeGameClose = null;
+    ctx.scene().setGameHold(false);
     close();
   };
   activeGameClose = wrapped;
@@ -346,7 +350,7 @@ function higherLower(ctx: MenuCtx): void {
   // Display (cards, pips) up top over the pet; the selector sits down at the
   // bottom within thumb reach.
   const { top, bottom, close: rawClose } = splitOverlay(ctx);
-  const close = registerActiveGame(rawClose);
+  const close = registerActiveGame(ctx, rawClose);
   // A small corner close, not a full-width bar — you can bail mid-match, but the
   // match's own end screen is the usual way out.
   const closeBtn = closeCorner(close);
@@ -554,7 +558,7 @@ function cubeHum(ctx: MenuCtx): void {
 
   // Walking away (X button, tap-outside, another nav tap) shouldn't forfeit
   // rounds already cleared — credit whatever's banked, same scoring as a miss.
-  const close = registerActiveGame(() => {
+  const close = registerActiveGame(ctx, () => {
     if (!resolved) {
       resolved = true;
       const won = cleared >= CUBE_HUM_TARGET;
@@ -689,7 +693,7 @@ function fetchGame(ctx: MenuCtx): void {
     raf = requestAnimationFrame(animate);
   };
   raf = requestAnimationFrame(animate);
-  const dismiss = registerActiveGame(() => {
+  const dismiss = registerActiveGame(ctx, () => {
     cancelAnimationFrame(raf);
     close();
   });
@@ -731,7 +735,7 @@ function rps(ctx: MenuCtx): void {
   // at the bottom, within thumb reach — same shape as higher/lower's cards
   // and would-you-rather's answers.
   const { top, bottom, close: rawClose } = splitOverlay(ctx);
-  const close = registerActiveGame(rawClose);
+  const close = registerActiveGame(ctx, rawClose);
   const closeBtn = closeCorner(close);
 
   const hint = document.createElement("p");
@@ -875,7 +879,7 @@ function hideSeek(ctx: MenuCtx): void {
     // guess phase without resolving it. The creature is still off-scene then,
     // so bring it back — otherwise it's stuck invisible until the next round.
     let resolved = false;
-    const close = registerActiveGame(() => {
+    const close = registerActiveGame(ctx, () => {
       stageTapHandler = null;
       rawClose();
       if (!resolved) ctx.scene().playReveal(spot);
@@ -914,7 +918,7 @@ function hideSeek(ctx: MenuCtx): void {
 /** The between-rounds beat: hide again, or call it. */
 function hideSeekAgain(ctx: MenuCtx): void {
   const { el, close: rawClose } = stageOverlay(ctx, "bottom");
-  const close = registerActiveGame(rawClose);
+  const close = registerActiveGame(ctx, rawClose);
   const row = document.createElement("div");
   row.className = "game-choices";
   const again = document.createElement("button");
@@ -928,12 +932,12 @@ function hideSeekAgain(ctx: MenuCtx): void {
   el.append(row);
 }
 
-// In-scene game: the question floats over the stage so the pet's judgement is
+// In-scene game: the question floats over the stage so the pet's judgment is
 // visible the moment you answer — and the next question is one tap away.
 function wouldYou(ctx: MenuCtx): void {
   // Prompt up top over the pet; the two answers sit down at the bottom, in reach.
   const { top, bottom, close: rawClose } = splitOverlay(ctx);
-  const close = registerActiveGame(rawClose);
+  const close = registerActiveGame(ctx, rawClose);
   const q = randomWouldYou();
   const hint = document.createElement("p");
   hint.className = "stage-hint";
@@ -1271,7 +1275,7 @@ function portrait(key: string): HTMLCanvasElement {
   return critterCanvas(key, "neutral", 48);
 }
 
-/** A creature sprite scaled up (nearest-neighbour) into its own canvas. */
+/** A creature sprite scaled up (nearest-neighbor) into its own canvas. */
 function critterCanvas(key: string, mood: Mood, size: number): HTMLCanvasElement {
   const src = buildCreatureCanvas(key, mood);
   const c = document.createElement("canvas");
@@ -1283,7 +1287,7 @@ function critterCanvas(key: string, mood: Mood, size: number): HTMLCanvasElement
   return c;
 }
 
-/** One wandering resident of the pasture. `x` is its centre and `b` its distance
+/** One wandering resident of the pasture. `x` is its center and `b` its distance
  *  from the pasture floor (its depth); `tx/tb` are where it's ambling to.
  *  Grounded residents walk in discrete bursts — walk, stand, turn — while
  *  `floats` residents (ghost, cube) drift the old dreamy way. */
@@ -1310,7 +1314,7 @@ interface SocialSpot {
 }
 
 /** Solid scenery the walkers get nudged out of (nobody stands in the fire,
- *  walks through the hay, or wades into the pond). `dx` offsets the centre in
+ *  walks through the hay, or wades into the pond). `dx` offsets the center in
  *  px from the fractional anchor so wide shapes can be built from two lobes. */
 interface Obstacle {
   xf: number;
@@ -1342,19 +1346,19 @@ const OBSTACLES: Obstacle[] = [
 ];
 
 /** A little social sim: retirees roam the paddock in 2D (side to side *and* in
- *  depth), pause to loiter, and often wander over to hang out near a neighbour —
+ *  depth), pause to loiter, and often wander over to hang out near a neighbor —
  *  while a separation pass keeps them from overlapping or walking through each
  *  other. Every so often a Stardew-style gathering starts: most of the paddock
  *  ambles over to the picnic, the campfire or the pond and loiters there
  *  together, trading little hearts and hums. Runs on rAF and self-stops once
  *  the pasture leaves the DOM, so closing or reopening the panel never leaves
- *  a loop running or stacks a second one. On festival nights the socialising
+ *  a loop running or stacks a second one. On festival nights the socializing
  *  runs hotter: gatherings come sooner, linger closer together in time, and
  *  lean heavily toward the campfire. */
 function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean): void {
   const rand = (a: number, z: number) => a + Math.random() * (z - a);
   const clamp = (v: number, a: number, z: number) => (v < a ? a : v > z ? z : v);
-  const SEP = 30; // min centre-to-centre gap at the same depth
+  const SEP = 30; // min center-to-center gap at the same depth
   const WALK_SPEED = 0.045; // px per ms — a purposeful little trot
   const FLOAT_SPEED = 0.022; // ghosts and cubes drift, unhurried
   let last = performance.now();
@@ -1394,7 +1398,7 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
             p.x += (ex / dist) * push;
             p.b += (ey / dist / 1.7) * push;
           } else {
-            p.x += o.r + 1; // dead centre — pick a side
+            p.x += o.r + 1; // dead center — pick a side
           }
           moved = true;
         }
@@ -1561,7 +1565,7 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
     }
 
     // Separation: push apart any pair whose footprints overlap. Depth counts
-    // extra, so front/back neighbours may visually overlap (occlusion) but two
+    // extra, so front/back neighbors may visually overlap (occlusion) but two
     // at the same depth never merge or pass through.
     for (let i = 0; i < grazers.length; i++) {
       for (let j = i + 1; j < grazers.length; j++) {
@@ -1594,7 +1598,7 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
       }
     }
 
-    // Neighbours loitering together occasionally trade a little emote.
+    // Neighbors loitering together occasionally trade a little emote.
     if (now > nextEmote) {
       const gap = gathering ? rand(1400, 3200) : rand(3000, 7000);
       nextEmote = now + (festival ? gap * 0.7 : gap);
@@ -1862,7 +1866,7 @@ export function openCollection(ctx: MenuCtx): void {
   const discovered = ctx.discovered();
 
   const grid = document.createElement("div");
-  // `centered` keeps a short final row (e.g. the lone secret) centred rather
+  // `centered` keeps a short final row (e.g. the lone secret) centered rather
   // than stranded at the left edge.
   grid.className = "tile-grid centered";
   for (const form of ADULT_ORDER) {
@@ -1878,25 +1882,31 @@ export function openCollection(ctx: MenuCtx): void {
     if (found) {
       // Discovered secrets wear a golden frame + star so they read as rare
       // catches, not just another face in the regular crew. The one ultra
-      // secret gets a whole starfield of its own (see .tile.cosmic) — a
-      // different order of rare.
+      // secret gets a whole night-sky card of its own (see .tile.cosmic) — a
+      // different order of rare, but the same star badge marks both.
       if (def.secret) {
         el.classList.add(def.ultra ? "cosmic" : "secret");
         const badge = document.createElement("span");
         badge.className = "secret-badge";
-        badge.appendChild(iconEl(def.ultra ? "sparkle" : "star", 16));
+        badge.appendChild(iconEl("star", 16));
         el.appendChild(badge);
       }
       // Built with createElement — innerHTML += would re-serialize the canvas
       // and silently wipe its drawn bitmap.
       el.appendChild(portrait(form));
+      // Wrapped so the cosmic card (see .tile.cosmic, full-width + row layout)
+      // can lay portrait and text side by side without disturbing the
+      // ordinary stacked-column tiles, which just see one extra flex item.
+      const text = document.createElement("div");
+      text.className = "tile-text";
       const name = document.createElement("span");
       name.className = "tile-name";
       name.textContent = def.name;
       const note = document.createElement("span");
       note.className = "tile-note";
       note.textContent = def.blurb;
-      el.append(name, note);
+      text.append(name, note);
+      el.appendChild(text);
     } else {
       el.appendChild(iconEl("question", 32));
       el.insertAdjacentHTML(
@@ -2036,7 +2046,7 @@ export function openDevTools(ctx: MenuCtx): void {
 
   // Each lever family folds into its own drawer, so the panel reads as a short
   // table of contents instead of one endless scroll. Native <details> — the
-  // toggle behaviour and keyboard handling come free.
+  // toggle behavior and keyboard handling come free.
   const drawer = (title: string, build: (body: HTMLElement) => void) => {
     const d = document.createElement("details");
     d.className = "dev-drawer";

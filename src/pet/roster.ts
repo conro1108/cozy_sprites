@@ -119,7 +119,7 @@ export const ADULTS: Record<AdultForm, AdultDef> = {
   },
   humcube: {
     id: "humcube",
-    name: "The Humming Cube",
+    name: "Humming Cube",
     blurb: "Reportedly the result of feeding the cube to something patient until it agreed.",
     favorite: "cube",
     disliked: null, // it holds no grudge against any food. Or anything.
@@ -128,7 +128,7 @@ export const ADULTS: Record<AdultForm, AdultDef> = {
   },
   carrot: {
     id: "carrot",
-    name: "The Blessed Carrot",
+    name: "Blessed Carrot",
     blurb: "You are what you eat, if you never once waver.",
     favorite: "carrot", // it prefers not to discuss it
     disliked: "burger",
@@ -137,7 +137,7 @@ export const ADULTS: Record<AdultForm, AdultDef> = {
   },
   cosmos: {
     id: "cosmos",
-    name: "The Little Cosmos",
+    name: "Stray Cosmos",
     blurb: "No upbringing summons it. Once in a great while, the night sky simply keeps one.",
     favorite: "soup", // a warm bowl, swirled like a small galaxy
     disliked: null, // it holds nothing against anything down here
@@ -150,7 +150,7 @@ export const ADULTS: Record<AdultForm, AdultDef> = {
   // collection, so nobody who doesn't already know is left staring at a gap.
   mole: {
     id: "mole",
-    name: "The Software Mole",
+    name: "Maverick Mole",
     blurb: "Undocumented. Ships anyway.", // never rendered — see `hidden`
     favorite: "cube", // a well-specified shape. Finally, a food with no edge cases
     disliked: "soup", // cannot be eaten over a keyboard. Non-starter

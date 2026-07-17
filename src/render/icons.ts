@@ -184,7 +184,7 @@ const ICONS: Record<IconName, IconDef> = {
     ],
     palette: { k: K, y: "#ffd884", w: "#fff7dc", g: "#9a9cb0" },
   },
-  // Same silhouette as bulb, but a cold dead-glass grey instead of a glow —
+  // Same silhouette as bulb, but a cold dead-glass gray instead of a glow —
   // the light-switch icon when the lights are off.
   bulboff: {
     rows: [
@@ -934,7 +934,7 @@ export function iconEl(name: IconName, size = 20): HTMLImageElement {
 // --- Pixel digits -----------------------------------------------------------
 // A tiny 5×7 bitmap font, so numbers on screen read in the same hand-placed
 // pixel style as the icons instead of a jarring system typeface. Rendered as an
-// alpha mask (see digitMaskUrl) so the colour is driven by CSS `currentColor` —
+// alpha mask (see digitMaskUrl) so the color is driven by CSS `currentColor` —
 // that lets a card tint its number green/red/muted without re-rendering.
 const DIGIT_GLYPHS: Record<string, string[]> = {
   "0": ["01110", "10001", "10011", "10101", "11001", "10001", "01110"],
@@ -965,7 +965,7 @@ export function digitMaskUrl(ch: string): string {
   canvas.width = w * S;
   canvas.height = h * S;
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = "#000"; // opaque where the glyph is on; colour comes from CSS
+  ctx.fillStyle = "#000"; // opaque where the glyph is on; color comes from CSS
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       if (g[y][x] !== "0") ctx.fillRect(x * S, y * S, S, S);

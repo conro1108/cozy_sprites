@@ -48,7 +48,7 @@ function at(hour: number, minute = 0): number {
 /** Mid-morning: deep in the day window, hours from either boundary. */
 const T0 = at(10);
 
-/** Advance a pet to a given stage for tests that need past-egg behaviour. */
+/** Advance a pet to a given stage for tests that need past-egg behavior. */
 function asStage(pet: PetState, stage: PetState["stage"]): PetState {
   return { ...pet, stage, stageStartedAt: pet.lastUpdated };
 }
@@ -398,7 +398,7 @@ describe("soup, the folk remedy", () => {
   });
 
   it("the cure note outranks a favorite-food note", () => {
-    // The Little Cosmos's favorite is soup — the sickness lifting is the
+    // Stray Cosmos's favorite is soup — the sickness lifting is the
     // headline, but it still pockets the favorite happiness bonus.
     const cosmos = asStage(
       {
@@ -1461,7 +1461,7 @@ describe("fiber-driven poop quality", () => {
     expect(events).not.toContain("poop");
   });
 
-  it("still honours the poops cap even on a favourable roll", () => {
+  it("still honors the poops cap even on a favourable roll", () => {
     const pet = asStage({ ...createPet("Milo", T0), poops: 8 }, "child");
     const { state, events } = stepEvents(pet, 60_000, always);
     expect(events).not.toContain("poop");

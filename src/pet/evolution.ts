@@ -8,7 +8,7 @@ import { GAME_NAMES } from "./games";
 const r1 = (v: number): number => Math.round(v * 10) / 10;
 
 /**
- * The pet's favourite game — but only if it's *uniquely* most-played. Playing
+ * The pet's favorite game — but only if it's *uniquely* most-played. Playing
  * everything equally is not an enthusiasm, and must not silently count as one
  * (it used to resolve to whichever game iterated first, biasing evolution).
  * Exported so Dev Tools can surface which game (if any) currently counts.
@@ -219,7 +219,7 @@ export function explainForms(
       },
     ]),
 
-    // The Humming Cube (secret) — cube devotion done calmly: its humming game,
+    // Humming Cube (secret) — cube devotion done calmly: its humming game,
     // reinforced by an actual cube diet. Cube eaten alone is neutral; it only
     // counts once the game proves the devotion is real.
     humcube: build([
@@ -245,7 +245,7 @@ export function explainForms(
       },
     ]),
 
-    // The Blessed Carrot (secret) — absolute dietary purity. A single non-carrot
+    // Blessed Carrot (secret) — absolute dietary purity. A single non-carrot
     // meal breaks the vow: no partial credit.
     carrot: build([
       {
@@ -305,7 +305,7 @@ export function determineAdultForm(
 ): AdultForm {
   // A pet named Poppy is always the Loyal Dog Thing — no upbringing overrides it.
   if (name?.trim().toLowerCase() === "poppy") return "dog";
-  // The Software Mole: an easter egg, not a personality. Naming your pet Connor
+  // Maverick Mole: an easter egg, not a personality. Naming your pet Connor
   // is the only way to get one, and it is the *whole* way — this returns before
   // scoring and before the cosmos roll below, so no upbringing earns it and no
   // luck takes it away. Nothing in the collection ever hints it exists.
