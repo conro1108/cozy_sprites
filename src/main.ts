@@ -52,6 +52,7 @@ import {
   loadFarm,
   loadPet,
   retireToFarm,
+  saveDiscoveredForms,
   savePet,
   getDeviceId,
   wipeFarm,
@@ -980,7 +981,16 @@ function commit(): void {
     beginDeath();
     return;
   }
-  if (pet) savePet(pet);
+  if (pet) {
+    // pet.form is a single scalar, not a log — Dev Tools' "become" (and later
+    // organic re-evolution) overwrite it in place. Without recording it here
+    // the instant it's set, whatever form it used to hold just vanishes from
+    // the Collection the next time the same pet's body changes again.
+    if (pet.form && !loadDiscoveredForms().includes(pet.form)) {
+      saveDiscoveredForms([...loadDiscoveredForms(), pet.form]);
+    }
+    savePet(pet);
+  }
   render();
 }
 
