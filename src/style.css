@@ -465,18 +465,19 @@ body {
 }
 
 /* Discovered secret forms: a rare catch. A solid warm-honey fill and matching
-   border set them apart from the regular crew, with a little pixel star pinned
-   to the corner — no glow, nothing stark. */
+   border set them apart from the regular crew, with a little pixel star
+   tucked into the corner — no glow, nothing stark. */
 .tile.secret {
   position: relative;
   border-color: #e2c079;
   background: #fdf1d6;
 }
 
-.tile.secret .secret-badge {
+.tile.secret .secret-badge,
+.tile.cosmic .secret-badge {
   position: absolute;
-  top: -6px;
-  right: -6px;
+  top: 10px;
+  right: 12px;
   line-height: 0;
 }
 
@@ -496,16 +497,6 @@ body {
 }
 .tile.cosmic .tile-note {
   color: #cdbef2;
-}
-/* The cosmic banner runs edge-to-edge (see below), so unlike the other secret
-   cards its badge sits tucked inside the corner rather than overhanging it —
-   overhanging here poked past the panel's scroll edge and got clipped. Same
-   plain star, same no-glow treatment as .tile.secret — just relocated. */
-.tile.cosmic .secret-badge {
-  position: absolute;
-  top: 10px;
-  right: 12px;
-  line-height: 0;
 }
 /* The rarest catch also gets the widest frame: full row width, portrait and
    text laid out side by side like a banner instead of stacked like the rest. */
