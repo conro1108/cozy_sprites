@@ -1894,13 +1894,19 @@ export function openCollection(ctx: MenuCtx): void {
       // Built with createElement — innerHTML += would re-serialize the canvas
       // and silently wipe its drawn bitmap.
       el.appendChild(portrait(form));
+      // Wrapped so the cosmic card (see .tile.cosmic, full-width + row layout)
+      // can lay portrait and text side by side without disturbing the
+      // ordinary stacked-column tiles, which just see one extra flex item.
+      const text = document.createElement("div");
+      text.className = "tile-text";
       const name = document.createElement("span");
       name.className = "tile-name";
       name.textContent = def.name;
       const note = document.createElement("span");
       note.className = "tile-note";
       note.textContent = def.blurb;
-      el.append(name, note);
+      text.append(name, note);
+      el.appendChild(text);
     } else {
       el.appendChild(iconEl("question", 32));
       el.insertAdjacentHTML(

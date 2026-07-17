@@ -457,6 +457,13 @@ body {
   color: var(--ink-soft);
 }
 
+.tile-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
 /* Discovered secret forms: a rare catch. A solid warm-honey fill and matching
    border set them apart from the regular crew, with a little pixel star pinned
    to the corner — no glow, nothing stark. */
@@ -498,6 +505,19 @@ body {
 }
 .tile.cosmic .secret-badge {
   filter: drop-shadow(0 0 3px rgba(255, 240, 180, 0.9));
+}
+/* The rarest catch also gets the widest frame: full row width, portrait and
+   text laid out side by side like a banner instead of stacked like the rest. */
+.tile-grid.centered .tile.cosmic {
+  flex-basis: 100%;
+  flex-direction: row;
+  justify-content: flex-start;
+  padding: 10px 16px;
+  gap: 14px;
+}
+.tile.cosmic .tile-text {
+  align-items: flex-start;
+  text-align: left;
 }
 @keyframes cosmic-glow {
   0%, 100% {
