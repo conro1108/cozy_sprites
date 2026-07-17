@@ -284,6 +284,7 @@ export class Scene {
   private altFrame = false; // per-frame: use the alt pose (dog's tail, flipped)
   private forceGlance: -1 | 0 | 1 = 0; // per-frame: a quirk overrides the gaze
   private extraAlpha = 1; // per-frame: ghost flicker translucency
+  private spinFlip: 1 | -1 = 1; // per-frame: flourish twirl shows the mirrored side
   private patSquintUntil = 0; // eyes held shut until this time (a savoured pat)
   private crackEyeUntil = 0; // one eye held open until this time (poked mid-sleep)
   private settleStart = -Infinity; // last time it stopped moving → plop squish
@@ -2440,10 +2441,19 @@ export class Scene {
     const m = { bob: 0, dx: 0, sx: 1, sy: 1, rot: 0 };
     // A double hop for everyone…
     m.bob = -Math.abs(Math.sin(p * Math.PI * 2)) * 10 * env;
+    // The quantized renderer has no real rotation — rot is a small-angle
+    // per-row shear (see drawSpriteQuantized), and a full 2π through it
+    // smears the rows across the scene. So the "spin" is a pixel-art
+    // pirouette instead: thin to a sliver, show the mirrored side, back.
+    const twirl = () => {
+      const turn = Math.cos(p * Math.PI * 2);
+      m.sx = Math.max(0.15, Math.abs(turn));
+      if (turn < 0) this.spinFlip = -1;
+    };
     switch (key) {
       case "dog":
       case "child":
-        m.rot = p * Math.PI * 2; // an exuberant full spin
+        twirl(); // an exuberant full spin
         break;
       case "gremlin":
         m.dx = Math.sin(p * Math.PI * 12) * 4 * env; // a gleeful shimmy
@@ -2462,7 +2472,7 @@ export class Scene {
         m.rot = Math.sin(p * Math.PI * 2) * 0.25; // a dignified little sway
         break;
       default:
-        m.rot = p * Math.PI * 2;
+        twirl();
     }
     return m;
   }
@@ -2524,6 +2534,7 @@ export class Scene {
     this.altFrame = false;
     this.forceGlance = 0;
     this.extraAlpha = 1;
+    this.spinFlip = 1;
 
     // Face the way we're moving. Facing derives from *positional* movement
     // only — ambient jitter (tantrum shimmy, shake pulses) never flips it.
@@ -2668,7 +2679,7 @@ export class Scene {
 
     const baseY = groundY - cw + 12;
     // The egg never travels, so it never flips.
-    const flip = v.key === "egg" ? 1 : this.facing;
+    const flip = v.key === "egg" ? 1 : this.facing * this.spinFlip;
     // Snap the draw origin to the buffer's integer pixel grid. Drawing the
     // 3×-scaled sprite at a fractional origin makes its pixels crawl frame to
     // frame (a shimmer) — invisible while it's traveling across the scene, but
@@ -2824,7 +2835,11 @@ export class Scene {
     const top = feetY - dh;
     const prevAlpha = ctx.globalAlpha;
     if (alpha < 1) ctx.globalAlpha = prevAlpha * alpha;
-    if (rot === 0 && dh >= sh) {
+    // The shear only reads as a lean at small angles — clamp so no caller
+    // can ever smear the rows across the scene (a spin must be a flip
+    // sequence instead; see flourishMotion's twirl).
+    const lean = Math.max(-0.35, Math.min(0.35, rot));
+    if (lean === 0 && dh >= sh) {
       ctx.drawImage(src, left, top, dw, dh);
     } else {
       // Rotation is world-space (never mirrored with the sprite), matching
@@ -2834,7 +2849,7 @@ export class Scene {
         const y0 = Math.round((r * dh) / sh);
         const y1 = Math.round(((r + 1) * dh) / sh);
         if (y1 <= y0) continue; // only when squashed below 1px per row
-        const shear = rot ? Math.round(-rot * (top + (y0 + y1) / 2 - pivot)) : 0;
+        const shear = lean ? Math.round(-lean * (top + (y0 + y1) / 2 - pivot)) : 0;
         ctx.drawImage(src, 0, r, sw, 1, left + shear, top + y0, dw, y1 - y0);
       }
     }
