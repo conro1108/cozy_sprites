@@ -137,7 +137,9 @@ function describeEvent(e: DiagEvent): string {
     case "tap":
       return note?.startsWith("annoyed") ? "Poked — and did not care for it" : "Poked";
     case "discipline":
-      return note === "correct" ? "Told off — and deserved it" : "Told off — unfairly";
+      if (note === "correct") return "Told off — and deserved it";
+      if (note === "spontaneous") return "Told off — for no reason at all";
+      return "Told off — unfairly";
     case "call":
       return describeCall(note);
     case "zoomies":

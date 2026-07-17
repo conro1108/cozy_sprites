@@ -960,11 +960,29 @@ describe("discipline", () => {
     expect(state.hidden.careMistakes).toBe(1);
   });
 
-  it("penalises incorrect discipline", () => {
-    const pet = asStage(createPet("Milo", T0), "teen");
+  it("penalises scolding out of the blue harder than misreading a real call", () => {
+    const pet = asStage({ ...createPet("Milo", T0), discipline: 50 }, "teen");
     const { state, note } = discipline(pet, T0);
     expect(note).toBe("incorrect");
-    expect(state.hidden.careMistakes).toBe(1);
+    expect(state.hidden.careMistakes).toBe(2);
+    expect(state.diag.find((d) => d.kind === "discipline")?.note).toBe("spontaneous");
+
+    const misread = asStage(
+      {
+        ...createPet("Milo", T0),
+        discipline: 50,
+        energy: 0.5,
+        wantsAttention: true,
+        fakeCall: false,
+        attentionWant: "snack" as const,
+      },
+      "teen",
+    );
+    const misreadResult = discipline(misread, T0);
+    expect(misreadResult.state.hidden.careMistakes).toBe(1);
+    expect(state.discipline).toBeLessThan(misreadResult.state.discipline);
+    expect(state.happiness).toBeLessThan(misreadResult.state.happiness);
+    expect(state.health).toBeLessThan(misreadResult.state.health);
   });
 
   it("cannot discipline a baby", () => {
@@ -1832,8 +1850,13 @@ describe("diagnostics: the full care loop reaches the log", () => {
   it("logs discipline outcomes", () => {
     const correct = asStage({ ...createPet("Milo", T0), wantsAttention: true, fakeCall: true }, "teen");
     expect(discipline(correct, T0).state.diag.find((d) => d.kind === "discipline")?.note).toBe("correct");
-    const wrong = asStage(createPet("Milo", T0), "teen");
-    expect(discipline(wrong, T0).state.diag.find((d) => d.kind === "discipline")?.note).toBe("incorrect");
+    const misread = asStage(
+      { ...createPet("Milo", T0), energy: 0.5, wantsAttention: true, fakeCall: false, attentionWant: "snack" as const },
+      "teen",
+    );
+    expect(discipline(misread, T0).state.diag.find((d) => d.kind === "discipline")?.note).toBe("incorrect");
+    const spontaneous = asStage(createPet("Milo", T0), "teen");
+    expect(discipline(spontaneous, T0).state.diag.find((d) => d.kind === "discipline")?.note).toBe("spontaneous");
   });
 
   it("logs lights on/off", () => {

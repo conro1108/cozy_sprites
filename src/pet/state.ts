@@ -1064,11 +1064,15 @@ export function discipline(state: PetState, now: number): ActionResult {
     logEvent(s, now, "discipline", "correct");
     return { state: s, note: "correct" };
   }
-  s.hidden.careMistakes += 1;
-  s.discipline = clamp100(s.discipline - 4);
-  s.happiness = clampHearts(s.happiness - 0.5);
-  s.health = clamp100(s.health - 2);
-  logEvent(s, now, "discipline", "incorrect");
+  // Misreading a genuine call is an honest mistake; scolding with no call
+  // active at all is arbitrary — there's no need it could've been mistaken
+  // for, so it costs more.
+  const spontaneous = !s.wantsAttention;
+  s.hidden.careMistakes += spontaneous ? 2 : 1;
+  s.discipline = clamp100(s.discipline - (spontaneous ? 8 : 4));
+  s.happiness = clampHearts(s.happiness - (spontaneous ? 1 : 0.5));
+  s.health = clamp100(s.health - (spontaneous ? 3 : 2));
+  logEvent(s, now, "discipline", spontaneous ? "spontaneous" : "incorrect");
   return { state: s, note: "incorrect" };
 }
 
