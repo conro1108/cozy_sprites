@@ -898,7 +898,7 @@ export function feed(state: PetState, food: FoodId, now: number): ActionResult {
   // belly still gets its soup.
   const soupCures = food === "soup" && s.sick && s.illness !== null && ILLNESSES[s.illness].soupCure;
 
-  // Refuse proper meals when already full (classic Tamagotchi behaviour);
+  // Refuse proper meals when already full (classic Tamagotchi behavior);
   // treats (cake/cube — anything with real happiness value) are always taken.
   const isTreat = def.happiness >= 0.5;
   if (!isTreat && !soupCures && s.energy >= MAX_HEARTS - 0.05) {

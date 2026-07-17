@@ -60,7 +60,7 @@ const HILL_MIN_H = (() => {
 // Sun and moon as round pixel discs — half-widths per 1px row, same technique
 // as the mushroom cap so the sky bodies read at the meadow's density instead of
 // the old hard squares. The moon draws this disc twice: once lit, once in the
-// sky colour offset sideways to carve the crescent.
+// sky color offset sideways to carve the crescent.
 const SUN_ROWS: [number, number][] = [
   [-4, 2], [-3, 3], [-2, 4], [-1, 4], [0, 4], [1, 4], [2, 4], [3, 3], [4, 2],
 ];
@@ -70,7 +70,7 @@ const MOON_ROWS: [number, number][] = [
 
 // --- Twilight ----------------------------------------------------------------
 // Dusk and dawn (the hour either side of night) trade the flat sky for a ramp:
-// colour stops from zenith (0) to horizon (1), interpolated one 1px row at a
+// color stops from zenith (0) to horizon (1), interpolated one 1px row at a
 // time. Rows, not a canvas gradient — browsers dither gradient fills, and at
 // this buffer size the dither speckle survives the upscale and reads as noise.
 // Dusk sinks the sun behind the right-hand hill peak and dawn floats it back up
@@ -99,7 +99,7 @@ const TWILIGHT_CLOUD: Record<"dusk" | "dawn", string> = {
   dawn: "#eeb2b6", // barely pink
 };
 // dy hangs the sun off the floor line: the hill peaks reach 18px, so a sun
-// centred just above that is bitten into by the ridge. The core has to fight
+// centered just above that is bitten into by the ridge. The core has to fight
 // the gradient's own glow at the horizon — a sun the same gold as the sky it
 // sets into simply disappears — so dusk burns orange and dawn goes near-white.
 const TWILIGHT_SUN: Record<
@@ -110,7 +110,7 @@ const TWILIGHT_SUN: Record<
   dawn: { x: 18, dy: -18, core: "#ffdc8a", rim: "#fff6d4", glow: "255,205,150" },
 };
 
-/** The sky's colour at row `y` of `h`, interpolated between the stops. */
+/** The sky's color at row `y` of `h`, interpolated between the stops. */
 function twilightRow(stops: SkyStop[], y: number, h: number): string {
   const p = h > 1 ? y / (h - 1) : 0;
   let i = 1;
@@ -220,7 +220,7 @@ const EVOLVE_DUR = 1.4; // seconds — the shared age-up transformation
 // rest on the sawn top (which sits just above the floor line at the stump's x).
 // The lift is derived per-sprite in seatBob() from each body's empty bottom
 // rows — a fixed constant floated the shorter bodies above the wood.
-const STUMP_SEAT_DX = 15 - CREATURE_X; // stump centre, relative to rest
+const STUMP_SEAT_DX = 15 - CREATURE_X; // stump center, relative to rest
 const STUMP_SEAT_TOP_DY = 3; // sawn cut, floor-relative (mirrors drawStump)
 
 /** The plop: a deep squash on contact, a small rebound past true, settle.
@@ -376,7 +376,7 @@ export class Scene {
 
   update(view: SceneView): void {
     if (view.asleep && !this.view.asleep) {
-      // The mole walks back to centre before settling (see updateWander),
+      // The mole walks back to center before settling (see updateWander),
       // which stamps sleepStart itself on arrival; stamping it here too
       // would start the settle/burrow animation early, before it's home.
       if (view.key !== "mole" || (this.wanderX === 0 && this.wanderY === 0)) {
@@ -440,7 +440,7 @@ export class Scene {
   triggerEvolve(): void {
     if (this.hidden) return;
     this.evolveStart = performance.now();
-    // Drop any wander/perch and hold it centred-in-place through the transform.
+    // Drop any wander/perch and hold it centered-in-place through the transform.
     this.wanderPhase = "dwell";
     this.wanderUntil = performance.now() + EVOLVE_DUR * 1000 + 400;
   }
@@ -717,7 +717,7 @@ export class Scene {
     for (const [dy, hw] of dirtRim) {
       const y = dcy + dy;
       const core = hw - 3;
-      ctx.fillRect(dcx - core, y, core * 2 + 1, 1); // solid trodden centre
+      ctx.fillRect(dcx - core, y, core * 2 + 1, 1); // solid trodden center
       for (let k = core + 1; k <= hw; k++) {
         // stipple the outer few px so the edge wears into the grass
         if (((dcx - k) ^ y) & 1) ctx.fillRect(dcx - k, y, 1, 1);
@@ -765,7 +765,7 @@ export class Scene {
     }
     // Twilight wash. The meadow keeps its day palette at dusk and its night one
     // at dawn — a single low-alpha pass over the whole scene is what sells the
-    // hour, and costs a lot less than a third colour ramp for every prop.
+    // hour, and costs a lot less than a third color ramp for every prop.
     if (v.sky === "dusk" || v.sky === "dawn") {
       ctx.fillStyle = v.sky === "dusk" ? "rgba(255,132,58,0.18)" : "rgba(255,150,170,0.12)";
       ctx.fillRect(0, 0, SCENE_W, SCENE_H);
@@ -914,7 +914,7 @@ export class Scene {
 
   private drawStump(dark: boolean, night: boolean): void {
     const ctx = this.ctx;
-    const cx = 15; // footprint centre — drives STUMP_SEAT_DX
+    const cx = 15; // footprint center — drives STUMP_SEAT_DX
     const top = this.floorY + 3; // the sawn cut; perched feet land here (STUMP_SEAT_TOP_DY)
     const bark = dark ? "#3f3128" : night ? "#5e4634" : "#8a5a3c";
     const barkDark = dark ? "#33281f" : night ? "#4e3a2c" : "#75482e";
@@ -1103,7 +1103,7 @@ export class Scene {
       // moon + twinkling stars
       ctx.fillStyle = "#f3edd0";
       this.fillDisc(92, 13, MOON_ROWS);
-      // Carve the crescent: the same disc in the sky colour, nudged right.
+      // Carve the crescent: the same disc in the sky color, nudged right.
       ctx.fillStyle = dark ? "#141232" : "#2b2552";
       this.fillDisc(95, 13, MOON_ROWS);
       ctx.fillStyle = "#fff";
@@ -1133,7 +1133,7 @@ export class Scene {
 
   /** Fill a round pixel disc from 1px rows (half-width per row). The current
    *  fill style is used, so the moon can paint one disc lit and another in the
-   *  sky colour to carve its crescent. */
+   *  sky color to carve its crescent. */
   private fillDisc(cx: number, cy: number, rows: [number, number][]): void {
     const ctx = this.ctx;
     const rx = Math.round(cx);
@@ -1165,7 +1165,7 @@ export class Scene {
     const ctx = this.ctx;
     const mx = 78;
     const my = this.floorY + 10;
-    const cx = mx + 5; // cap centre
+    const cx = mx + 5; // cap center
     // stem
     ctx.fillStyle = dark ? "#8a8478" : "#f0e6d0";
     ctx.fillRect(mx + 3, my, 4, 6);
@@ -1900,7 +1900,7 @@ export class Scene {
     if (v.asleep) {
       // Every other creature just settles wherever it already was. The mole
       // digs into a molehill that has to land in the same spot every time, so
-      // it walks back to centre first instead of burrowing in wherever it
+      // it walks back to center first instead of burrowing in wherever it
       // happened to be wandering — see ambientMotion's matching walk-phase
       // exception, and burrowAmount, which won't start the dig until
       // sleepStart is stamped below on arrival.
@@ -2512,7 +2512,7 @@ export class Scene {
       squashY *= m.sy;
       rot += m.rot;
     } else {
-      // Act context. Any leg of choreography that's actually travelling gets
+      // Act context. Any leg of choreography that's actually traveling gets
       // the trot: bounce, a lean into the direction, squash on each landing —
       // so chases and carries read as running, not sliding.
       const moving = hopY === null && !v.asleep && Math.abs(step) > 0.2;
@@ -2635,7 +2635,7 @@ export class Scene {
     const flip = v.key === "egg" ? 1 : this.facing;
     // Snap the draw origin to the buffer's integer pixel grid. Drawing the
     // 3×-scaled sprite at a fractional origin makes its pixels crawl frame to
-    // frame (a shimmer) — invisible while it's travelling across the scene, but
+    // frame (a shimmer) — invisible while it's traveling across the scene, but
     // the *only* motion when it's idling in place, where it reads as jitter.
     const cx = Math.round(CREATURE_X + dx);
     // Anchor at the feet so vertical squash reads as sitting into the ground
@@ -2714,7 +2714,7 @@ export class Scene {
   private drawMolehill(cx: number, soilY: number, p: number, dark: boolean, night: boolean): void {
     if (p <= 0) return;
     const ctx = this.ctx;
-    // Freshly turned earth, deliberately *not* the trodden dirt patch's colour —
+    // Freshly turned earth, deliberately *not* the trodden dirt patch's color —
     // the mound sits directly on that patch, and matching it makes the molehill
     // disappear into the ground, which reads as the pet despawning rather than
     // digging in. Lighter than the patch so it catches the light as a raised heap.
@@ -2763,10 +2763,10 @@ export class Scene {
    * stray pixels off the outline. Instead, every source row is drawn as its
    * own strip: squash varies strip heights by ±1px (no row of anatomy can
    * ever drop out), each strip is an integer-aligned axis-aligned drawImage
-   * (nearest-neighbour sampling of those is mirror-symmetric, so paired
+   * (nearest-neighbor sampling of those is mirror-symmetric, so paired
    * features like eyes always come out equal), and rotation becomes an
    * integer per-row shear — the pixel-art lean. `cx` is the horizontal
-   * centre, `feetY` the bottom edge, `w`/`h` the desired size in buffer px.
+   * center, `feetY` the bottom edge, `w`/`h` the desired size in buffer px.
    */
   private drawSpriteQuantized(
     sprite: HTMLCanvasElement,

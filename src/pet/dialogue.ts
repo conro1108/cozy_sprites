@@ -738,7 +738,7 @@ const ADULT: Record<AdultForm, Bank> = {
       "Everything tessellates, if you believe in it.",
       "I aligned with true north for a while. Just to feel something. I felt ninety degrees.",
     ],
-    tap: ["*a low hum, in acknowledgement*", "You touched a face. It was fine.", "..."],
+    tap: ["*a low hum, in acknowledgment*", "You touched a face. It was fine.", "..."],
     pat: ["*the hum warms by a fraction of a tone*", "Contact on the top face. Sanctioned.", "You may resonate with me. Briefly."],
     win: ["The pattern was always going to be this.", "I heard it coming. I always do.", "The cube keeps score. The cube says: yes."],
     lose: ["The hum went on without me. No matter.", "A wrong note. I forgive it. Mostly.", "Even the cube misses one. Allegedly."],

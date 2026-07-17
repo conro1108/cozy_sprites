@@ -121,8 +121,8 @@ export interface FetchSpot {
   span: number;
 }
 
-// The old fixed behaviour, kept as the default so callers (and tests) that
-// don't pass a spot get exactly the previous scoring: a zone centred at 0.6.
+// The old fixed behavior, kept as the default so callers (and tests) that
+// don't pass a spot get exactly the previous scoring: a zone centered at 0.6.
 export const DEFAULT_FETCH_SPOT: FetchSpot = { center: 0.6, span: 0.5 };
 
 // The visible green band reaches this fraction of `span` on each side of
@@ -239,7 +239,7 @@ const FETCH_LINES: Record<FetchVariant, string[]> = {
   ],
   overfence: [
     "The ball has emigrated.",
-    "It's the neighbour's ball now.",
+    "It's the neighbor's ball now.",
     "Physics happened. Not my fault.",
   ],
   sock: [

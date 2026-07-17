@@ -8,7 +8,7 @@ import { GAME_NAMES } from "./games";
 const r1 = (v: number): number => Math.round(v * 10) / 10;
 
 /**
- * The pet's favourite game — but only if it's *uniquely* most-played. Playing
+ * The pet's favorite game — but only if it's *uniquely* most-played. Playing
  * everything equally is not an enthusiasm, and must not silently count as one
  * (it used to resolve to whichever game iterated first, biasing evolution).
  * Exported so Dev Tools can surface which game (if any) currently counts.

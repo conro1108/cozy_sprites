@@ -34,7 +34,7 @@ const MOODS = ["neutral", "happy", "sad", "sleep"] as const;
 
 describe("dog chest patch", () => {
   const dog = renderPixels("dog", "neutral");
-  it("leaves a gap row of coat colour between the mouth and the patch", () => {
+  it("leaves a gap row of coat color between the mouth and the patch", () => {
     expect(rgb(px(dog, 7, 10))).toEqual(DOG_FILL); // gap row
     expect(rgb(px(dog, 7, 11))).toEqual(DOG_PATCH); // patch starts one row down
   });
@@ -116,7 +116,7 @@ describe("glance frames", () => {
     expect(px(right, 7, 10)).toEqual(px(base, 7, 10));
   });
 
-  // The eye colour and the outline are near-identical, so a gaze that slides
+  // The eye color and the outline are near-identical, so a gaze that slides
   // onto the silhouette edge vanishes and eats the k. A glance must never paint
   // over an outline pixel — the shift is clamped toward 0 until it clears.
   it("never overwrites an outline pixel, for every body and mood", () => {
@@ -204,13 +204,13 @@ describe("alt frame (the dog's tail, flipped)", () => {
 });
 
 describe("small face symmetry", () => {
-  // The bug that shipped: a 2px mouth can't centre in the 5-wide grid, so the
-  // resting neutral face read half a pixel off. Pin every mood's mouth centred
-  // under the eyes — measured by horizontal centre of mass over EYE pixels.
-  const centreX = (pts: { x: number; y: number }[]) =>
+  // The bug that shipped: a 2px mouth can't center in the 5-wide grid, so the
+  // resting neutral face read half a pixel off. Pin every mood's mouth centered
+  // under the eyes — measured by horizontal center of mass over EYE pixels.
+  const centerX = (pts: { x: number; y: number }[]) =>
     pts.reduce((s, p) => s + p.x, 0) / pts.length;
 
-  it("centres each mood's mouth under the eyes, for every small-faced body", () => {
+  it("centers each mood's mouth under the eyes, for every small-faced body", () => {
     for (const key of SMALL_FACE_KEYS) {
       for (const mood of MOODS) {
         const buf = renderPixels(key, mood);
@@ -226,9 +226,9 @@ describe("small face symmetry", () => {
         const mouth = eyePx.filter((p) => p.y > top);
         expect(mouth.length, `${key}/${mood} has no mouth`).toBeGreaterThan(0);
         expect(
-          centreX(mouth),
-          `${key}/${mood} mouth centre ${centreX(mouth)} != eye centre ${centreX(eyes)}`,
-        ).toBeCloseTo(centreX(eyes), 10);
+          centerX(mouth),
+          `${key}/${mood} mouth center ${centerX(mouth)} != eye center ${centerX(eyes)}`,
+        ).toBeCloseTo(centerX(eyes), 10);
       }
     }
   });

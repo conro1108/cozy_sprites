@@ -928,7 +928,7 @@ function hideSeekAgain(ctx: MenuCtx): void {
   el.append(row);
 }
 
-// In-scene game: the question floats over the stage so the pet's judgement is
+// In-scene game: the question floats over the stage so the pet's judgment is
 // visible the moment you answer — and the next question is one tap away.
 function wouldYou(ctx: MenuCtx): void {
   // Prompt up top over the pet; the two answers sit down at the bottom, in reach.
@@ -1271,7 +1271,7 @@ function portrait(key: string): HTMLCanvasElement {
   return critterCanvas(key, "neutral", 48);
 }
 
-/** A creature sprite scaled up (nearest-neighbour) into its own canvas. */
+/** A creature sprite scaled up (nearest-neighbor) into its own canvas. */
 function critterCanvas(key: string, mood: Mood, size: number): HTMLCanvasElement {
   const src = buildCreatureCanvas(key, mood);
   const c = document.createElement("canvas");
@@ -1283,7 +1283,7 @@ function critterCanvas(key: string, mood: Mood, size: number): HTMLCanvasElement
   return c;
 }
 
-/** One wandering resident of the pasture. `x` is its centre and `b` its distance
+/** One wandering resident of the pasture. `x` is its center and `b` its distance
  *  from the pasture floor (its depth); `tx/tb` are where it's ambling to.
  *  Grounded residents walk in discrete bursts — walk, stand, turn — while
  *  `floats` residents (ghost, cube) drift the old dreamy way. */
@@ -1310,7 +1310,7 @@ interface SocialSpot {
 }
 
 /** Solid scenery the walkers get nudged out of (nobody stands in the fire,
- *  walks through the hay, or wades into the pond). `dx` offsets the centre in
+ *  walks through the hay, or wades into the pond). `dx` offsets the center in
  *  px from the fractional anchor so wide shapes can be built from two lobes. */
 interface Obstacle {
   xf: number;
@@ -1342,19 +1342,19 @@ const OBSTACLES: Obstacle[] = [
 ];
 
 /** A little social sim: retirees roam the paddock in 2D (side to side *and* in
- *  depth), pause to loiter, and often wander over to hang out near a neighbour —
+ *  depth), pause to loiter, and often wander over to hang out near a neighbor —
  *  while a separation pass keeps them from overlapping or walking through each
  *  other. Every so often a Stardew-style gathering starts: most of the paddock
  *  ambles over to the picnic, the campfire or the pond and loiters there
  *  together, trading little hearts and hums. Runs on rAF and self-stops once
  *  the pasture leaves the DOM, so closing or reopening the panel never leaves
- *  a loop running or stacks a second one. On festival nights the socialising
+ *  a loop running or stacks a second one. On festival nights the socializing
  *  runs hotter: gatherings come sooner, linger closer together in time, and
  *  lean heavily toward the campfire. */
 function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean): void {
   const rand = (a: number, z: number) => a + Math.random() * (z - a);
   const clamp = (v: number, a: number, z: number) => (v < a ? a : v > z ? z : v);
-  const SEP = 30; // min centre-to-centre gap at the same depth
+  const SEP = 30; // min center-to-center gap at the same depth
   const WALK_SPEED = 0.045; // px per ms — a purposeful little trot
   const FLOAT_SPEED = 0.022; // ghosts and cubes drift, unhurried
   let last = performance.now();
@@ -1394,7 +1394,7 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
             p.x += (ex / dist) * push;
             p.b += (ey / dist / 1.7) * push;
           } else {
-            p.x += o.r + 1; // dead centre — pick a side
+            p.x += o.r + 1; // dead center — pick a side
           }
           moved = true;
         }
@@ -1561,7 +1561,7 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
     }
 
     // Separation: push apart any pair whose footprints overlap. Depth counts
-    // extra, so front/back neighbours may visually overlap (occlusion) but two
+    // extra, so front/back neighbors may visually overlap (occlusion) but two
     // at the same depth never merge or pass through.
     for (let i = 0; i < grazers.length; i++) {
       for (let j = i + 1; j < grazers.length; j++) {
@@ -1594,7 +1594,7 @@ function startMilling(pasture: HTMLElement, grazers: Grazer[], festival: boolean
       }
     }
 
-    // Neighbours loitering together occasionally trade a little emote.
+    // Neighbors loitering together occasionally trade a little emote.
     if (now > nextEmote) {
       const gap = gathering ? rand(1400, 3200) : rand(3000, 7000);
       nextEmote = now + (festival ? gap * 0.7 : gap);
@@ -1862,7 +1862,7 @@ export function openCollection(ctx: MenuCtx): void {
   const discovered = ctx.discovered();
 
   const grid = document.createElement("div");
-  // `centered` keeps a short final row (e.g. the lone secret) centred rather
+  // `centered` keeps a short final row (e.g. the lone secret) centered rather
   // than stranded at the left edge.
   grid.className = "tile-grid centered";
   for (const form of ADULT_ORDER) {
@@ -2036,7 +2036,7 @@ export function openDevTools(ctx: MenuCtx): void {
 
   // Each lever family folds into its own drawer, so the panel reads as a short
   // table of contents instead of one endless scroll. Native <details> — the
-  // toggle behaviour and keyboard handling come free.
+  // toggle behavior and keyboard handling come free.
   const drawer = (title: string, build: (body: HTMLElement) => void) => {
     const d = document.createElement("details");
     d.className = "dev-drawer";

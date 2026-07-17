@@ -340,7 +340,7 @@ export function propSize(name: PropName): { w: number; h: number } {
   return { w: Math.max(...def.rows.map((r) => r.length)), h: def.rows.length };
 }
 
-/** An `<img>` for a placed prop, scaled up nearest-neighbour by CSS. */
+/** An `<img>` for a placed prop, scaled up nearest-neighbor by CSS. */
 export function propEl(name: PropName, scale = 3): HTMLImageElement {
   const { w, h } = propSize(name);
   const img = document.createElement("img");

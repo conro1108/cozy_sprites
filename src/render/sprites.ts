@@ -80,7 +80,7 @@ const FACE_SLEEP = [
 ];
 
 // Small faces for narrow bodies (5 wide). Blitted at each body's face offset.
-// Neutral and happy share the same centred 3px mouth — a 2px bar can't centre
+// Neutral and happy share the same centered 3px mouth — a 2px bar can't center
 // in an odd-width grid, so it used to read half a pixel off.
 const SMALL_NEUTRAL = ["e...e", ".....", ".eee."];
 const SMALL_HAPPY = SMALL_NEUTRAL;
@@ -104,7 +104,7 @@ const DOG_SLEEP = ["ee.ee", ".nnn.", "..e..", ".eee."];
 // with it the whole snout would just translate sideways; leaving the muzzle
 // planted and swinging only the dark tip reads as the head actually turning.
 // A dark nose tucked right under the glasses, sitting on a pink muzzle that
-// bulges below it and tapers off. (`n` is the shared dark nose colour the dog
+// bulges below it and tapers off. (`n` is the shared dark nose color the dog
 // already uses.) Nose-on-top is the whole trick: run it the other way — pink
 // first, dark tip at the bottom — and the snout stops reading as a face and
 // starts reading as a beak.
@@ -195,14 +195,14 @@ function faceFor(kind: FaceKind, mood: Mood): string[] {
 // B = fill, S = shade, k = outline; extra letters are per-body accents.
 interface BodyDef {
   rows: string[];
-  /** Accent colours beyond B/S/k. */
+  /** Accent colors beyond B/S/k. */
   extra?: Palette;
   fill: string;
   shade: string;
   face: FaceKind;
   faceDx: number;
   faceDy: number;
-  /** Extra colours available to the face grid (the mole's nose is part of its
+  /** Extra colors available to the face grid (the mole's nose is part of its
    *  face, not its body, so it can travel with the gaze). */
   faceExtra?: Palette;
   /** Drawn after the face (glasses, eye bags…). */
@@ -286,7 +286,7 @@ const TEEN: BodyDef = {
     "......kkk.......",
     "................",
   ],
-  fill: "#b9a8d8", // a rental body in an awkward colour
+  fill: "#b9a8d8", // a rental body in an awkward color
   shade: "#927cba",
   face: "small",
   faceDx: 5,
@@ -710,7 +710,7 @@ const MOLE: BodyDef = {
   overlay: {
     // Plain filled lenses, no frame. They must be *filled*, not hollow rings:
     // glanceL/glanceR slide the eyes one column (to 4/6 and 8/10), and a ring
-    // would leave the vacated centre showing bare fur through the lens.
+    // would leave the vacated center showing bare fur through the lens.
     rows: [
       "................",
       "................",
@@ -783,7 +783,7 @@ const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
       "....kSSSSSk.....",
       ".....kkkkk......",
     ],
-    // A slightly wider, blobbier butt — in the teen's own colours, the
+    // A slightly wider, blobbier butt — in the teen's own colors, the
     // silhouette does the telling.
     palette: { k: OUTLINE, B: "#b9a8d8", S: "#927cba" },
   },
@@ -1043,7 +1043,7 @@ export function renderPixels(
   } else {
     // Slide the gaze in the glance direction — but the 5-wide face puts an eye at
     // each extreme column, so on a narrow body an eye can be flush to the edge.
-    // Eye colour and outline are near-identical: a gaze pixel landing on the
+    // Eye color and outline are near-identical: a gaze pixel landing on the
     // outline vanishes into the edge and eats the k. So each eye moves only if
     // its target is clear; a blocked eye holds while its partner slides. The
     // pair bunches, and even a gaze that can't travel still reads as a glance
