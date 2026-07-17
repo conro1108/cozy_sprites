@@ -2547,16 +2547,13 @@ export function openHistory(ctx: MenuCtx): void {
       for (const row of day.rows) {
         const el = document.createElement("div");
         el.className = row.kind === "vitals" ? "history-row vitals" : "history-row";
-        const icon = document.createElement("span");
-        icon.className = "history-icon";
-        icon.textContent = row.icon;
         const time = document.createElement("span");
         time.className = "history-time";
         time.textContent = rowTime(row.t);
         const text = document.createElement("span");
         text.className = "history-text";
         text.textContent = row.text;
-        el.append(icon, time, text);
+        el.append(time, text);
         list.appendChild(el);
       }
     }

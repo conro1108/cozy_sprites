@@ -1666,12 +1666,6 @@ body {
   border-bottom: none;
 }
 
-.history-icon {
-  flex: none;
-  width: 1.3em;
-  text-align: center;
-}
-
 /* Wide enough for a two-digit 12-hour clock ("12:19 PM") without wrapping. */
 .history-time {
   flex: none;

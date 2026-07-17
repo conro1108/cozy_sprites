@@ -13,8 +13,6 @@ import { GAME_NAMES } from "./games";
 
 export interface HistoryRow {
   t: number;
-  /** Emoji standing in for the event — the list reads as a timeline at a glance. */
-  icon: string;
   text: string;
   /** Vitals rows are the opt-in numeric samples; events are the diary proper. */
   kind: "event" | "vitals";
@@ -100,81 +98,71 @@ function describeCall(note: string | undefined): string {
 
 /** One diag event, in plain language. Unknown/absent notes degrade to a bare
  *  headline rather than leaking the raw note. */
-function describeEvent(e: DiagEvent): { icon: string; text: string } {
+function describeEvent(e: DiagEvent): string {
   // Dev Tools levers log through the same kinds as organic events, tagged
   // "(dev)" for the debug report — the diary reads them the same either way.
   const note = e.note?.replace(/\s*\(dev\)$/, "");
   switch (e.kind) {
     case "hatched":
-      return { icon: "🥚", text: "Hatched" };
+      return "Hatched";
     case "stage":
-      return { icon: "✨", text: describeStage(note) };
+      return describeStage(note);
     case "sick":
-      return { icon: "🤒", text: `Came down with ${illnessLabel(note)}` };
+      return `Came down with ${illnessLabel(note)}`;
     case "cured": {
       // `${illness} (${via})` — the folk remedy is worth calling out by name.
       const m = /^(\S+)\s*\((\w+)\)/.exec(note ?? "");
       const ill = illnessLabel(m?.[1]);
       const via = m?.[2] === "soup" ? " — cured by soup, of all things" : "";
-      return { icon: "💚", text: `Recovered from ${ill}${via}` };
+      return `Recovered from ${ill}${via}`;
     }
     case "poop":
-      return { icon: "💩", text: "Made a mess" };
+      return "Made a mess";
     case "fed": {
       const food = note && note in FOODS ? FOODS[note as keyof typeof FOODS].name : note;
-      return { icon: "🍽️", text: food ? `Fed a ${food}` : "Fed" };
+      return food ? `Fed a ${food}` : "Fed";
     }
     case "cleaned": {
       // `${n} swept`
       const n = Number.parseInt(note ?? "", 10);
-      if (!Number.isFinite(n)) return { icon: "🧹", text: "Cleaned up" };
-      return { icon: "🧹", text: `Cleaned up ${n} mess${n === 1 ? "" : "es"}` };
+      if (!Number.isFinite(n)) return "Cleaned up";
+      return `Cleaned up ${n} mess${n === 1 ? "" : "es"}`;
     }
     case "medicine":
-      return { icon: "💊", text: note ? `Given medicine (${note.replace("dose ", "")})` : "Given medicine" };
+      return note ? `Given medicine (${note.replace("dose ", "")})` : "Given medicine";
     case "played":
-      return { icon: "🎮", text: describePlayed(note) };
+      return describePlayed(note);
     case "pat":
-      return {
-        icon: "🫶",
-        text: note === "enough" ? "Patted past the point of enjoying it" : "Enjoyed a good pat",
-      };
+      return note === "enough" ? "Patted past the point of enjoying it" : "Enjoyed a good pat";
     case "tap":
-      return { icon: "👆", text: note?.startsWith("annoyed") ? "Poked — and did not care for it" : "Poked" };
+      return note?.startsWith("annoyed") ? "Poked — and did not care for it" : "Poked";
     case "discipline":
-      return note === "correct"
-        ? { icon: "📢", text: "Told off — and deserved it" }
-        : { icon: "📢", text: "Told off — unfairly" };
+      return note === "correct" ? "Told off — and deserved it" : "Told off — unfairly";
     case "call":
-      return { icon: "🔔", text: describeCall(note) };
+      return describeCall(note);
     case "zoomies":
-      return { icon: "💨", text: "Got the zoomies" };
+      return "Got the zoomies";
     case "lights":
-      return note === "on"
-        ? { icon: "💡", text: "Lights on" }
-        : { icon: "🌙", text: "Lights off" };
+      return note === "on" ? "Lights on" : "Lights off";
     case "retirement":
-      if (note === "restless") return { icon: "🌾", text: "Started gazing at the horizon" };
-      if (note === "ready") return { icon: "🌾", text: "Ready for the farm" };
-      return { icon: "🌾", text: "Left for the farm" };
+      if (note === "restless") return "Started gazing at the horizon";
+      if (note === "ready") return "Ready for the farm";
+      return "Left for the farm";
     case "dawn":
       // The overnight summary — the hours nobody was watching.
-      return { icon: "🌅", text: note ? `Morning — ${note}` : "Morning" };
+      return note ? `Morning — ${note}` : "Morning";
     case "zero-health":
-      return { icon: "⚠️", text: "Health hit zero" };
+      return "Health hit zero";
     case "recovered":
-      return { icon: "❤️", text: "Health climbed back off zero" };
+      return "Health climbed back off zero";
     case "death":
-      return { icon: "🪦", text: note ? `Died of ${note}` : "Died" };
+      return note ? `Died of ${note}` : "Died";
     case "timeline":
-      return {
-        icon: "⏱️",
-        text: note === "demo" ? "Switched to the demo timeline" : "Back on the real timeline",
-      };
+      return note === "demo" ? "Switched to the demo timeline" : "Back on the real timeline";
     case "dev":
       // A stat or ledger lever from the Dev Tools panel — the note is already
       // plain language ("health set to 50", "hidden careMistakes 3 → 4").
-      return { icon: "🛠️", text: note ? `Dev lever — ${note}` : "Dev lever pulled" };
+      return note ? `Dev lever — ${note}` : "Dev lever pulled";
   }
 }
 
@@ -219,12 +207,11 @@ export function buildHistory(
   now: number = Date.now(),
 ): HistoryDay[] {
   const rows: HistoryRow[] = pet.diag.map((e) => {
-    const { icon, text } = describeEvent(e);
-    return { t: e.t, icon, text, kind: "event" as const };
+    return { t: e.t, text: describeEvent(e), kind: "event" as const };
   });
   if (opts.includeVitals) {
     for (const v of pet.vitals) {
-      rows.push({ t: v.t, icon: "📊", text: describeVitals(v), kind: "vitals" });
+      rows.push({ t: v.t, text: describeVitals(v), kind: "vitals" });
     }
   }
   // Newest first — a log is read from the most recent thing backwards.
