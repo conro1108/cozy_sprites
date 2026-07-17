@@ -31,6 +31,34 @@ describe("determineAdultForm", () => {
     expect(determineAdultForm(h, 70, NO_LUCK)).toBe("blob");
   });
 
+  it("lets a devoted fetch player sneak a few cakes and stay a dog", () => {
+    // Five lifetime cakes used to hand the blob 7.5 points and steal an
+    // otherwise-perfect dog run; diminishing returns keep devotion ahead.
+    const h = hidden({
+      gamePlays: { ...emptyHidden().gamePlays, fetch: 10 },
+      careMistakes: 1,
+      cakeEaten: 5,
+    });
+    expect(determineAdultForm(h, 85, NO_LUCK)).toBe("dog");
+  });
+
+  it("keeps the moderate-everything upbringing on the office default", () => {
+    // A couple of cakes and a couple of slips is moderation, not a cake habit —
+    // blob's mild-neglect bonus must not fire without ≥3 cakes, or the blob
+    // steals the exact play style the office creature is for.
+    const h = hidden({ cakeEaten: 2, careMistakes: 2, discipline: 8 });
+    expect(determineAdultForm(h, 75, NO_LUCK)).toBe("office");
+  });
+
+  it("still fires blob's drama bonus once the cake habit is real", () => {
+    const withHabit = explainForms(hidden({ cakeEaten: 3, careMistakes: 2 }), 70).blob.terms[2];
+    expect(withHabit.active).toBe(true);
+    expect(withHabit.value).toBe(2);
+    const noHabit = explainForms(hidden({ cakeEaten: 2, careMistakes: 2 }), 70).blob.terms[2];
+    expect(noHabit.active).toBe(false);
+    expect(noHabit.value).toBe(0);
+  });
+
   it("produces a gremlin from sustained care mistakes and no discipline", () => {
     const h = hidden({ careMistakes: 8, discipline: 0 });
     expect(determineAdultForm(h, 50, NO_LUCK)).toBe("gremlin");

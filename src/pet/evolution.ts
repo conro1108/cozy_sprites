@@ -76,6 +76,12 @@ export function explainForms(
   const cubeTop = hasTopGame && topGame === "cubehum";
   const carrotPure = mealsEaten >= 5 && carrotEaten === mealsEaten;
   const balancedCake = Math.max(0, 2 - Math.abs(cakeEaten - 2));
+  // Blob's cake score: full value for the first three, then diminishing.
+  // Uncapped so a true cake diet still runs away with it, but incidental cake
+  // (a treat here and there) can no longer out-earn a committed path like the
+  // dog's, whose score is capped.
+  const blobCake = Math.min(cakeEaten, 3) * 1.5 + Math.max(0, cakeEaten - 3) * 0.5;
+  const cakeHabit = cakeEaten >= 3;
 
   const b: Record<AdultForm, FormBreakdown> = {
     // Loyal Dog Thing — fetch enthusiast, well cared for. Ordinary wear and
@@ -103,13 +109,17 @@ export function explainForms(
       },
     ], ['A pet named "Poppy" becomes a dog outright, whatever the score.']),
 
-    // Dramatic Blob — cake habit + a bit of drama/neglect.
+    // Dramatic Blob — a real cake habit + a bit of drama/neglect. Both terms
+    // follow the same rule as the dog and the humming cube: the secondary
+    // bonus only fires on the form's primary signal (here, an actual habit of
+    // ≥3 cakes) — without the gate, blob won the "moderate everything" style
+    // that belongs to the office creature.
     blob: build([
       {
-        label: `Cake eaten ×${cakeEaten} (+1.5 each)`,
-        value: cakeEaten * 1.5,
+        label: `Cake eaten ×${cakeEaten} (+1.5 first three, +0.5 after)`,
+        value: blobCake,
         active: cakeEaten > 0,
-        hint: "The big one — uncapped, +1.5 per cake.",
+        hint: "The big one — uncapped but diminishing: +1.5 per cake up to three, +0.5 each after.",
       },
       {
         label: "Higher / Lower is your top game (+1)",
@@ -118,10 +128,12 @@ export function explainForms(
         hint: topGameHint("higherlower"),
       },
       {
-        label: "Mild neglect: 2–5 care mistakes (+2)",
-        value: mistakes >= 2 && mistakes < 6 ? 2 : 0,
-        active: mistakes >= 2 && mistakes < 6,
-        hint: `Now ${r1(mistakes)} mistakes; band is 2 up to (not incl.) 6.`,
+        label: "Mild neglect on the cake path: 2–5 mistakes AND ≥3 cakes (+2)",
+        value: mistakes >= 2 && mistakes < 6 && cakeHabit ? 2 : 0,
+        active: mistakes >= 2 && mistakes < 6 && cakeHabit,
+        hint: cakeHabit
+          ? `Now ${r1(mistakes)} mistakes; band is 2 up to (not incl.) 6.`
+          : `Drama needs the habit: only counts at ≥3 cakes (now ${cakeEaten}). Cake-free chaos is the gremlin's.`,
       },
     ]),
 
