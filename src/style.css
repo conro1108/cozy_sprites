@@ -464,13 +464,10 @@ body {
   gap: 4px;
 }
 
-/* Discovered secret forms: a rare catch. A solid warm-honey fill and matching
-   border set them apart from the regular crew, with a little pixel star
-   tucked into the corner — no glow, nothing stark. */
+/* Discovered secret forms: same card as the regular crew — the pixel star
+   tucked into the corner is the only tell. */
 .tile.secret {
   position: relative;
-  border-color: #e2c079;
-  background: #fdf1d6;
 }
 
 .tile.secret .secret-badge,
