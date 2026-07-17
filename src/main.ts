@@ -1054,23 +1054,23 @@ function stepPet(now: number, withEvents: boolean): boolean {
   } else if (phase !== prevPhase && phase === "ready") {
     // The long goodbye reaches its door. From here the Care menu offers the walk.
     say(retirementLine("ready"));
-    notify("care", "Cozy Sprites", `${pet.name} is ready for the farm.`);
+    notify("care", "The Meadow", `${pet.name} is ready for the farm.`);
   } else if (phase !== prevPhase && phase === "restless") {
     say(retirementLine("restless"));
   } else if (events.includes("sick")) {
     // The Oregon Trail moment. Always announced, never diluted.
     if (pet.illness) say(illnessAnnouncement(pet.name, pet.illness));
     else sayCat("sick");
-    notify("dire", "Cozy Sprites", pet.illness ? illnessAnnouncement(pet.name, pet.illness) : `${pet.name} is sick.`);
+    notify("dire", "The Meadow", pet.illness ? illnessAnnouncement(pet.name, pet.illness) : `${pet.name} is sick.`);
   } else if (events.includes("poop")) {
     // The squat plays where it stands; the mess lands there too (see scene).
     scene?.playPoop();
     sayCat(events.includes("poop-bad") ? "poop_bad" : "poop");
-    notify("care", "Cozy Sprites", `${pet.name} made a mess.`);
+    notify("care", "The Meadow", `${pet.name} made a mess.`);
   } else if (events.includes("call") || events.includes("fakecall")) {
     // Every call names its want. Fake calls use the same lines — that's the con.
     say(attentionCallLine(pet.attentionWant));
-    notify("care", "Cozy Sprites", `${pet.name} wants your attention.`);
+    notify("care", "The Meadow", `${pet.name} wants your attention.`);
   } else if (prevAsleep && !pet.asleep && pet.lightsOn) {
     // The lantern relit itself with the dawn — nobody touched the switch.
     sayCat("wake");
@@ -1078,19 +1078,19 @@ function stepPet(now: number, withEvents: boolean): boolean {
     // Cured itself mid-nap — the lights are still off, so this doesn't route
     // through the dawn "wake" branch above.
     sayCat("nap_cure");
-    notify("care", "Cozy Sprites", `${pet.name}'s nap worked — the vapors are gone.`);
+    notify("care", "The Meadow", `${pet.name}'s nap worked — the vapors are gone.`);
   } else if (!wasNight && isNight(now) && !pet.asleep && pet.stage !== "egg") {
     // Dusk with the lantern still lit: the bedtime nudge. Sleeping through the
     // night is worth health; missing it entirely is a care mistake at dawn.
     say("*yawns* The lantern is very on.");
-    notify("care", "Cozy Sprites", `${pet.name} is sleepy — lights out?`);
+    notify("care", "The Meadow", `${pet.name} is sleepy — lights out?`);
   }
 
   if (prevEnergy > 1 && pet.energy <= 1) {
-    notify("care", "Cozy Sprites", `${pet.name} is getting hungry.`);
+    notify("care", "The Meadow", `${pet.name} is getting hungry.`);
   }
   if (pet.health <= 15 && pet.health > 0 && !pet.sick && Math.random() < 0.2) {
-    notify("dire", "Cozy Sprites", `${pet.name} is not doing well.`);
+    notify("dire", "The Meadow", `${pet.name} is not doing well.`);
   }
   return changed;
 }
@@ -1102,7 +1102,7 @@ function beginDeath(): void {
   savePet(pet);
   render(); // sad/sleep face, no attention mark
   playSfx("death");
-  notify("dire", "Cozy Sprites", memorialLine(pet.name, pet.causeOfDeath));
+  notify("dire", "The Meadow", memorialLine(pet.name, pet.causeOfDeath));
   clearTimeout(bubbleTimer);
   els?.bubble.classList.remove("visible");
   // Any in-scene game controls die with their player.
