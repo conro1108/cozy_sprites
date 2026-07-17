@@ -166,10 +166,14 @@ let activeGameClose: (() => void) | null = null;
 
 /** Wrap a game's close/dismiss fn so it self-deregisters on every exit path
  *  (Done button, natural finish, or a forced close) and register it as the
- *  currently active game. Use the returned fn in place of the raw one. */
-function registerActiveGame(close: () => void): () => void {
+ *  currently active game. Use the returned fn in place of the raw one. Also
+ *  holds the pet centered on the stage for as long as the game's open, so
+ *  prompts aren't playing out behind an idle wander off to a corner. */
+function registerActiveGame(ctx: MenuCtx, close: () => void): () => void {
+  ctx.scene().setGameHold(true);
   const wrapped = () => {
     activeGameClose = null;
+    ctx.scene().setGameHold(false);
     close();
   };
   activeGameClose = wrapped;
@@ -346,7 +350,7 @@ function higherLower(ctx: MenuCtx): void {
   // Display (cards, pips) up top over the pet; the selector sits down at the
   // bottom within thumb reach.
   const { top, bottom, close: rawClose } = splitOverlay(ctx);
-  const close = registerActiveGame(rawClose);
+  const close = registerActiveGame(ctx, rawClose);
   // A small corner close, not a full-width bar — you can bail mid-match, but the
   // match's own end screen is the usual way out.
   const closeBtn = closeCorner(close);
@@ -554,7 +558,7 @@ function cubeHum(ctx: MenuCtx): void {
 
   // Walking away (X button, tap-outside, another nav tap) shouldn't forfeit
   // rounds already cleared — credit whatever's banked, same scoring as a miss.
-  const close = registerActiveGame(() => {
+  const close = registerActiveGame(ctx, () => {
     if (!resolved) {
       resolved = true;
       const won = cleared >= CUBE_HUM_TARGET;
@@ -689,7 +693,7 @@ function fetchGame(ctx: MenuCtx): void {
     raf = requestAnimationFrame(animate);
   };
   raf = requestAnimationFrame(animate);
-  const dismiss = registerActiveGame(() => {
+  const dismiss = registerActiveGame(ctx, () => {
     cancelAnimationFrame(raf);
     close();
   });
@@ -731,7 +735,7 @@ function rps(ctx: MenuCtx): void {
   // at the bottom, within thumb reach — same shape as higher/lower's cards
   // and would-you-rather's answers.
   const { top, bottom, close: rawClose } = splitOverlay(ctx);
-  const close = registerActiveGame(rawClose);
+  const close = registerActiveGame(ctx, rawClose);
   const closeBtn = closeCorner(close);
 
   const hint = document.createElement("p");
@@ -875,7 +879,7 @@ function hideSeek(ctx: MenuCtx): void {
     // guess phase without resolving it. The creature is still off-scene then,
     // so bring it back — otherwise it's stuck invisible until the next round.
     let resolved = false;
-    const close = registerActiveGame(() => {
+    const close = registerActiveGame(ctx, () => {
       stageTapHandler = null;
       rawClose();
       if (!resolved) ctx.scene().playReveal(spot);
@@ -914,7 +918,7 @@ function hideSeek(ctx: MenuCtx): void {
 /** The between-rounds beat: hide again, or call it. */
 function hideSeekAgain(ctx: MenuCtx): void {
   const { el, close: rawClose } = stageOverlay(ctx, "bottom");
-  const close = registerActiveGame(rawClose);
+  const close = registerActiveGame(ctx, rawClose);
   const row = document.createElement("div");
   row.className = "game-choices";
   const again = document.createElement("button");
@@ -933,7 +937,7 @@ function hideSeekAgain(ctx: MenuCtx): void {
 function wouldYou(ctx: MenuCtx): void {
   // Prompt up top over the pet; the two answers sit down at the bottom, in reach.
   const { top, bottom, close: rawClose } = splitOverlay(ctx);
-  const close = registerActiveGame(rawClose);
+  const close = registerActiveGame(ctx, rawClose);
   const q = randomWouldYou();
   const hint = document.createElement("p");
   hint.className = "stage-hint";

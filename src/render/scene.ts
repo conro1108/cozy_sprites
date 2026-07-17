@@ -315,6 +315,12 @@ export class Scene {
   private wanderProp: string | null = null;
   private phaseStart = 0; // when the current yawn/rest began (for easing)
   private lastFrame = 0;
+  // True for the duration of a stage-controls minigame overlay (fetch's aim
+  // phase, rps, cube hum, …) — walks the creature back to center and holds it
+  // there instead of wandering off, so choice prompts don't play out behind
+  // an empty corner of the clearing. The per-form idle bob keeps running,
+  // same as any other "dwell".
+  private gameHold = false;
 
   // Where each mess landed on the ground plane (index-matched to view.poops).
   // yOffset is relative to floorY, not an absolute canvas y — the scene's
@@ -569,6 +575,14 @@ export class Scene {
     return this.act !== null && !this.act.finished;
   }
 
+  /** Toggle the minigame hold — call with true when a stage-controls game
+   *  overlay opens, false when it closes. Doesn't affect acts (fetch's
+   *  throw, rps's reveal, hide/seek…), which already choreograph their own
+   *  position. */
+  setGameHold(active: boolean): void {
+    this.gameHold = active;
+  }
+
   /** Where a hide-and-seek reveal pops out, in scene coords (floor-relative).
    *  Depths sit just behind each spot's prop sort anchor, so "behind the
    *  fence" genuinely pops out *behind* the fence. `peek` is where the crown
@@ -820,7 +834,7 @@ export class Scene {
     // drift up like the Zzz, and (via the sing handler) a soft pentatonic
     // phrase plays once as the window opens. Suppressed whenever it wouldn't
     // ring true: asleep, hiding, still an egg, mid-act/flourish/age-up, having
-    // a tantrum, or plainly sad.
+    // a tantrum, plainly sad, or mid-minigame (would sing over its own hum/rps cue).
     if (
       !v.asleep &&
       !this.hidden &&
@@ -829,7 +843,8 @@ export class Scene {
       v.mood !== "sad" &&
       !this.busy() &&
       !this.flourishing() &&
-      !this.evolving()
+      !this.evolving() &&
+      !this.gameHold
     ) {
       // The countdown only runs while eligible, so a long nap doesn't spend
       // down a song that was due mid-sleep.
@@ -1894,6 +1909,27 @@ export class Scene {
       if (v.key === "egg") {
         this.wanderX = 0;
         this.wanderY = 0;
+      }
+      return;
+    }
+    if (this.gameHold) {
+      // Walk back to center and hold — same straight-line homing the
+      // asleep mole uses below, just without a destination reaction.
+      if (this.wanderX !== 0 || this.wanderY !== 0) {
+        this.wanderPhase = "walk";
+        const step = WALK_SPEED * dt;
+        const remaining = Math.hypot(this.wanderX, this.wanderY);
+        if (remaining <= step + 0.4) {
+          this.wanderX = 0;
+          this.wanderY = 0;
+          this.wanderPhase = "dwell";
+          this.settleStart = now; // arrived: plop
+        } else {
+          this.wanderX -= (this.wanderX / remaining) * step;
+          this.wanderY -= (this.wanderY / remaining) * step;
+        }
+      } else {
+        this.wanderPhase = "dwell";
       }
       return;
     }
