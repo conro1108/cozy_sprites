@@ -499,13 +499,13 @@ body {
 }
 /* The cosmic banner runs edge-to-edge (see below), so unlike the other secret
    cards its badge sits tucked inside the corner rather than overhanging it —
-   overhanging here poked past the panel's scroll edge and got clipped. */
+   overhanging here poked past the panel's scroll edge and got clipped. Same
+   plain star, same no-glow treatment as .tile.secret — just relocated. */
 .tile.cosmic .secret-badge {
   position: absolute;
-  top: 8px;
-  right: 10px;
+  top: 10px;
+  right: 12px;
   line-height: 0;
-  filter: drop-shadow(0 0 3px rgba(255, 240, 180, 0.9));
 }
 /* The rarest catch also gets the widest frame: full row width, portrait and
    text laid out side by side like a banner instead of stacked like the rest. */
