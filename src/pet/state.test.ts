@@ -591,6 +591,13 @@ describe("giveMedicine", () => {
     expect(state.hidden.careMistakes).toBe(1);
   });
 
+  it("cannot medicate during the egg stage — and it costs no care mistake", () => {
+    const pet = createPet("Milo", T0);
+    const { note, state } = giveMedicine(pet, T0);
+    expect(note).toBe("cant");
+    expect(state.hidden.careMistakes).toBe(0);
+  });
+
   it("plague: two doses, and the second must wait an hour", () => {
     const pet = asStage(
       { ...createPet("Milo", T0), sick: true, illness: "plague" as const },
@@ -928,6 +935,13 @@ describe("zoomies", () => {
 });
 
 describe("discipline", () => {
+  it("cannot discipline during the egg stage", () => {
+    const pet = createPet("Milo", T0);
+    const { note, state } = discipline(pet, T0);
+    expect(note).toBe("cant");
+    expect(state.hidden.careMistakes).toBe(0);
+  });
+
   it("rewards correct discipline of a fake call", () => {
     const pet = asStage(
       { ...createPet("Milo", T0), wantsAttention: true, fakeCall: true },

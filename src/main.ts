@@ -346,6 +346,11 @@ function mountGame(): void {
   });
   nav.clean.addEventListener("click", doClean);
   nav.care.addEventListener("click", () => {
+    if (pet?.stage === "egg") {
+      // No medicine or scolding in the egg phase — it is busy forming.
+      say("*the egg needs no care. the egg prepares.*");
+      return;
+    }
     if (pet?.asleep) {
       // Fast asleep — medicine and discipline wait until morning, same as food and play.
       say("Zzz…");
@@ -809,7 +814,9 @@ function doMedicine(): void {
   if (!pet || dying) return;
   const { state, note } = giveMedicine(pet, Date.now());
   pet = state;
-  if (note === "cured") {
+  if (note === "cant") {
+    say(pet.stage === "egg" ? "*the egg needs no medicine*" : "Zzz…");
+  } else if (note === "cured") {
     sayCat("medicine");
     scene?.triggerPulse("happy");
     playSfx("medicine");
@@ -839,6 +846,10 @@ function doDiscipline(): void {
     sayCat("discipline_incorrect");
     scene?.triggerPulse("shake");
     playSfx("annoyed");
+  } else if (pet.stage === "egg") {
+    say("*the egg cannot be scolded*");
+  } else if (pet.asleep) {
+    say("Zzz…");
   } else say("*too little to scold*");
   commit();
 }

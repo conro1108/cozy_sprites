@@ -1018,6 +1018,9 @@ export function clean(state: PetState, now: number): ActionResult {
 
 export function giveMedicine(state: PetState, now: number): ActionResult {
   let s = applyElapsedDecay(state, now);
+  if (cannotAct(s)) {
+    return { state: s, note: "cant" };
+  }
   if (!s.sick) {
     // Medicine when not needed is a small care mistake.
     s = { ...s, hidden: { ...s.hidden, careMistakes: s.hidden.careMistakes + 1 } };
@@ -1050,7 +1053,7 @@ export function giveMedicine(state: PetState, now: number): ActionResult {
  */
 export function discipline(state: PetState, now: number): ActionResult {
   let s = applyElapsedDecay(state, now);
-  if (s.stage === "egg" || s.stage === "baby") {
+  if (cannotAct(s) || s.stage === "baby") {
     return { state: s, note: "cant" }; // babies can't be disciplined
   }
   s = { ...s, hidden: { ...s.hidden }, diag: [...s.diag] };
