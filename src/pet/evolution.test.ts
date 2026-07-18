@@ -51,10 +51,10 @@ describe("determineAdultForm", () => {
   });
 
   it("still fires blob's drama bonus once the cake habit is real", () => {
-    const withHabit = explainForms(hidden({ cakeEaten: 3, careMistakes: 2 }), 70).blob.terms[2];
+    const withHabit = explainForms(hidden({ cakeEaten: 4, careMistakes: 2 }), 70).blob.terms[2];
     expect(withHabit.active).toBe(true);
     expect(withHabit.value).toBe(2);
-    const noHabit = explainForms(hidden({ cakeEaten: 2, careMistakes: 2 }), 70).blob.terms[2];
+    const noHabit = explainForms(hidden({ cakeEaten: 3, careMistakes: 2 }), 70).blob.terms[2];
     expect(noHabit.active).toBe(false);
     expect(noHabit.value).toBe(0);
   });
@@ -112,6 +112,15 @@ describe("determineAdultForm", () => {
   it("does not summon the humming cube from a casual cube taste", () => {
     const h = hidden({ cubeEaten: 2 });
     expect(determineAdultForm(h, 80, () => 0)).not.toBe("humcube");
+  });
+
+  it("a cube-game favorite with only a few plays does not open the hum path", () => {
+    // Liking the cube game isn't devotion — the secret needs six plays.
+    const h = hidden({
+      cubeEaten: 5,
+      gamePlays: { ...emptyHidden().gamePlays, cubehum: 4 },
+    });
+    expect(determineAdultForm(h, 90, () => 0)).not.toBe("humcube");
   });
 
   it("does not produce a ghost from casual night care", () => {

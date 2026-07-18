@@ -15,7 +15,7 @@ const r1 = (v: number): number => Math.round(v * 10) / 10;
  */
 export function mostPlayed(
   plays: Record<GameId, number>,
-): { game: GameId; count: number; unique: boolean } {
+): { game: GameId; count: number; runnerUp: number; unique: boolean } {
   let best: GameId = "fetch";
   let count = -1;
   let runnerUp = -1;
@@ -28,7 +28,7 @@ export function mostPlayed(
       runnerUp = plays[g];
     }
   });
-  return { game: best, count, unique: count > runnerUp };
+  return { game: best, count, runnerUp, unique: count > runnerUp };
 }
 
 /** One line item in a form's score: what it is, how much it's adding right now
@@ -58,11 +58,11 @@ export function explainForms(
   hidden: HiddenStats,
   health: number,
 ): Record<AdultForm, FormBreakdown> {
-  const { game: topGame, count: topCount, unique } = mostPlayed(hidden.gamePlays);
+  const { game: topGame, count: topCount, runnerUp, unique } = mostPlayed(hidden.gamePlays);
   const hasTopGame = topCount > 0 && unique;
   const topName = hasTopGame ? GAME_NAMES[topGame] : "no clear favorite";
   const mistakes = hidden.careMistakes;
-  const wellCared = mistakes < 3 && health > 60;
+  const wellCared = mistakes < 4 && health > 60;
   const { cakeEaten, cubeEaten, carrotEaten, mealsEaten, discipline, nightCare } = hidden;
 
   // How this form's favorite game currently stands, phrased for a hint.
@@ -76,12 +76,24 @@ export function explainForms(
   const cubeTop = hasTopGame && topGame === "cubehum";
   const carrotPure = mealsEaten >= 5 && carrotEaten === mealsEaten;
   const balancedCake = Math.max(0, 2 - Math.abs(cakeEaten - 2));
-  // Blob's cake score: full value for the first three, then diminishing.
-  // Uncapped so a true cake diet still runs away with it, but incidental cake
-  // (a treat here and there) can no longer out-earn a committed path like the
-  // dog's, whose score is capped.
-  const blobCake = Math.min(cakeEaten, 3) * 1.5 + Math.max(0, cakeEaten - 3) * 0.5;
-  const cakeHabit = cakeEaten >= 3;
+  // Blob's cake score is an S-curve: a taste (first three cakes) is cheap,
+  // the habit band (cakes 4–8) is where the blob is made, and past eight the
+  // point is already proven. Casual eating leaves ~3 cakes over a run, so the
+  // knee sits just above what happens by accident — indulgence has to be a
+  // choice before it out-earns any committed path.
+  const blobCake =
+    Math.min(cakeEaten, 3) * 0.5 +
+    Math.max(0, Math.min(cakeEaten, 8) - 3) * 1.5 +
+    Math.max(0, cakeEaten - 8) * 0.5;
+  const cakeHabit = cakeEaten >= 4;
+  // Dog devotion: fetch's lead over the second-favorite game, so enthusiasm
+  // keeps earning past the flat top-game bonus (capped — it's still a dog,
+  // not an arms race).
+  const fetchMargin = fetchTop ? Math.min(2, 0.25 * (topCount - runnerUp)) : 0;
+  // The humming cube demands proof of devotion: its game clearly on top AND
+  // played enough times that "my favorite happened to be the cube one" can't
+  // stumble into a secret.
+  const humPath = cubeTop && hidden.gamePlays.cubehum >= 6;
 
   const b: Record<AdultForm, FormBreakdown> = {
     // Loyal Dog Thing — fetch enthusiast, well cared for. Ordinary wear and
@@ -97,7 +109,15 @@ export function explainForms(
         label: "…and well cared for (+3)",
         value: fetchTop && wellCared ? 3 : 0,
         active: fetchTop && wellCared,
-        hint: `Needs the fetch path, <3 care mistakes (now ${r1(mistakes)}) and health >60 (now ${r1(health)}).`,
+        hint: `Needs the fetch path, <4 care mistakes (now ${r1(mistakes)}) and health >60 (now ${r1(health)}).`,
+      },
+      {
+        label: "Devotion: fetch's lead over your second game (+0.25 per play, max +2)",
+        value: fetchMargin,
+        active: fetchMargin > 0,
+        hint: fetchTop
+          ? `Fetch leads by ${topCount - runnerUp} play(s).`
+          : "Only counts once fetch is your top game.",
       },
       {
         label: "Care-mistake penalty (−0.5 each)",
@@ -112,14 +132,14 @@ export function explainForms(
     // Dramatic Blob — a real cake habit + a bit of drama/neglect. Both terms
     // follow the same rule as the dog and the humming cube: the secondary
     // bonus only fires on the form's primary signal (here, an actual habit of
-    // ≥3 cakes) — without the gate, blob won the "moderate everything" style
+    // ≥4 cakes) — without the gate, blob won the "moderate everything" style
     // that belongs to the office creature.
     blob: build([
       {
-        label: `Cake eaten ×${cakeEaten} (+1.5 first three, +0.5 after)`,
+        label: `Cake eaten ×${cakeEaten} (+0.5 first three, +1.5 for cakes 4–8, +0.5 after)`,
         value: blobCake,
         active: cakeEaten > 0,
-        hint: "The big one — uncapped but diminishing: +1.5 per cake up to three, +0.5 each after.",
+        hint: "The big one — a taste is cheap, the habit band (cakes 4–8) is where the blob is made.",
       },
       {
         label: "Higher / Lower is your top game (+1)",
@@ -128,12 +148,12 @@ export function explainForms(
         hint: topGameHint("higherlower"),
       },
       {
-        label: "Mild neglect on the cake path: 2–5 mistakes AND ≥3 cakes (+2)",
+        label: "Mild neglect on the cake path: 2–5 mistakes AND ≥4 cakes (+2)",
         value: mistakes >= 2 && mistakes < 6 && cakeHabit ? 2 : 0,
         active: mistakes >= 2 && mistakes < 6 && cakeHabit,
         hint: cakeHabit
           ? `Now ${r1(mistakes)} mistakes; band is 2 up to (not incl.) 6.`
-          : `Drama needs the habit: only counts at ≥3 cakes (now ${cakeEaten}). Cake-free chaos is the gremlin's.`,
+          : `Drama needs the habit: only counts at ≥4 cakes (now ${cakeEaten}). Cake-free chaos is the gremlin's.`,
       },
     ]),
 
@@ -147,9 +167,9 @@ export function explainForms(
         hint: "+0.6 per care mistake.",
       },
       {
-        label: "Real chaos: ≥4 mistakes AND discipline <10 (+2)",
-        value: mistakes >= 4 && discipline < 10 ? 2 : 0,
-        active: mistakes >= 4 && discipline < 10,
+        label: "Real chaos: ≥4 mistakes AND discipline <12 (+3)",
+        value: mistakes >= 4 && discipline < 12 ? 3 : 0,
+        active: mistakes >= 4 && discipline < 12,
         hint: `Now ${r1(mistakes)} mistakes, hidden discipline ${r1(discipline)}.`,
       },
     ]),
@@ -169,10 +189,16 @@ export function explainForms(
         hint: topGameHint("higherlower"),
       },
       {
-        label: `Cake penalty ×${cakeEaten} (−1 each)`,
-        value: -cakeEaten,
+        label: "Studious: hidden discipline ≥18 (+1)",
+        value: discipline >= 18 ? 1 : 0,
+        active: discipline >= 18,
+        hint: `Now ${r1(discipline)}; a real habit of correct scoldings.`,
+      },
+      {
+        label: `Cake penalty ×${cakeEaten} (−0.5 each)`,
+        value: -cakeEaten * 0.5,
         active: cakeEaten > 0,
-        hint: "Every cake works directly against the scholar.",
+        hint: "Every cake works against the scholar — but a slice isn't a scandal.",
       },
     ]),
 
@@ -202,8 +228,8 @@ export function explainForms(
     // balanced cake intake. Wins when nothing else dominates.
     office: build([
       {
-        label: "Baseline — the default when nothing dominates (+2)",
-        value: 2,
+        label: "Baseline — the default when nothing dominates (+3.25)",
+        value: 3.25,
         active: true,
         hint: "Every pet starts here; other forms have to out-earn it.",
       },
@@ -232,27 +258,32 @@ export function explainForms(
     ]),
 
     // Humming Cube (secret) — cube devotion done calmly: its humming game,
-    // reinforced by an actual cube diet. Cube eaten alone is neutral; it only
-    // counts once the game proves the devotion is real.
+    // reinforced by an actual cube diet. Cube eaten alone is neutral, and even
+    // a top-game cube taste isn't enough — the hum path opens at six plays, so
+    // "my favorite happened to be the cube one" can't stumble into a secret.
     humcube: build([
       {
-        label: "The Cube's Hum is your top game (+4)",
-        value: cubeTop ? 4 : 0,
-        active: cubeTop,
-        hint: topGameHint("cubehum"),
+        label: "The Cube's Hum is your top game, ≥6 plays (+4)",
+        value: humPath ? 4 : 0,
+        active: humPath,
+        hint: humPath
+          ? undefined
+          : cubeTop
+            ? `Now ${hidden.gamePlays.cubehum} plays; devotion opens at 6.`
+            : topGameHint("cubehum"),
       },
       {
         label: `Cube eaten ×${cubeEaten} on the hum path (+0.5 each)`,
-        value: cubeTop ? cubeEaten * 0.5 : 0,
-        active: cubeTop && cubeEaten > 0,
-        hint: cubeTop
-          ? "+0.5 per cube, but only while Cube's Hum leads."
-          : "Cube diet counts only once Cube's Hum is your top game.",
+        value: humPath ? cubeEaten * 0.5 : 0,
+        active: humPath && cubeEaten > 0,
+        hint: humPath
+          ? "+0.5 per cube, but only while the hum path is open."
+          : "Cube diet counts only once the hum path is open.",
       },
       {
         label: "Devout cube diet: ≥3 cubes on the hum path (+3)",
-        value: cubeTop && cubeEaten >= 3 ? 3 : 0,
-        active: cubeTop && cubeEaten >= 3,
+        value: humPath && cubeEaten >= 3 ? 3 : 0,
+        active: humPath && cubeEaten >= 3,
         hint: `Now ${cubeEaten} cubes eaten.`,
       },
     ]),
