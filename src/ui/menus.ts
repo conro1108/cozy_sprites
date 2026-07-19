@@ -1113,8 +1113,8 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   // (nobody sends a postcard of an egg — the stamp is already one).
   if (pet.stage !== "egg" && !pet.deadAt) {
     const cardBtn = document.createElement("button");
-    cardBtn.className = "btn secondary btn-iconed";
-    cardBtn.appendChild(iconEl("sparkle", 18));
+    cardBtn.className = "btn secondary btn-iconed farm-btn";
+    cardBtn.appendChild(iconEl("stamp", 18));
     cardBtn.appendChild(document.createTextNode("Send a postcard"));
     cardBtn.addEventListener("click", () => {
       cardBtn.disabled = true;

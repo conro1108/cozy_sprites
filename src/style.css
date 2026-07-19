@@ -623,8 +623,16 @@ body {
   margin-top: 10px;
 }
 
-.farm-btn.btn-iconed:not(.danger-outline) {
+.farm-btn.btn-iconed:not(.danger-outline):not(.secondary) {
   box-shadow: 0 2px 0 var(--wood-dark);
+}
+
+/* The Send a postcard button borrows farm-btn's compact sizing, but wears the
+   cream face and 2px wood outline of the Collection/Backup row just below it
+   (see .btn-pair .btn) rather than the farm set's shadow-only look. */
+.farm-btn.secondary {
+  border: 2px solid var(--wood);
+  box-shadow: 0 2px 0 #cbb890;
 }
 
 /* Margin-top matches the row's own internal gap (8px) so the space

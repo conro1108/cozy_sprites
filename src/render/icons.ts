@@ -40,6 +40,7 @@ export type IconName =
   | "grave"
   | "star"
   | "sparkle"
+  | "stamp"
   | "alert"
   | "speechdots"
   | "thermometer"
@@ -738,6 +739,26 @@ const ICONS: Record<IconName, IconDef> = {
       "............",
     ],
     palette: { y: "#ffd884", w: "#fff7dc" },
+  },
+  stamp: {
+    // a postage stamp: the outline ink of its sibling buttons (Collection,
+    // Backup), a cream paper margin, and the meadow itself printed inside —
+    // sun over a green hill — so the "Send a postcard" button carries a scene.
+    rows: [
+      "............",
+      "..kkkkkkkk..",
+      ".kwwwwwwwwk.",
+      ".kwssssyswk.",
+      ".kwsssssswk.",
+      ".kwssggsswk.",
+      ".kwsggggswk.",
+      ".kwggggggwk.",
+      ".kwggggggwk.",
+      ".kwwwwwwwwk.",
+      "..kkkkkkkk..",
+      "............",
+    ],
+    palette: { k: K, w: "#fdf3e0", s: "#a8dcec", y: "#ffd884", g: "#9cc85a" },
   },
   alert: {
     rows: [
