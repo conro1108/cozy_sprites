@@ -40,6 +40,8 @@ import {
   describeCondition,
   weatherLine,
   WEATHER_LINE_CHANCE,
+  seasonLine,
+  SEASON_LINE_CHANCE,
 } from "./pet/dialogue";
 import type { Category } from "./pet/dialogue";
 import { determineAdultForm } from "./pet/evolution";
@@ -1248,6 +1250,10 @@ function maybeIdleLine(now: number): void {
   ) {
     // A wet day gets talked about. Babies have no opinions on meteorology.
     say(weatherLine(wx));
+  } else if (wx === "clear" && pet.stage !== "baby" && Math.random() < SEASON_LINE_CHANCE) {
+    // A clear day gets the odd remark on the season instead (wet days took the
+    // weather line above). Babies still have no opinions on the meadow.
+    say(seasonLine(seasonToday()));
   } else if (Math.random() < RARE_IDLE_CHANCE) {
     // Once in a while, a line from somewhere else entirely.
     say(rareIdleLine());

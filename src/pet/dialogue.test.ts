@@ -7,6 +7,7 @@ import {
   isDying,
   memorialLine,
   pickLine,
+  seasonLine,
   shouldSpeak,
   speakChance,
   teenFlickerLine,
@@ -55,6 +56,25 @@ describe("chattiness", () => {
   it("shouldSpeak respects the roll", () => {
     expect(shouldSpeak(petAt("teen"), "tap", () => 0.99)).toBe(false);
     expect(shouldSpeak(petAt("teen"), "tap", () => 0.0)).toBe(true);
+  });
+});
+
+describe("seasonLine", () => {
+  const seasons = ["spring", "summer", "fall", "winter"] as const;
+
+  it("draws from the matching season's bank and never crosses over", () => {
+    // Sweep the rng across each bank; every result must be unique to its season.
+    const banks = seasons.map((s) =>
+      Array.from({ length: 20 }, (_, i) => seasonLine(s, () => i / 20)),
+    );
+    banks.forEach((bank, i) => {
+      const others = new Set(banks.filter((_, j) => j !== i).flat());
+      for (const line of bank) expect(others.has(line)).toBe(false);
+    });
+  });
+
+  it("is deterministic for a given roll", () => {
+    expect(seasonLine("fall", () => 0)).toBe(seasonLine("fall", () => 0));
   });
 });
 

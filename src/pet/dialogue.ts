@@ -1333,6 +1333,51 @@ export function weatherLine(
   return bank[Math.floor(rng() * bank.length)];
 }
 
+// --- Seasonal small talk ------------------------------------------------------
+// The season gets the odd remark on a *clear* day — wet days already have the
+// weather bank to talk about (snow implies winter, so this is the dry-winter
+// voice, not a second snow line). Same general voice, child-and-up.
+export const SEASON_LINE_CHANCE = 0.12;
+
+const SEASON_LINES: Record<"spring" | "summer" | "fall" | "winter", string[]> = {
+  spring: [
+    "Everything is sprouting. Show-offs.",
+    "The flowers came back. I said nothing kind, but I noticed.",
+    "New grass, same me. Balance.",
+    "Something's blooming. It wasn't me. This time.",
+    "The meadow is trying so hard. I respect the effort.",
+  ],
+  summer: [
+    "The sun is really committing today. Admirable. Exhausting.",
+    "Long day. Longer nap planned.",
+    "Warm and slow. Finally, a pace I agree with.",
+    "Peak green. The meadow is showing off again.",
+    "I have located the one good sunbeam. It is mine.",
+  ],
+  fall: [
+    "The leaves are quitting. One by one. Dramatic.",
+    "Everything's going gold. Even the grass wants to look expensive.",
+    "Crisp out. I approve of crisp.",
+    "The meadow is packing up for the year. No forwarding address.",
+    "A leaf landed on me. We're friends now. Briefly.",
+  ],
+  winter: [
+    "Cold and clear. The world is holding its breath.",
+    "No snow today. The sky is rationing.",
+    "Bare and bright. Everything's asleep but me. And you.",
+    "Frost on the edges. The meadow went minimalist.",
+    "The air has teeth. I have opinions about this.",
+  ],
+};
+
+export function seasonLine(
+  season: "spring" | "summer" | "fall" | "winter",
+  rng: () => number = Math.random,
+): string {
+  const bank = SEASON_LINES[season];
+  return bank[Math.floor(rng() * bank.length)];
+}
+
 // --- Farm confirmation lines — darker the younger they are -------------------
 // Sending an adult off is a retirement. Sending a baby is a decision you should
 // feel. The button still works; the copy just looks you in the eye first.
