@@ -577,6 +577,14 @@ const ADULT: Record<AdultForm, Bank> = {
     poop: ["We shall never speak of the indignity.", "Even this, I did dramatically."],
     feed_disliked: ["A carrot? Now?", "Cruel and unusual.", "You wish to see me suffer."],
     feed_favorite: ["The only medicine that has ever worked.", "Cake. My will to live, frosted.", "*color returns immediately*"],
+    clean: ["You've swept away the last evidence of my suffering.", "The floor is pristine. My tragedy, less so."],
+    call: [
+      "Come quickly. It may already be too late. It isn't, but it may be.",
+      "I require an audience. Also, possibly, a snack. Mostly an audience.",
+      "Attend me. I am having a moment and no one is here to see it.",
+    ],
+    discipline_correct: ["Guilty. Take me away. I shall go beautifully.", "You've seen through me. My last performance, then."],
+    discipline_incorrect: ["Accused?! And innocent?! The tragedy compounds.", "I did nothing, and yet I suffer. ... Typical. Historic."],
     sleep: ["Perhaps I shall not wake. *yawns comfortably*", "Goodnight. Mourn me until morning.", "The couch of eternity calls."],
     wake: ["Alive. Against all odds.", "I have survived the night. Barely. Gorgeously.", "Another dawn. Another ordeal."],
     farm: ["I will perish rurally.", "The fields will mourn me.", "So this is goodbye."],
@@ -979,6 +987,11 @@ const FORM_FAVGAME: Partial<Record<AdultForm, string[]>> = {
     "The ball. Throw the ball. I was born for this.",
     "Yes yes yes throw it throw it THROW IT.",
   ],
+  blob: [
+    "Higher or lower. The cruelest of fates, and my favorite.",
+    "A game of chance. My life is already one. Deal.",
+    "Higher? Lower? The suspense may finish me. Begin.",
+  ],
 };
 
 export function favoriteGameLine(
@@ -1351,9 +1364,10 @@ const SNOW_LINES = [
   "*watches own breath, riveted*",
 ];
 
-// A wet day sounds like the general voice unless the adult form has its own take
-// on rain/snow — then that wins, the same way pickLine prefers the form bank.
-// Only forms with something distinctive are listed; the rest use the banks above.
+// An adult form's own take on rain/snow is *pooled* with the general banks
+// above, not swapped for them — so the form's personality shows through while
+// the shared meadow-voice variety stays in the mix. Only forms with something
+// distinctive are listed; the rest draw purely from the general banks.
 const FORM_WEATHER: Partial<Record<AdultForm, Partial<Record<"rain" | "snow", string[]>>>> = {
   dog: {
     rain: [
@@ -1365,6 +1379,16 @@ const FORM_WEATHER: Partial<Record<AdultForm, Partial<Record<"rain" | "snow", st
       "It's falling and it won't let me catch it. Rude. Magical. Rude.",
     ],
   },
+  blob: {
+    rain: [
+      "The heavens weep. Finally, someone matches my energy.",
+      "Rain. Even the sky cannot hold itself together. I relate.",
+    ],
+    snow: [
+      "The world turns pale and cold. As do I. As I always have.",
+      "Snow. A funeral shroud for the meadow. Gorgeous. Foreboding.",
+    ],
+  },
 };
 
 export function weatherLine(
@@ -1372,8 +1396,9 @@ export function weatherLine(
   form: AdultForm | null = null,
   rng: () => number = Math.random,
 ): string {
+  const general = kind === "snow" ? SNOW_LINES : RAIN_LINES;
   const formBank = form ? FORM_WEATHER[form]?.[kind] : undefined;
-  const bank = formBank && formBank.length ? formBank : kind === "snow" ? SNOW_LINES : RAIN_LINES;
+  const bank = formBank && formBank.length ? [...formBank, ...general] : general;
   return bank[Math.floor(rng() * bank.length)];
 }
 
@@ -1483,14 +1508,6 @@ const READY_LINES = [
   "One more good day here, then the fields. Deal?",
 ];
 
-export function retirementLine(
-  phase: "restless" | "ready",
-  rng: () => number = Math.random,
-): string {
-  const lines = phase === "ready" ? READY_LINES : RESTLESS_LINES;
-  return lines[Math.floor(rng() * lines.length)];
-}
-
 /** Said on the walk over, when the player escorts a ready adult themselves. */
 const FAREWELL_WALK_LINES = [
   "*takes one last look around* Good rectangle. Good you.",
@@ -1499,8 +1516,55 @@ const FAREWELL_WALK_LINES = [
   "Thank you for all the soup. And the rest of it.",
 ];
 
-export function farewellWalkLine(rng: () => number = Math.random): string {
-  return FAREWELL_WALK_LINES[Math.floor(rng() * FAREWELL_WALK_LINES.length)];
+// Per-form retirement voice, *pooled* with the general banks above (like
+// FORM_WEATHER) — the shared long-goodbye variety stays, with the form's own
+// colour layered in. A form left out of a beat simply draws from the general
+// bank for it.
+type RetireBeat = "restless" | "ready" | "farewell" | "departed";
+const FORM_RETIRE: Partial<Record<AdultForm, Partial<Record<RetireBeat, string[]>>>> = {
+  blob: {
+    restless: [
+      "I sense an ending approaching. A gentle one. With hay.",
+      "The horizon calls. Dramatically. I may answer. ... Eventually.",
+      "I have begun rehearsing my farewell. It has three acts.",
+    ],
+    ready: [
+      "It is time. Escort me to my final act. The pasture.",
+      "I am ready for the fields. Weep as much as you'd like.",
+      "Take me to the farm. I shall make it a very moving exit.",
+    ],
+    farewell: [
+      "Walk slowly. I want every step to feel like an ending.",
+      "Carry me, if it's more dramatic. It would be.",
+    ],
+    departed: [
+      "Gone to the fields to perish gorgeously. Do not look for me. ... Do look for me.",
+      "Exited stage left, into a pasture. Applause optional. Encouraged.",
+    ],
+  },
+};
+
+/** Pool a form's lines for a retirement beat with the general fallback bank. */
+function retirePool(form: AdultForm | null, beat: RetireBeat, general: string[]): string[] {
+  const formBank = form ? FORM_RETIRE[form]?.[beat] : undefined;
+  return formBank && formBank.length ? [...formBank, ...general] : general;
+}
+
+export function retirementLine(
+  phase: "restless" | "ready",
+  form: AdultForm | null = null,
+  rng: () => number = Math.random,
+): string {
+  const bank = retirePool(form, phase, phase === "ready" ? READY_LINES : RESTLESS_LINES);
+  return bank[Math.floor(rng() * bank.length)];
+}
+
+export function farewellWalkLine(
+  form: AdultForm | null = null,
+  rng: () => number = Math.random,
+): string {
+  const bank = retirePool(form, "farewell", FAREWELL_WALK_LINES);
+  return bank[Math.floor(rng() * bank.length)];
 }
 
 /** The note left behind when a ready adult finally walks itself at dawn. */
@@ -1512,8 +1576,12 @@ const DEPARTED_NOTES = [
   "Do not water my opinions. They are perennial.",
 ];
 
-export function departedNote(rng: () => number = Math.random): string {
-  return DEPARTED_NOTES[Math.floor(rng() * DEPARTED_NOTES.length)];
+export function departedNote(
+  form: AdultForm | null = null,
+  rng: () => number = Math.random,
+): string {
+  const bank = retirePool(form, "departed", DEPARTED_NOTES);
+  return bank[Math.floor(rng() * bank.length)];
 }
 
 // --- Memorial copy ------------------------------------------------------------

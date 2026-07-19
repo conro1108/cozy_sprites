@@ -974,7 +974,7 @@ function doDevAction(action: DevAction): void {
       break;
     case "retire-ready":
       if (retirementPhase(prev) !== "ready" && retirementPhase(pet) === "ready") {
-        say(retirementLine("ready"));
+        say(retirementLine("ready", pet.form));
       }
       break;
     // timeline and zoomies show themselves — render() reads them off state.
@@ -1073,10 +1073,10 @@ function stepPet(now: number, withEvents: boolean): boolean {
     handleStageChange(prevStage, pet.stage);
   } else if (phase !== prevPhase && phase === "ready") {
     // The long goodbye reaches its door. From here the Care menu offers the walk.
-    say(retirementLine("ready"));
+    say(retirementLine("ready", pet.form));
     notify("care", "The Meadow", `${pet.name} is ready for the farm.`);
   } else if (phase !== prevPhase && phase === "restless") {
-    say(retirementLine("restless"));
+    say(retirementLine("restless", pet.form));
   } else if (events.includes("sick")) {
     // The Oregon Trail moment. Always announced, never diluted.
     if (pet.illness) say(illnessAnnouncement(pet.name, pet.illness));
@@ -1154,7 +1154,7 @@ function beginDeparture(walked: boolean): void {
   const lived = (p.departedAt ?? Date.now()) - p.createdAt;
   const detail = walked
     ? "They waved until you couldn't see them anymore. Then, presumably, fields."
-    : `They left a note: “${departedNote()}”`;
+    : `They left a note: “${departedNote(p.form)}”`;
   app.innerHTML = `
     <div class="hatch-screen memorial">
       ${iconHTML("barn", 56)}
@@ -1230,7 +1230,7 @@ function maybeIdleLine(now: number): void {
   const phase = retirementPhase(pet);
   if (phase !== "none" && Math.random() < 0.4) {
     // The long goodbye colors the small talk: fields, fences, horizons.
-    say(retirementLine(phase));
+    say(retirementLine(phase, pet.form));
     nextIdleAt = now + rand(IDLE_MIN_MS, IDLE_MAX_MS);
     return;
   }

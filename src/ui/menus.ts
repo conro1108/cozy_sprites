@@ -1013,7 +1013,7 @@ function confirmWalk(ctx: MenuCtx, p: Panel): void {
   p.setTitle("Walk them to the farm?", `${pet.name} is ready. They've been ready.`);
   p.body.innerHTML = "";
   const line = document.createElement("p");
-  line.textContent = farewellWalkLine();
+  line.textContent = farewellWalkLine(pet.form);
   line.style.fontStyle = "italic";
   const confirm = document.createElement("button");
   confirm.className = "btn";
