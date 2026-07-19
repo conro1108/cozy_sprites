@@ -165,6 +165,9 @@ export interface SceneView {
   /** Dysentery, or a bad-diet mess still on the floor: the messes render as
    *  wet diarrhea pools, not tidy coils. */
   runny?: boolean;
+  /** Today's weather (see ui/weather.ts). Cosmetic only: an overcast day sky
+   *  and falling rain/snow. Absent or "clear" draws the meadow as ever. */
+  weather?: "clear" | "rain" | "snow";
 }
 
 type Pulse = "none" | "happy" | "shake" | "evolve" | "eat" | "nudge" | "love";
@@ -767,6 +770,12 @@ export class Scene {
     layers.sort((a, b) => a.y - b.y);
     for (const layer of layers) layer.draw();
 
+    // --- Weather -----------------------------------------------------------------
+    // Rain/snow falls in front of the whole clearing. Drawn before the night
+    // dim, so after lights-out the weather fades with everything else.
+    if (v.weather === "rain") this.drawRain(t);
+    else if (v.weather === "snow") this.drawSnow(t);
+
     // --- Night dim + fireflies -----------------------------------------------------
     if (dark) {
       ctx.fillStyle = "rgba(20,16,40,0.35)";
@@ -1110,9 +1119,12 @@ export class Scene {
     }
 
     const night = sky === "night";
-    ctx.fillStyle = dark ? "#141232" : night ? "#2b2552" : "#a8dcec";
+    // A wet day flattens the blue into overcast gray; night skies keep their
+    // own colors and let the falling pixels carry the weather.
+    const overcast = !night && this.view.weather && this.view.weather !== "clear";
+    ctx.fillStyle = dark ? "#141232" : night ? "#2b2552" : overcast ? "#9cc0cd" : "#a8dcec";
     ctx.fillRect(0, 0, SCENE_W, FLOOR_Y);
-    ctx.fillStyle = dark ? "#1d1940" : night ? "#3a3462" : "#cfeef8";
+    ctx.fillStyle = dark ? "#1d1940" : night ? "#3a3462" : overcast ? "#bcd6dd" : "#cfeef8";
     ctx.fillRect(0, FLOOR_Y - HILL_MIN_H, SCENE_W, HILL_MIN_H);
 
     if (night) {
@@ -1135,6 +1147,10 @@ export class Scene {
       for (const [sx, sy] of stars) {
         if (Math.sin(t * 2 + sx) > -0.3) ctx.fillRect(sx, sy, 1, 1);
       }
+    } else if (overcast) {
+      // No sun today — just heavier, grayer clouds sitting on the light.
+      ctx.fillStyle = "#dde3e7";
+      this.drawClouds(t);
     } else {
       // sun + drifting clouds
       ctx.fillStyle = "#ffe9a3";
@@ -1175,6 +1191,36 @@ export class Scene {
       const y = tr.yMin + Math.floor(cloudHash(cycle * 7 + k * 13) * tr.yRange);
       for (const [dx, dy, w, h] of shape) this.ctx.fillRect(x + dx, y + dy, w, h);
     });
+  }
+
+  // --- Weather ---------------------------------------------------------------
+  // Both draw the whole sky-to-grass column in deterministic streams keyed off
+  // t alone — no stored particle state, integer-snapped like everything else.
+
+  /** Straight pixel rain: staggered 1×3 streaks at slightly varied speeds. */
+  private drawRain(t: number): void {
+    const ctx = this.ctx;
+    const H = this.sh;
+    ctx.fillStyle = "rgba(182,212,236,0.7)";
+    for (let i = 0; i < 26; i++) {
+      const speed = 95 + (i % 5) * 9;
+      const x = (i * 41 + 7) % SCENE_W;
+      const y = Math.round((t * speed + i * 57) % (H + 8)) - 8;
+      ctx.fillRect(x, y, 1, 3);
+    }
+  }
+
+  /** Slow single-pixel snow, each flake on its own gentle sway. */
+  private drawSnow(t: number): void {
+    const ctx = this.ctx;
+    const H = this.sh;
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    for (let i = 0; i < 22; i++) {
+      const speed = 11 + (i % 4) * 3;
+      const drift = (t * speed + i * 61) % (H + 6);
+      const x = Math.round((i * 47 + 11) % SCENE_W + Math.sin(t * 0.9 + i * 1.9) * 3);
+      ctx.fillRect(((x % SCENE_W) + SCENE_W) % SCENE_W, Math.round(drift) - 6, 1, 1);
+    }
   }
 
   private drawMushroom(dark: boolean, night: boolean): void {

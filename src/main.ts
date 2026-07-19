@@ -38,6 +38,8 @@ import {
   retirementLine,
   departedNote,
   describeCondition,
+  weatherLine,
+  WEATHER_LINE_CHANCE,
 } from "./pet/dialogue";
 import type { Category } from "./pet/dialogue";
 import { determineAdultForm } from "./pet/evolution";
@@ -63,6 +65,7 @@ import { creatureKey } from "./render/sprites";
 import type { Mood } from "./render/sprites";
 import { iconEl, iconHTML, iconUrl } from "./render/icons";
 import { notify } from "./ui/notifications";
+import { weatherToday } from "./ui/weather";
 import { playSfx, playSong, reviveAudio, unlockAudio } from "./ui/audio";
 import {
   initMenus,
@@ -414,6 +417,7 @@ function render(): void {
     activity: activityOf(pet, now),
     // Same puddle art for dysentery and a bad-diet mess still on the floor.
     runny: (pet.sick && pet.illness === "dysentery") || pet.hasBadPoop,
+    weather: weatherToday(),
   });
 }
 
@@ -1226,6 +1230,7 @@ function maybeIdleLine(now: number): void {
     nextIdleAt = now + rand(IDLE_MIN_MS, IDLE_MAX_MS);
     return;
   }
+  const wx = weatherToday();
   if (pet.stage === "teen" && Math.random() < 0.35) {
     // "The Audition": the leaning adult personality leaks through
     // occasionally, at normal idle cadence, never labeled.
@@ -1234,6 +1239,13 @@ function maybeIdleLine(now: number): void {
   } else if (Math.random() < memoryChance(pet)) {
     // A "remember when": the idle beat turns to its own past (memories.ts).
     say(memoryLine(pet, now));
+  } else if (
+    (wx === "rain" || wx === "snow") &&
+    pet.stage !== "baby" &&
+    Math.random() < WEATHER_LINE_CHANCE
+  ) {
+    // A wet day gets talked about. Babies have no opinions on meteorology.
+    say(weatherLine(wx));
   } else if (Math.random() < RARE_IDLE_CHANCE) {
     // Once in a while, a line from somewhere else entirely.
     say(rareIdleLine());

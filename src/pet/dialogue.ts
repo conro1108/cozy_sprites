@@ -1302,6 +1302,37 @@ export function rareIdleLine(rng: () => number = Math.random): string {
   return RARE_IDLE[Math.floor(rng() * RARE_IDLE.length)];
 }
 
+// --- Weather small talk -------------------------------------------------------
+// On a wet day the idle chatter sometimes turns to the sky. General voice,
+// child-and-up — a baby has no opinions on meteorology yet.
+export const WEATHER_LINE_CHANCE = 0.15;
+
+const RAIN_LINES = [
+  "Somewhere it is raining. Here. It's here. It's my problem now.",
+  "The clouds are having a meeting. It leaks.",
+  "Rain: the sky patting everything at once.",
+  "Every drop lands exactly where it wants. Confidence.",
+  "I counted the drops for a while. Ambitious of me.",
+  "The grass is drinking. Nobody toasts.",
+];
+
+const SNOW_LINES = [
+  "Snow. The sky is molting.",
+  "Cold confetti, for no occasion. I approve.",
+  "Every snowflake is unique. So am I. Suspicious timing.",
+  "The meadow went formal. White suits it.",
+  "I caught a flake. It resigned immediately.",
+  "*watches own breath, riveted*",
+];
+
+export function weatherLine(
+  kind: "rain" | "snow",
+  rng: () => number = Math.random,
+): string {
+  const bank = kind === "snow" ? SNOW_LINES : RAIN_LINES;
+  return bank[Math.floor(rng() * bank.length)];
+}
+
 // --- Farm confirmation lines — darker the younger they are -------------------
 // Sending an adult off is a retirement. Sending a baby is a decision you should
 // feel. The button still works; the copy just looks you in the eye first.
