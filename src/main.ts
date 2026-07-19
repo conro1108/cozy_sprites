@@ -41,6 +41,7 @@ import {
 } from "./pet/dialogue";
 import type { Category } from "./pet/dialogue";
 import { determineAdultForm } from "./pet/evolution";
+import { memoryChance, memoryLine } from "./pet/memories";
 import { applyDevAction } from "./pet/devtools";
 import type { DevAction } from "./pet/devtools";
 import { spriteWon } from "./pet/games";
@@ -1230,6 +1231,9 @@ function maybeIdleLine(now: number): void {
     // occasionally, at normal idle cadence, never labeled.
     const leaning = determineAdultForm(pet.hidden, pet.health, Math.random, pet.name);
     say(teenFlickerLine(leaning));
+  } else if (Math.random() < memoryChance(pet)) {
+    // A "remember when": the idle beat turns to its own past (memories.ts).
+    say(memoryLine(pet, now));
   } else if (Math.random() < RARE_IDLE_CHANCE) {
     // Once in a while, a line from somewhere else entirely.
     say(rareIdleLine());
