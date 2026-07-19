@@ -1295,6 +1295,7 @@ const RARE_IDLE = [
   "Should have caulked the wagon. Everyone says that afterward.",
   "I dreamt of a thin green man who loved his rusty spoons.",
   "Something by the water showed me its watercolors and asked if I loved it.",
+  "I can't stop thinking about bacon pancakes.",
 ];
 
 export function rareIdleLine(rng: () => number = Math.random): string {
