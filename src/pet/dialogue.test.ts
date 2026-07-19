@@ -65,7 +65,7 @@ describe("seasonLine", () => {
   it("draws from the matching season's bank and never crosses over", () => {
     // Sweep the rng across each bank; every result must be unique to its season.
     const banks = seasons.map((s) =>
-      Array.from({ length: 20 }, (_, i) => seasonLine(s, () => i / 20)),
+      Array.from({ length: 20 }, (_, i) => seasonLine(s, null, () => i / 20)),
     );
     banks.forEach((bank, i) => {
       const others = new Set(banks.filter((_, j) => j !== i).flat());
@@ -74,7 +74,17 @@ describe("seasonLine", () => {
   });
 
   it("is deterministic for a given roll", () => {
-    expect(seasonLine("fall", () => 0)).toBe(seasonLine("fall", () => 0));
+    expect(seasonLine("fall", null, () => 0)).toBe(seasonLine("fall", null, () => 0));
+  });
+
+  it("pools a form's seasonal line with the general bank", () => {
+    // rng()=0 draws the form's own line (pooled at the front); a general-bank
+    // roll still surfaces a shared line — so both voices remain reachable.
+    const formLine = seasonLine("winter", "menace", () => 0);
+    const generalLine = seasonLine("winter", null, () => 0);
+    expect(formLine).not.toBe(generalLine);
+    const pooled = Array.from({ length: 20 }, (_, i) => seasonLine("winter", "menace", () => i / 20));
+    expect(pooled).toContain(generalLine);
   });
 });
 

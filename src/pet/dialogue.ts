@@ -1603,11 +1603,86 @@ const SEASON_LINES: Record<"spring" | "summer" | "fall" | "winter", string[]> = 
   ],
 };
 
+// An adult form's own seasonal remark, pooled with the general banks above
+// (like FORM_WEATHER) — one line per form per season, so its voice surfaces
+// now and then without crowding out the shared meadow variety.
+type Season = "spring" | "summer" | "fall" | "winter";
+const FORM_SEASON: Partial<Record<AdultForm, Partial<Record<Season, string[]>>>> = {
+  dog: {
+    spring: ["Everything is new and it all smells INCREDIBLE."],
+    summer: ["Long days! More hours for the best things. All the things."],
+    fall: ["The leaves come down so I can chase them! The sky throws toys!"],
+    winter: ["It's cold, but you're here, so it's okay!"],
+  },
+  blob: {
+    spring: ["Everything is reborn. Except me. I remain tragically the same."],
+    summer: ["The heat saps my strength. This may be my final season."],
+    fall: ["The leaves fall, and so, metaphorically, do I."],
+    winter: ["Cold, bleak, beautiful. Winter understands me."],
+  },
+  gremlin: {
+    spring: ["Everything's growing. More places to hide things. Excellent."],
+    summer: ["Long days, short nights. Less cover. I improvise."],
+    fall: ["Leaves everywhere. Perfect for burying evidence."],
+    winter: ["Bare trees. Nowhere to hide. I've had to get creative."],
+  },
+  scholar: {
+    spring: ["Spring: peak data season. Everything's a variable."],
+    summer: ["Longer daylight. More observation hours."],
+    fall: ["The leaves fall at a measurable rate. I am measuring it."],
+    winter: ["A controlled environment. Nothing grows to confound the study."],
+  },
+  office: {
+    spring: ["Q2. The meadow's blooming. Nobody sent me the deck."],
+    summer: ["Summer hours. Which here means all of them. Still."],
+    fall: ["End of fiscal meadow. Time to reconcile the leaves."],
+    winter: ["The slow season. Even the grass is on PTO. Not me."],
+  },
+  menace: {
+    spring: ["Spring. The garden performs for me. As it should."],
+    summer: ["One does not perspire. One glistens."],
+    fall: ["Autumn. The only tasteful season."],
+    winter: ["Crisp, exclusive, and mercifully quiet. My season."],
+  },
+  ghost: {
+    spring: ["New life everywhere. I watch it from just outside."],
+    summer: ["The long light. I keep to the shade. It keeps to me."],
+    fall: ["Everything's fading. I know how that goes. It's alright."],
+    winter: ["The world goes still and quiet. I feel most at home now."],
+  },
+  humcube: {
+    spring: ["New angles everywhere. I approve of the growth vectors."],
+    summer: ["The sun tracks a clean arc. Predictable. Soothing."],
+    fall: ["Leaves fall in parabolas. Nature does know some geometry."],
+    winter: ["Bare branches. Just lines now. The meadow finally makes sense."],
+  },
+  carrot: {
+    spring: ["Planting season! My people are being sown as we speak."],
+    summer: ["Peak growing. I feel the garden thriving. Glorious."],
+    fall: ["Harvest. A solemn time. Some are chosen. I was spared."],
+    winter: ["The soil rests. I rest."],
+  },
+  cosmos: {
+    spring: ["Your world renews itself. Mine just... continues. Lovely to watch."],
+    summer: ["The star leans close this season. We're related, distantly."],
+    fall: ["Everything lets go and drifts. I've drifted for eons. Welcome."],
+    winter: ["The nights grow long. More sky for me. I don't mind at all."],
+  },
+  mole: {
+    spring: ["Good weather. I should surface. I've said that before."],
+    summer: ["Long days. More daylight to ignore while I'm in the tunnel."],
+    fall: ["Leaves falling. Nature deprecating things on schedule. Respect."],
+    winter: ["Nobody expects you outside. Ideal working conditions."],
+  },
+};
+
 export function seasonLine(
-  season: "spring" | "summer" | "fall" | "winter",
+  season: Season,
+  form: AdultForm | null = null,
   rng: () => number = Math.random,
 ): string {
-  const bank = SEASON_LINES[season];
+  const formBank = form ? FORM_SEASON[form]?.[season] : undefined;
+  const bank = formBank && formBank.length ? [...formBank, ...SEASON_LINES[season]] : SEASON_LINES[season];
   return bank[Math.floor(rng() * bank.length)];
 }
 

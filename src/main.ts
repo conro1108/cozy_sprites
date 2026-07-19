@@ -1253,7 +1253,7 @@ function maybeIdleLine(now: number): void {
   } else if (wx === "clear" && pet.stage !== "baby" && Math.random() < SEASON_LINE_CHANCE) {
     // A clear day gets the odd remark on the season instead (wet days took the
     // weather line above). Babies still have no opinions on the meadow.
-    say(seasonLine(seasonToday()));
+    say(seasonLine(seasonToday(), pet.stage === "adult" ? pet.form : null));
   } else if (Math.random() < RARE_IDLE_CHANCE) {
     // Once in a while, a line from somewhere else entirely.
     say(rareIdleLine());
