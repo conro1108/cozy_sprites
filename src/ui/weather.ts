@@ -4,6 +4,8 @@
 // never touches the care math, and it never will. A pet does not catch cold
 // from pixels.
 
+import { seasonToday } from "./season";
+
 export type Weather = "clear" | "rain" | "snow";
 
 function hashDate(d: Date): number {
@@ -14,14 +16,8 @@ function hashDate(d: Date): number {
   return h;
 }
 
-/** Meteorological winter, northern-hemisphere flavored: a wet day falls as
- *  snow instead of rain. The meadow does not take hemisphere corrections. */
-function isWinter(d: Date): boolean {
-  const m = d.getMonth();
-  return m === 11 || m === 0 || m === 1;
-}
-
-/** Today's weather: wet roughly one day in five, snow when it's winter.
+/** Today's weather: wet roughly one day in five, snow when the season says
+ *  winter (see ui/season.ts — so a forced-season peek gets matching skies).
  *  Set localStorage "cozy-sprites-weather" to "clear"/"rain"/"snow" to force
  *  it for a peek. */
 export function weatherToday(now: Date = new Date()): Weather {
@@ -30,5 +26,5 @@ export function weatherToday(now: Date = new Date()): Weather {
     if (forced === "clear" || forced === "rain" || forced === "snow") return forced;
   }
   if (hashDate(now) % 5 !== 0) return "clear";
-  return isWinter(now) ? "snow" : "rain";
+  return seasonToday(now) === "winter" ? "snow" : "rain";
 }

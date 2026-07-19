@@ -146,17 +146,24 @@ function cloudHash(n: number): number {
 }
 
 // --- Seasons ------------------------------------------------------------------
-// The meadow's *day* ground palette per season (matches ui/season.ts's Season).
-// Night and dark keep the single existing palette: moonlight flattens color
-// anyway, and a per-season night ramp would triple the table for a scene most
-// players see dimmed. Summer is the meadow as it always was.
+// The meadow's ground palette per season (matches ui/season.ts's Season).
+// The green seasons share one moonlit night ramp — moonlight flattens color
+// anyway, and a full per-season night table isn't worth it for a scene most
+// players see dimmed. Winter is the exception: snow can't read as green
+// grass, so it gets its own night and dark rows, paler than the rest — snow
+// glows under the moon. Summer is the meadow as it always was.
 type Season = "spring" | "summer" | "fall" | "winter";
-const SEASON_GROUND: Record<Season, { hills: string; grass: string; tuft: string }> = {
+type GroundPalette = { hills: string; grass: string; tuft: string };
+const SEASON_GROUND: Record<Season, GroundPalette> = {
   spring: { hills: "#8ec572", grass: "#b2d878", tuft: "#98c463" },
   summer: { hills: "#7ab35e", grass: "#9cc85a", tuft: "#84b348" },
   fall: { hills: "#a89a52", grass: "#c9ae5c", tuft: "#a88e46" },
   winter: { hills: "#c2d4e2", grass: "#edf3f7", tuft: "#d4e0e8" },
 };
+const NIGHT_GROUND: GroundPalette = { hills: "#33484a", grass: "#3f5a3c", tuft: "#38503a" };
+const DARK_GROUND: GroundPalette = { hills: "#22303a", grass: "#2c3c2c", tuft: "#26342a" };
+const WINTER_NIGHT_GROUND: GroundPalette = { hills: "#45566a", grass: "#7d8ba0", tuft: "#6e7c92" };
+const WINTER_DARK_GROUND: GroundPalette = { hills: "#2a3542", grass: "#4a5364", tuft: "#414a5a" };
 
 /** What each anchor in the flower patch grows this season (see flowerPatch). */
 type FlowerKind = "bloom" | "sprout" | "drytuft" | "berries" | "stubble";
@@ -725,18 +732,27 @@ export class Scene {
     // solid 1px-wide columns down to the floor — single-toned so it stays quiet
     // background rather than reading as a hard-edged prop.
     const season: Season = v.season ?? "summer";
-    const ground = SEASON_GROUND[season];
-    ctx.fillStyle = dark ? "#22303a" : night ? "#33484a" : ground.hills;
+    const winter = season === "winter";
+    const ground = dark
+      ? winter
+        ? WINTER_DARK_GROUND
+        : DARK_GROUND
+      : night
+        ? winter
+          ? WINTER_NIGHT_GROUND
+          : NIGHT_GROUND
+        : SEASON_GROUND[season];
+    ctx.fillStyle = ground.hills;
     for (let x = 0; x < SCENE_W; x++) {
       const h = Math.round(hillHeightAt(x));
       ctx.fillRect(x, FLOOR_Y - h, 1, h);
     }
 
     // --- Grass -------------------------------------------------------------------
-    ctx.fillStyle = dark ? "#2c3c2c" : night ? "#3f5a3c" : ground.grass;
+    ctx.fillStyle = ground.grass;
     ctx.fillRect(0, FLOOR_Y, SCENE_W, SCENE_H - FLOOR_Y);
     // tufts (in winter the same marks read as dimples in the snow)
-    ctx.fillStyle = dark ? "#26342a" : night ? "#38503a" : ground.tuft;
+    ctx.fillStyle = ground.tuft;
     for (let i = 0; i < 14; i++) {
       const gx = (i * 37) % SCENE_W;
       const gy = FLOOR_Y + 4 + ((i * 13) % (SCENE_H - FLOOR_Y - 8));
