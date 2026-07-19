@@ -158,8 +158,18 @@ const SEASON_GROUND: Record<Season, GroundPalette> = {
   spring: { hills: "#8ec572", grass: "#b2d878", tuft: "#98c463" },
   summer: { hills: "#7ab35e", grass: "#9cc85a", tuft: "#84b348" },
   fall: { hills: "#a89a52", grass: "#c9ae5c", tuft: "#a88e46" },
-  winter: { hills: "#c2d4e2", grass: "#edf3f7", tuft: "#d4e0e8" },
+  // Winter hills sit halfway between the old pale blue and the snow ground, so
+  // they read as snow-covered rises against the sky instead of dissolving into
+  // it (the old #c2d4e2 was a hair off the day horizon band, #cfeef8).
+  winter: { hills: "#d8e4ed", grass: "#edf3f7", tuft: "#d4e0e8" },
 };
+
+// The worn dirt patch is the same tan year-round (dirt is just dirt) — except
+// in fall, when the whole meadow turns dirt-gold and the patch would vanish
+// into it. Fall shows the damp, trodden earth *under* the dry grass instead,
+// which reads dark against the gold.
+const DIRT = "#c9a96a";
+const FALL_DIRT = "#9c6d3c";
 const NIGHT_GROUND: GroundPalette = { hills: "#33484a", grass: "#3f5a3c", tuft: "#38503a" };
 const DARK_GROUND: GroundPalette = { hills: "#22303a", grass: "#2c3c2c", tuft: "#26342a" };
 const WINTER_NIGHT_GROUND: GroundPalette = { hills: "#45566a", grass: "#7d8ba0", tuft: "#6e7c92" };
@@ -771,9 +781,9 @@ export class Scene {
     // Worn dirt patch where the creature stands. Built from integer rows (no
     // ellipse) so it matches the meadow's hard-edged pixels — but its rim is
     // stippled, dirt fading to grass in a checkerboard, so it reads as trodden
-    // ground rather than a drawn oval competing with the props. Dirt is just
-    // dirt: it keeps its color in every season, even poking through the snow.
-    ctx.fillStyle = dark ? "#3a3228" : night ? "#5c4c38" : "#c9a96a";
+    // ground rather than a drawn oval competing with the props. Dirt keeps its
+    // tan through snow and dry grass alike; only fall darkens it (see DIRT).
+    ctx.fillStyle = dark ? "#3a3228" : night ? "#5c4c38" : season === "fall" ? FALL_DIRT : DIRT;
     const dcx = CREATURE_X;
     const dcy = FLOOR_Y + 12;
     const dirtRim: [number, number][] = [
