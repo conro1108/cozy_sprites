@@ -812,6 +812,10 @@ const ADULT: Record<AdultForm, Bank> = {
       "*crunches, reverently*",
     ],
     feed_disliked: ["We don't eat that here.", "I took a vow.", "Get it away from me."],
+    full: ["I am full of goodness. And fiber. Mostly fiber.", "No more. Balance is also a virtue."],
+    call: ["Come. I have thoughts on your diet.", "Tend to me. It's practically gardening."],
+    discipline_correct: ["A lapse.", "You're right. I'll root myself back to center."],
+    discipline_incorrect: ["I have done nothing impure. My record is orange and clean.", "Accused? Me? I am a vegetable of principle."],
     cake: ["I— you would bring THAT before ME?", "The vow. THE VOW.", "*looks away until it's gone*"],
     sick: ["Impossible. My diet is flawless.", "This is what a single impure thought does.", "Illness. In THIS body. Unthinkable."],
     medicine: ["Is it organic?", "Fine. But chase it with a carrot.", "Wellness restored. As nature intended. Mostly."],
@@ -1039,6 +1043,10 @@ const FORM_FAVGAME: Partial<Record<AdultForm, string[]>> = {
   humcube: [
     "The Hum. At last. We resonate together.",
     "You'll hum with me?!",
+  ],
+  carrot: [
+    "Hide and seek. I go underground. It's in my nature.",
+    "Seek me in the soil. Where I'm happiest.",
   ],
 };
 
@@ -1496,6 +1504,16 @@ const FORM_WEATHER: Partial<Record<AdultForm, Partial<Record<"rain" | "snow", st
       "Flakes. Six sided. Finally, the sky agrees with me.",
     ],
   },
+  carrot: {
+    rain: [
+      "Rain! Drink up, everyone. This is how we grow.",
+      "The garden is being watered. I feel it in my roots.",
+    ],
+    snow: [
+      "Frost. The soil sleeps. I merely rest, and stay pure.",
+      "Snow. Even dormant, I am 100% commitment.",
+    ],
+  },
 };
 
 export function weatherLine(
@@ -1767,6 +1785,23 @@ const FORM_RETIRE: Partial<Record<AdultForm, Partial<Record<RetireBeat, string[]
     departed: [
       "Gone to hum to the crops. They grow in rows. I approve.",
       "Relocated to the flat field. Nearly my favorite shape.",
+    ],
+  },
+  carrot: {
+    restless: [
+      "I've been dreaming of a garden bed. My people are there.",
+      "The soil is calling me back. It always does, eventually.",
+    ],
+    ready: [
+      "It's time to return to the earth. Voluntarily. Gently.",
+      "Take me to the garden. I'm ready to be planted properly.",
+    ],
+    farewell: [
+      "Let's pass every vegetable on the way. I want to say goodbye.",
+    ],
+    departed: [
+      "Gone back to the soil. Full circle. Eat your vegetables.",
+      "Returned to the garden. Visit. Bring compost.",
     ],
   },
 };
