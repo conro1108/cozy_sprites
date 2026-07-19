@@ -1293,8 +1293,8 @@ const RARE_IDLE = [
   "If I'm ever sent to the farm, apparently a very loud mole takes attendance.",
   "I tried to ford a river once. We do not discuss the oxen.",
   "Should have caulked the wagon. Everyone says that afterward.",
-  "I dreamt of a thin green man who loved his rusty spoons and had named every one of his fingers. We understood each other.",
-  "Something scaly by the water asked if I loved it, showed me its watercolours, and poured Baileys into a shoe. Strange night.",
+  "I dreamt of a thin green man who loved his rusty spoons.",
+  "Something by the water showed me its watercolors and asked if I loved it.",
 ];
 
 export function rareIdleLine(rng: () => number = Math.random): string {
