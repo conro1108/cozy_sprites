@@ -776,6 +776,10 @@ const ADULT: Record<AdultForm, Bank> = {
     win: ["The pattern was always going to be this.", "I heard it coming. I always do.", "The cube keeps score. The cube says: yes."],
     lose: ["The hum went on without me. No matter.", "A wrong note. I forgive it. Mostly.", "Even the cube misses one. Allegedly."],
     feed_favorite: ["Home.", "Ah. Myself.", "We understand each other, the cube and I.", "The cube returns to the cube. Thank you.", "*hums a whole step higher*"],
+    full: ["The vessel is full. It resonates a fraction lower.", "No more. The cube is complete as it is."],
+    call: ["The hum has shifted. Come stand inside it.", "Align with me a moment. It's easier with two."],
+    discipline_correct: ["Corrected. Gratitude.", "Yes. That edge was wrong. It is squared now."],
+    discipline_incorrect: ["The angle was correct. Your reading of it was not.", "Ninety degrees. As always. Measure again."],
     sick: ["A face is off-key.", "The resonance is impure. Concerning.", "*hums, wobbling slightly*"],
     medicine: ["Retuning accepted.", "*the hum steadies*", "The corners align again. Gratitude."],
     clean: ["Order. The cube approves of order.", "The grid is restored.", "*hums contentedly at the clean floor*"],
@@ -1031,6 +1035,10 @@ const FORM_FAVGAME: Partial<Record<AdultForm, string[]>> = {
   ghost: [
     "Hide and seek. ... I never really stopped.",
     "You'll seek. You may not find me. It's alright.",
+  ],
+  humcube: [
+    "The Hum. At last. We resonate together.",
+    "You'll hum with me?!",
   ],
 };
 
@@ -1479,6 +1487,15 @@ const FORM_WEATHER: Partial<Record<AdultForm, Partial<Record<"rain" | "snow", st
       "The cold doesn't reach me. But I remember it.",
     ],
   },
+  humcube: {
+    rain: [
+      "Rain. Each drop a small sphere. I forgive them their curves.",
+      "The rain hums too. A lower key than mine.",
+    ],
+    snow: [
+      "Flakes. Six sided. Finally, the sky agrees with me.",
+    ],
+  },
 };
 
 export function weatherLine(
@@ -1733,6 +1750,23 @@ const FORM_RETIRE: Partial<Record<AdultForm, Partial<Record<RetireBeat, string[]
     departed: [
       "Gone to haunt the barn. Gently. Leave a light on sometime.",
       "...",
+    ],
+  },
+  humcube: {
+    restless: [
+      "The meadow has too many curves. I dream of a flat field.",
+      "Somewhere there is a grid that needs a hum. I feel it.",
+    ],
+    ready: [
+      "It is time. The field is nearly a perfect plane. I'm ready.",
+      "Take me to the grid. I mean the farm. Same thing, nearly.",
+    ],
+    farewell: [
+      "Let the walk be in straight lines, if you can manage it.",
+    ],
+    departed: [
+      "Gone to hum to the crops. They grow in rows. I approve.",
+      "Relocated to the flat field. Nearly my favorite shape.",
     ],
   },
 };
