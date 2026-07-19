@@ -716,6 +716,9 @@ const ADULT: Record<AdultForm, Bank> = {
     medicine: ["Administer it properly, at least.", "Vile. Effective. Like most useful things.", "I expect a full recovery. I always get what I expect."],
     clean: ["Finally. The staff delivers.", "Better. Do maintain it.", "One can breathe again."],
     poop: ["We do not acknowledge that.", "See that it disappears.", "How vulgar. Handle it."],
+    full: ["I've had enough. Remove the rest from my sight.", "No more. One does not gorge."],
+    call: ["You. Come. And bring a reason to have kept me waiting.", "Attend me. Immediately, if not sooner."],
+    discipline_correct: ["... I concede the point. We shall never speak of it again.", "Fine. On this occasion, and only this one, you are correct."],
     discipline_incorrect: ["You DARE.", "Incorrect, and beneath us both.", "I shall be cold to you for several minutes."],
     sleep: ["I retire. Guard the estate.", "Wake me only for important flattery.", "*arranges self impeccably, sleeps*"],
     wake: ["I have risen. You're welcome.", "The morning may proceed.", "Draw back the... sky. Whatever you call it."],
@@ -1014,6 +1017,10 @@ const FORM_FAVGAME: Partial<Record<AdultForm, string[]>> = {
   office: [
     "Would You Rather. The only meeting I enjoy. Icebreaker time.",
     "Ah, a hypothetical. Finally, a use for my strategic thinking.",
+  ],
+  menace: [
+    "Higher or Lower. A gentleman's wager. Do keep up.",
+    "Cards? How quaint. I accept. I always win regardless.",
   ],
 };
 
@@ -1442,6 +1449,16 @@ const FORM_WEATHER: Partial<Record<AdultForm, Partial<Record<"rain" | "snow", st
       "Snow. I'd call it beautiful but that's not on the agenda.",
     ],
   },
+  menace: {
+    rain: [
+      "Rain. How dare the sky. I did not dress for this.",
+      "The weather is being terribly common today.",
+    ],
+    snow: [
+      "Snow. At least it has the decency to be white. And expensive-looking.",
+      "Winter. The one season with any taste.",
+    ],
+  },
 };
 
 export function weatherLine(
@@ -1587,7 +1604,7 @@ const FORM_RETIRE: Partial<Record<AdultForm, Partial<Record<RetireBeat, string[]
       "Take me to the farm. I shall make it a very moving exit.",
     ],
     farewell: [
-      "Walk slowly. I want every step to feel like an ending.",
+      "Don't rush this. I've prepared a face for it.",
       "Carry me, if it's more dramatic. It would be.",
     ],
     departed: [
@@ -1622,7 +1639,7 @@ const FORM_RETIRE: Partial<Record<AdultForm, Partial<Record<RetireBeat, string[]
       "Escort me to the fields. I have a grant to study soil.",
     ],
     farewell: [
-      "Walk slowly. I'm taking observational notes on the route.",
+      "I'm documenting the route on the way out. For the record.",
     ],
     departed: [
       "Gone to conduct fieldwork. Indefinitely. It's called retirement.",
@@ -1639,11 +1656,28 @@ const FORM_RETIRE: Partial<Record<AdultForm, Partial<Record<RetireBeat, string[]
       "Walk me out. Security can watch. I've got a box.",
     ],
     farewell: [
-      "Walk slow. This is my last commute. I want to resent it properly.",
+      "This is my last commute. Let me resent it properly.",
     ],
     departed: [
       "OOO indefinitely. Please redirect all sighs to the barn.",
       "Retired to the farm. Finally, a role with no meetings.",
+    ],
+  },
+  menace: {
+    restless: [
+      "I've been considering a country estate. For the season. Or forever.",
+      "One tires of the meadow. One longs for acreage.",
+    ],
+    ready: [
+      "I am ready to summer in the countryside. Permanently.",
+      "Escort me to my estate. The farm, you insist on calling it.",
+    ],
+    farewell: [
+      "Mind my train on the way. It's imaginary. Mind it regardless.",
+    ],
+    departed: [
+      "Gone to summer at the estate. Do send the good silverware.",
+      "Relocated to the country. The peasants adore me already.",
     ],
   },
 };
