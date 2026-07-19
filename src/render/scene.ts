@@ -145,6 +145,22 @@ function cloudHash(n: number): number {
   return s - Math.floor(s);
 }
 
+// --- Seasons ------------------------------------------------------------------
+// The meadow's *day* ground palette per season (matches ui/season.ts's Season).
+// Night and dark keep the single existing palette: moonlight flattens color
+// anyway, and a per-season night ramp would triple the table for a scene most
+// players see dimmed. Summer is the meadow as it always was.
+type Season = "spring" | "summer" | "fall" | "winter";
+const SEASON_GROUND: Record<Season, { hills: string; grass: string; tuft: string }> = {
+  spring: { hills: "#8ec572", grass: "#b2d878", tuft: "#98c463" },
+  summer: { hills: "#7ab35e", grass: "#9cc85a", tuft: "#84b348" },
+  fall: { hills: "#a89a52", grass: "#c9ae5c", tuft: "#a88e46" },
+  winter: { hills: "#c2d4e2", grass: "#edf3f7", tuft: "#d4e0e8" },
+};
+
+/** What each anchor in the flower patch grows this season (see flowerPatch). */
+type FlowerKind = "bloom" | "sprout" | "drytuft" | "berries" | "stubble";
+
 export interface SceneView {
   key: string; // creature key
   mood: Mood;
@@ -168,6 +184,10 @@ export interface SceneView {
   /** Today's weather (see ui/weather.ts). Cosmetic only: an overcast day sky
    *  and falling rain/snow. Absent or "clear" draws the meadow as ever. */
   weather?: "clear" | "rain" | "snow";
+  /** The season (see ui/season.ts). Cosmetic only: redresses the ground
+   *  palette and the flower patch. Absent reads as summer — the meadow as it
+   *  always was. */
+  season?: Season;
 }
 
 type Pulse = "none" | "happy" | "shake" | "evolve" | "eat" | "nudge" | "love";
@@ -704,27 +724,39 @@ export class Scene {
     // A rolling ridge of soft, symmetric mounds (see hillHeightAt) drawn as
     // solid 1px-wide columns down to the floor — single-toned so it stays quiet
     // background rather than reading as a hard-edged prop.
-    ctx.fillStyle = dark ? "#22303a" : night ? "#33484a" : "#7ab35e";
+    const season: Season = v.season ?? "summer";
+    const ground = SEASON_GROUND[season];
+    ctx.fillStyle = dark ? "#22303a" : night ? "#33484a" : ground.hills;
     for (let x = 0; x < SCENE_W; x++) {
       const h = Math.round(hillHeightAt(x));
       ctx.fillRect(x, FLOOR_Y - h, 1, h);
     }
 
     // --- Grass -------------------------------------------------------------------
-    ctx.fillStyle = dark ? "#2c3c2c" : night ? "#3f5a3c" : "#9cc85a";
+    ctx.fillStyle = dark ? "#2c3c2c" : night ? "#3f5a3c" : ground.grass;
     ctx.fillRect(0, FLOOR_Y, SCENE_W, SCENE_H - FLOOR_Y);
-    // tufts
-    ctx.fillStyle = dark ? "#26342a" : night ? "#38503a" : "#84b348";
+    // tufts (in winter the same marks read as dimples in the snow)
+    ctx.fillStyle = dark ? "#26342a" : night ? "#38503a" : ground.tuft;
     for (let i = 0; i < 14; i++) {
       const gx = (i * 37) % SCENE_W;
       const gy = FLOOR_Y + 4 + ((i * 13) % (SCENE_H - FLOOR_Y - 8));
       ctx.fillRect(gx, gy, 2, 1);
       ctx.fillRect(gx + 1, gy - 1, 1, 1);
     }
+    // Fall only: a few dropped leaves in among the tufts.
+    if (season === "fall" && !night) {
+      for (let i = 0; i < 9; i++) {
+        const lx = (i * 41 + 11) % SCENE_W;
+        const ly = FLOOR_Y + 3 + ((i * 17 + 5) % (SCENE_H - FLOOR_Y - 6));
+        ctx.fillStyle = i % 2 ? "#c9673a" : "#a84f2c";
+        ctx.fillRect(lx, ly, i % 3 ? 1 : 2, 1);
+      }
+    }
     // Worn dirt patch where the creature stands. Built from integer rows (no
     // ellipse) so it matches the meadow's hard-edged pixels — but its rim is
     // stippled, dirt fading to grass in a checkerboard, so it reads as trodden
-    // ground rather than a drawn oval competing with the props.
+    // ground rather than a drawn oval competing with the props. Dirt is just
+    // dirt: it keeps its color in every season, even poking through the snow.
     ctx.fillStyle = dark ? "#3a3228" : night ? "#5c4c38" : "#c9a96a";
     const dcx = CREATURE_X;
     const dcy = FLOOR_Y + 12;
@@ -752,8 +784,8 @@ export class Scene {
       { y: FLOOR_Y + 4, draw: () => this.drawLantern(t, dark, v) },
       { y: FLOOR_Y + 16, draw: () => this.drawMushroom(dark, night) },
     ];
-    for (const [fx, fy, color] of this.flowerPatch()) {
-      layers.push({ y: fy + 4, draw: () => this.drawFlower(fx, fy, color, t, dark, night) });
+    for (const [fx, fy, color, kind] of this.flowerPatch(season)) {
+      layers.push({ y: fy + 4, draw: () => this.drawFlower(fx, fy, color, kind, t, dark, night) });
     }
     this.syncPoopSpots();
     for (const spot of this.poopSpots.slice(0, 4)) {
@@ -1253,37 +1285,115 @@ export class Scene {
     ctx.fillStyle = dark ? "#b0a89a" : "#fdf3e0";
     ctx.fillRect(cx - 4, my - 5, 2, 2);
     ctx.fillRect(cx + 3, my - 3, 2, 2);
+    // Winter settles a little snow on the crown (rows mirror capRows' top).
+    if ((this.view.season ?? "summer") === "winter") {
+      ctx.fillStyle = dark ? "#8a94a0" : "#f2f6f8";
+      ctx.fillRect(cx - 2, my - 7, 5, 1);
+      ctx.fillRect(cx - 3, my - 6, 7, 1);
+      ctx.fillRect(cx - 4, my - 5, 1, 1);
+      ctx.fillRect(cx + 4, my - 5, 1, 1);
+    }
   }
 
-  /** Flower positions — returned so each can be depth-sorted individually. */
-  private flowerPatch(): [number, number, string][] {
+  /** Flower positions — returned so each can be depth-sorted individually.
+   *  The season redresses the patch on the same six anchors (so wander
+   *  targets and hide spots stay honest): spring swaps alternate blooms for
+   *  new sprouts, fall for gone-to-seed tufts, and winter grows berry twigs
+   *  over stubble poking through the snow. */
+  private flowerPatch(season: Season): [number, number, string, FlowerKind][] {
     const H = this.sh;
-    return [
-      [60, H - 18, "#f2a0bc"],
-      [66, H - 12, "#ffd884"],
-      [72, H - 20, "#e88aa8"],
-      [90, H - 16, "#f2a0bc"],
-      [24, H - 10, "#ffd884"],
-      [10, H - 20, "#e88aa8"],
+    const spots: [number, number][] = [
+      [60, H - 18],
+      [66, H - 12],
+      [72, H - 20],
+      [90, H - 16],
+      [24, H - 10],
+      [10, H - 20],
     ];
+    // Bloom colors cycle around the patch; each season blooms in its own key.
+    const blooms: Record<Season, [string, string, string]> = {
+      spring: ["#f7f2df", "#ffd884", "#f2b8cc"], // blossom-pale: white, butter, pink
+      summer: ["#f2a0bc", "#ffd884", "#e88aa8"],
+      fall: ["#d0603a", "#e8b04a", "#b8542e"], // rust and goldenrod
+      winter: ["#f2a0bc", "#ffd884", "#e88aa8"], // unused — nothing blooms
+    };
+    const alternate: Record<Season, FlowerKind> = {
+      spring: "sprout",
+      summer: "bloom",
+      fall: "drytuft",
+      winter: "berries",
+    };
+    return spots.map(([x, y], i) => {
+      const kind =
+        i % 2 === 0 ? alternate[season] : season === "winter" ? "stubble" : "bloom";
+      return [x, y, blooms[season][i % 3], kind];
+    });
   }
 
   private drawFlower(
     fx: number,
     fy: number,
     color: string,
+    kind: FlowerKind,
     t: number,
     dark: boolean,
     night: boolean,
   ): void {
     const ctx = this.ctx;
     const sway = Math.round(Math.sin(t * 1.5 + fx) * 0.6);
-    ctx.fillStyle = dark ? "#2f4a34" : night ? "#4a6a48" : "#5aa85a";
-    ctx.fillRect(fx + 1, fy, 1, 4);
-    ctx.fillStyle = dark ? "#5c5468" : color;
-    ctx.fillRect(fx + sway, fy - 3, 3, 3);
-    ctx.fillStyle = dark ? "#78708a" : "#fff7dc";
-    ctx.fillRect(fx + 1 + sway, fy - 2, 1, 1);
+    switch (kind) {
+      case "bloom": {
+        const fall = (this.view.season ?? "summer") === "fall";
+        ctx.fillStyle = dark ? "#2f4a34" : night ? "#4a6a48" : fall ? "#8a9448" : "#5aa85a";
+        ctx.fillRect(fx + 1, fy, 1, 4);
+        ctx.fillStyle = dark ? "#5c5468" : color;
+        ctx.fillRect(fx + sway, fy - 3, 3, 3);
+        ctx.fillStyle = dark ? "#78708a" : "#fff7dc";
+        ctx.fillRect(fx + 1 + sway, fy - 2, 1, 1);
+        return;
+      }
+      case "sprout": {
+        // a new shoot: short stem, two seed leaves, bright growing tip
+        ctx.fillStyle = dark ? "#2f4a34" : night ? "#4a6a48" : "#5aa85a";
+        ctx.fillRect(fx + 1, fy + 1, 1, 3);
+        ctx.fillRect(fx, fy + 1, 1, 1);
+        ctx.fillRect(fx + 2, fy + 2, 1, 1);
+        ctx.fillStyle = dark ? "#4a6248" : night ? "#5e7e56" : "#94d868";
+        ctx.fillRect(fx + 1, fy, 1, 1);
+        return;
+      }
+      case "drytuft": {
+        // gone to seed: three dry stalks, the tall one still swaying
+        ctx.fillStyle = dark ? "#453d2c" : night ? "#665a3a" : "#b3964a";
+        ctx.fillRect(fx, fy + 1, 1, 3);
+        ctx.fillRect(fx + 2, fy + 1, 1, 3);
+        ctx.fillRect(fx + 1, fy - 1, 1, 5);
+        ctx.fillStyle = dark ? "#57503a" : night ? "#837448" : "#e0c274";
+        ctx.fillRect(fx, fy, 1, 1);
+        ctx.fillRect(fx + 2, fy, 1, 1);
+        ctx.fillRect(fx + 1 + sway, fy - 2, 1, 1);
+        return;
+      }
+      case "berries": {
+        // a bare twig hung with winterberries — warm red against the snow
+        ctx.fillStyle = dark ? "#3f3126" : night ? "#5e4634" : "#6a4a34";
+        ctx.fillRect(fx + 1, fy - 3, 1, 7);
+        ctx.fillRect(fx, fy - 1, 1, 1);
+        ctx.fillRect(fx + 2, fy, 1, 1);
+        ctx.fillStyle = dark ? "#6e3038" : night ? "#9c4044" : "#d94a4a";
+        ctx.fillRect(fx, fy - 2, 1, 1);
+        ctx.fillRect(fx + 2, fy - 1, 1, 1);
+        ctx.fillRect(fx + 1, fy - 4, 1, 1);
+        return;
+      }
+      case "stubble": {
+        // last year's stems poking through the snow
+        ctx.fillStyle = dark ? "#4c4634" : night ? "#6e6448" : "#b3a26a";
+        ctx.fillRect(fx, fy + 1, 1, 2);
+        ctx.fillRect(fx + 2, fy, 1, 3);
+        return;
+      }
+    }
   }
 
   /** Keep the recorded mess positions in step with the pet's poop count.

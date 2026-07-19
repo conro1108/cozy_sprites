@@ -66,6 +66,7 @@ import type { Mood } from "./render/sprites";
 import { iconEl, iconHTML, iconUrl } from "./render/icons";
 import { notify } from "./ui/notifications";
 import { weatherToday } from "./ui/weather";
+import { seasonToday } from "./ui/season";
 import { playSfx, playSong, reviveAudio, unlockAudio } from "./ui/audio";
 import {
   initMenus,
@@ -418,6 +419,7 @@ function render(): void {
     // Same puddle art for dysentery and a bad-diet mess still on the floor.
     runny: (pet.sick && pet.illness === "dysentery") || pet.hasBadPoop,
     weather: weatherToday(),
+    season: seasonToday(),
   });
 }
 
