@@ -610,6 +610,8 @@ const ADULT: Record<AdultForm, Bank> = {
     win: ["I cheated. So?", "No witnesses.", "Skill issue, yours.", "The evidence is gone."],
     lose: ["I lost on PURPOSE. Long con.", "The real prize was the chaos.", "You cheated. I would know."],
     feed_favorite: ["MORE GEOMETRY.", "The cube is mine now.", "Give cube. Give."],
+    full: ["I'm full. Of food AND secrets.", "No more. I'm saving room for mischief."],
+    call: ["Psst. Come here. I did a thing. You'll want to see it. ... Or maybe not.", "Hey. HEY. It's important. It's not. Come anyway."],
     poop: ["I moved it. For fun.", "You'll never find them all.", "Whoops. On purpose."],
     clean: ["My work! You destroyed my work!", "Fine. I'll make more.", "You missed one. Hehehe. You'll see."],
     sick: ["Even my insides are lawless.", "The crime was internal this time.", "Sick? Or plotting? Sick. Ugh."],
@@ -617,6 +619,7 @@ const ADULT: Record<AdultForm, Bank> = {
     discipline_correct: ["A fair cop. This time.", "You got lucky. And right.", "Hehehe. Busted."],
     discipline_incorrect: ["WRONG crime. I did a different one.", "Framed! By myself, earlier. Still framed!", "Your evidence is circumstantial and I ate it."],
     sleep: ["The night shift begins. In my dreams.", "Sleep is when I plan. Goodnight.", "*fakes sleep until you leave, then actually sleeps*"],
+    wake: ["Morning. Committed no crimes in my sleep. ... That I'll admit to.", "Awake. Already an inch out of place. Hehehe."],
     farm: ["I will unionize the chickens.", "Finally, room to commit crimes.", "The barn won't know what hit it."],
   },
   scholar: {
@@ -991,6 +994,10 @@ const FORM_FAVGAME: Partial<Record<AdultForm, string[]>> = {
     "Higher or lower. The cruelest of fates, and my favorite.",
     "A game of chance. My life is already one. Deal.",
     "Higher? Lower? The suspense may finish me. Begin.",
+  ],
+  gremlin: [
+    "Fetch. I throw the rules, you fetch them back. That's the game, right?",
+    "Oh, we're playing fetch? I've already hidden the ball. Hehehe.",
   ],
 };
 
@@ -1389,6 +1396,16 @@ const FORM_WEATHER: Partial<Record<AdultForm, Partial<Record<"rain" | "snow", st
       "Snow. A funeral shroud for the meadow. Gorgeous. Foreboding.",
     ],
   },
+  gremlin: {
+    rain: [
+      "Rain! Nobody can hear me committing things over it.",
+      "The mud is back. My favorite collaborator.",
+    ],
+    snow: [
+      "Snow covers everything. Including evidence. Hehehe.",
+      "Fresh snow. A blank canvas for footprints leading nowhere.",
+    ],
+  },
 };
 
 export function weatherLine(
@@ -1540,6 +1557,23 @@ const FORM_RETIRE: Partial<Record<AdultForm, Partial<Record<RetireBeat, string[]
     departed: [
       "Gone to the fields to perish gorgeously. Do not look for me. ... Do look for me.",
       "Exited stage left, into a pasture. Applause optional. Encouraged.",
+    ],
+  },
+  gremlin: {
+    restless: [
+      "I've been casing the fence. Professionally. There's a gap.",
+      "The farm has chickens. Chickens have secrets. I've been thinking.",
+    ],
+    ready: [
+      "Take me to the farm. The barn won't know what hit it.",
+      "I'm ready. Tell no one which direction I went.",
+    ],
+    farewell: [
+      "Walk me over. I've hidden things along the route. Souvenirs. Sort of.",
+    ],
+    departed: [
+      "Gone to the farm. Check your pockets. Something's missing. Love, me.",
+      "Relocated to the barn. The chickens are unionized now. You're welcome.",
     ],
   },
 };
