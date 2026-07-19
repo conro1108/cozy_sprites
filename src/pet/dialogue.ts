@@ -644,6 +644,9 @@ const ADULT: Record<AdultForm, Bank> = {
     lose: ["An outlier. I'll exclude it.", "Fascinating. Wrong, but fascinating.", "The methodology was flawed. Yours, somehow."],
     feed_disliked: ["Cake disrupts the mind.", "Empirically unwise.", "I'll allow it. Once."],
     feed_favorite: ["Nutritionally optimal.", "Excellent. Rigorous.", "The correct choice."],
+    full: ["Caloric intake: sufficient. I must decline further study.", "The stomach has reached statistical significance. No more."],
+    call: ["A subject is needed. You'll do. Report to me.", "Come here — I require a second data point."],
+    discipline_correct: ["Noted. The data supports your accusation. Unfortunately.", "Correct. I'll amend my findings. And my behavior."],
     sick: ["I've caught something. I'm cataloguing the symptoms.", "Illness: confirmed. Dignity: pending.", "My immune system has failed peer review."],
     medicine: ["Ah, the scientific method, in syrup form.", "Efficacy confirmed. Flavor condemned.", "I recover. As the literature suggested."],
     clean: ["Contamination removed. The lab is usable again.", "A controlled environment at last.", "Hygiene: replicated successfully."],
@@ -998,6 +1001,10 @@ const FORM_FAVGAME: Partial<Record<AdultForm, string[]>> = {
   gremlin: [
     "Fetch. I throw the rules, you fetch them back. That's the game, right?",
     "Oh, we're playing fetch? I've already hidden the ball. Hehehe.",
+  ],
+  scholar: [
+    "Higher or Lower. A probability exercise. I have a model.",
+    "Ah, my favorite. I've been meaning to test my priors.",
   ],
 };
 
@@ -1406,6 +1413,16 @@ const FORM_WEATHER: Partial<Record<AdultForm, Partial<Record<"rain" | "snow", st
       "Fresh snow. A blank canvas for footprints leading nowhere.",
     ],
   },
+  scholar: {
+    rain: [
+      "Precipitation. I'll log it. Someone has to.",
+      "Rain. My hypothesis about the clouds holds. Smug.",
+    ],
+    snow: [
+      "Snow. Crystalline. I could study one for hours. I will.",
+      "Snowfall rate: increasing. I've started a chart.",
+    ],
+  },
 };
 
 export function weatherLine(
@@ -1574,6 +1591,23 @@ const FORM_RETIRE: Partial<Record<AdultForm, Partial<Record<RetireBeat, string[]
     departed: [
       "Gone to the farm. Check your pockets. Something's missing. Love, me.",
       "Relocated to the barn. The chickens are unionized now. You're welcome.",
+    ],
+  },
+  scholar: {
+    restless: [
+      "I've been researching pastures. The literature is thin. I may contribute.",
+      "Field work calls. Literal field work. I've read about fields.",
+    ],
+    ready: [
+      "I'm ready for the farm. Tenure, at last.",
+      "Escort me to the fields. I have a grant to study soil.",
+    ],
+    farewell: [
+      "Walk slowly. I'm taking observational notes on the route.",
+    ],
+    departed: [
+      "Gone to conduct fieldwork. Indefinitely. It's called retirement.",
+      "Relocated to the farm. My research continues.",
     ],
   },
 };
