@@ -8,7 +8,7 @@ import type { FoodId, GameId, IllnessId, PetState, FarmEntry, AdultForm, Stage }
 import { FOODS, FOOD_ORDER, ADULTS, ADULT_ORDER } from "../pet/roster";
 import { ageLabel } from "../pet/format";
 import { formatDebugReport } from "../pet/debug";
-import { MAX_HEARTS, TIMELINE_SPEED, getSkyMode, retirementPhase } from "../pet/state";
+import { MAX_HEARTS, TIMELINE_SPEED, getSkyMode, isNight, retirementPhase } from "../pet/state";
 import type { SkyMode } from "../pet/state";
 import { DEV_STAT_RANGE } from "../pet/devtools";
 import type { DevAction, DevHidden, DevStat } from "../pet/devtools";
@@ -35,12 +35,14 @@ import {
 } from "../pet/games";
 import type { RpsMove, MatchResult } from "../pet/games";
 import { buildHistory, historyTruncated, rowTime } from "../pet/history";
-import { buildCreatureCanvas, type Mood } from "../render/sprites";
+import { buildCreatureCanvas, creatureKey, type Mood } from "../render/sprites";
 import { iconEl, iconHTML, iconUrl, digitMaskUrl } from "../render/icons";
 import { propEl, propUrl, propSize, type PropName } from "../render/props";
 import type { IconName } from "../render/icons";
 import type { Scene } from "../render/scene";
 import { festivalTonight } from "./festival";
+import { weatherToday } from "./weather";
+import { postcardDate, postcardSubtitle, sharePostcard } from "../render/postcard";
 import { getNotifyPref, setNotifyPref } from "./notifications";
 import type { NotifyPref } from "./notifications";
 import { isMuted, setMuted, playSfx, playTone, playCubeClear, unlockAudio } from "./audio";
@@ -1101,6 +1103,31 @@ export function openStatus(ctx: MenuCtx, now: number): void {
   farmBtn.appendChild(document.createTextNode(ready ? "Walk them to the farm" : "Send to Farm…"));
   farmBtn.addEventListener("click", () => (ready ? confirmWalk(ctx, p) : confirmFarm(ctx, p)));
   p.body.appendChild(farmBtn);
+
+  // The postcard: a shareable framed snapshot, hidden while it's still an egg
+  // (nobody sends a postcard of an egg — the stamp is already one).
+  if (pet.stage !== "egg" && !pet.deadAt) {
+    const cardBtn = document.createElement("button");
+    cardBtn.className = "btn secondary btn-iconed";
+    cardBtn.appendChild(iconEl("sparkle", 18));
+    cardBtn.appendChild(document.createTextNode("Send a postcard"));
+    cardBtn.addEventListener("click", () => {
+      cardBtn.disabled = true;
+      void sharePostcard({
+        key: creatureKey(pet.stage, pet.form),
+        // It's a postcard. You smile for a postcard. (Unless you're asleep.)
+        mood: pet.asleep ? "sleep" : "happy",
+        name: pet.name,
+        subtitle: postcardSubtitle(pet),
+        night: isNight(now),
+        weather: weatherToday(),
+        date: postcardDate(now),
+      }).finally(() => {
+        cardBtn.disabled = false;
+      });
+    });
+    p.body.appendChild(cardBtn);
+  }
 
   // "Collection", not "Collection & Farm" — keeps the farm a surprise
   // until a pet actually retires there.
