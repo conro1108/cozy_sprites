@@ -849,6 +849,9 @@ const ADULT: Record<AdultForm, Bank> = {
     lose: ["No matter. I have time. Rather a lot of it.", "The stars lose sometimes too.", "..."],
     feed_favorite: ["Warmth. I had forgotten it.", "Thank you. I'll keep this.", "*glows a shade brighter*"],
     full: ["I hold enough. For now.", "Even nebulae stop gathering, eventually.", "..."],
+    call: ["Drift over. I have something old to show you.", "Come close. I get quiet this far from home."],
+    discipline_correct: ["You're right. Even I err, given enough time.", "... yes. A small wrong. I'll let it go, like the rest."],
+    discipline_incorrect: ["I have done nothing. Peacefully. For eons.", "Across a long enough sky, I am always innocent."],
     sick: ["Some dust got in. Star kind. Still unpleasant.", "Even light bends, some days.", "*flickers, apologetically*"],
     medicine: ["A small repair. Accepted.", "*steadies, like a fixed constellation*", "Better. The orbit resumes."],
     clean: ["Tidy. Like the space between things.", "*the floor reflects a little more light*", "Thank you. Dust and I have history."],
@@ -1047,6 +1050,10 @@ const FORM_FAVGAME: Partial<Record<AdultForm, string[]>> = {
   carrot: [
     "Hide and seek. I go underground. It's in my nature.",
     "Seek me in the soil. Where I'm happiest.",
+  ],
+  cosmos: [
+    "Hide and seek. I am always half-hidden anyway.",
+    "Seek me. I may be several places. I usually am.",
   ],
 };
 
@@ -1514,6 +1521,16 @@ const FORM_WEATHER: Partial<Record<AdultForm, Partial<Record<"rain" | "snow", st
       "Snow. Even dormant, I am 100% commitment.",
     ],
   },
+  cosmos: {
+    rain: [
+      "Rain. Tiny falling worlds. I've been one. It's fine.",
+      "Your sky is crying. Mine never had weather. I envy it.",
+    ],
+    snow: [
+      "Snow. Slow cold stars, landing. I know the feeling.",
+      "Each flake falls once. I've fallen for ages. We understand each other.",
+    ],
+  },
 };
 
 export function weatherLine(
@@ -1802,6 +1819,23 @@ const FORM_RETIRE: Partial<Record<AdultForm, Partial<Record<RetireBeat, string[]
     departed: [
       "Gone back to the soil. Full circle. Eat your vegetables.",
       "Returned to the garden. Visit. Bring compost.",
+    ],
+  },
+  cosmos: {
+    restless: [
+      "I feel the pull of the deep sky again. Faintly.",
+      "I've stayed a long while. The dark is asking after me.",
+    ],
+    ready: [
+      "It's nearly time. The sky would like me back.",
+      "Walk me out. I'll take my leave the way I came — quietly, upward.",
+    ],
+    farewell: [
+      "Look up sometimes. That'll be me. Or close enough.",
+    ],
+    departed: [
+      "Gone back to the sky. Look for the light that wasn't there yesterday.",
+      "Returned to the dark between the stars. I left it warmer. Because of you.",
     ],
   },
 };
