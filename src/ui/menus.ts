@@ -10,11 +10,11 @@ import { ageLabel } from "../pet/format";
 import { formatDebugReport } from "../pet/debug";
 import { MAX_HEARTS, TIMELINE_SPEED, getSkyMode, isNight, retirementPhase } from "../pet/state";
 import type { SkyMode } from "../pet/state";
-import { getSeasonMode, setSeasonMode } from "./season";
+import { getSeasonMode, setSeasonMode, seasonToday } from "./season";
 import type { SeasonMode } from "./season";
 import { DEV_STAT_RANGE } from "../pet/devtools";
 import type { DevAction, DevHidden, DevStat } from "../pet/devtools";
-import { explainForms, mostPlayed } from "../pet/evolution";
+import { determineAdultForm, explainForms, mostPlayed } from "../pet/evolution";
 import type { FormBreakdown } from "../pet/evolution";
 import { farmConfirmLine, farewellWalkLine, describeCondition } from "../pet/dialogue";
 import {
@@ -44,7 +44,7 @@ import type { IconName } from "../render/icons";
 import type { Scene } from "../render/scene";
 import { festivalTonight } from "./festival";
 import { weatherToday } from "./weather";
-import { postcardDate, postcardSubtitle, sharePostcard } from "../render/postcard";
+import { sharePostcard } from "../render/postcard";
 import { getNotifyPref, setNotifyPref } from "./notifications";
 import type { NotifyPref } from "./notifications";
 import { isMuted, setMuted, playSfx, playTone, playCubeClear, unlockAudio } from "./audio";
@@ -1123,10 +1123,15 @@ export function openStatus(ctx: MenuCtx, now: number): void {
         // It's a postcard. You smile for a postcard. (Unless you're asleep.)
         mood: pet.asleep ? "sleep" : "happy",
         name: pet.name,
-        subtitle: postcardSubtitle(pet),
         night: isNight(now),
         weather: weatherToday(),
-        date: postcardDate(now),
+        season: seasonToday(),
+        // A teen posts as the specific adult it's leaning toward — the same
+        // deterministic hint the live scene tints it with (see main's render).
+        variant:
+          pet.stage === "teen"
+            ? determineAdultForm(pet.hidden, pet.health, () => 0, pet.name)
+            : null,
       }).finally(() => {
         cardBtn.disabled = false;
       });
