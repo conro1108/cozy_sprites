@@ -16,7 +16,7 @@ import { DEV_STAT_RANGE } from "../pet/devtools";
 import type { DevAction, DevHidden, DevStat } from "../pet/devtools";
 import { determineAdultForm, explainForms, mostPlayed } from "../pet/evolution";
 import type { FormBreakdown } from "../pet/evolution";
-import { farmConfirmLine, farewellWalkLine, describeCondition } from "../pet/dialogue";
+import { farmConfirmLine, farewellWalkLine, describeCondition, favoriteGameLine } from "../pet/dialogue";
 import {
   judgeHigherLower,
   judgeRps,
@@ -317,6 +317,12 @@ export function openPlay(ctx: MenuCtx): void {
 }
 
 function startGame(ctx: MenuCtx, p: Panel, game: GameId): void {
+  // Picking this form's preferred game earns an excited word before play.
+  const pet = ctx.pet();
+  if (pet.stage === "adult" && pet.form && ADULTS[pet.form].preferredGame === game) {
+    const line = favoriteGameLine(pet.form);
+    if (line) ctx.sayLine(line);
+  }
   switch (game) {
     case "higherlower":
       p.close();

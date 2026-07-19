@@ -1249,7 +1249,7 @@ function maybeIdleLine(now: number): void {
     Math.random() < WEATHER_LINE_CHANCE
   ) {
     // A wet day gets talked about. Babies have no opinions on meteorology.
-    say(weatherLine(wx));
+    say(weatherLine(wx, pet.stage === "adult" ? pet.form : null));
   } else if (wx === "clear" && pet.stage !== "baby" && Math.random() < SEASON_LINE_CHANCE) {
     // A clear day gets the odd remark on the season instead (wet days took the
     // weather line above). Babies still have no opinions on the meadow.

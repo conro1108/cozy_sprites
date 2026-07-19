@@ -532,6 +532,11 @@ const ADULT: Record<AdultForm, Bank> = {
     lose: ["We'll get it next time!!", "I had fun anyway!", "The winning was inside us all along.", "You're still the best. I checked."],
     feed: ["FOOD. And it's for ME?", "*inhales it, then remembers to chew*", "You feed me AND you exist? Incredible."],
     feed_favorite: ["BURGER. BURGER.", "Best food. Best you.", "Yes yes yes."],
+    feed_disliked: ["It doesn't smell like anything. How do I love it?", "Can't fetch it. Can't eat it. What IS it.", "I'll eat it. For you."],
+    full: ["I can't believe I'm saying this. No more. ... Ask again in a second.", "My tummy voted no. My mouth is appealing the decision."],
+    call: ["You've been gone FOREVER. It's been a minute. Forever.", "Come here, come here. I have to show you something. It's the floor.", "HEY. Hi. It's me. Come here. Please please please."],
+    discipline_correct: ["You're right. I knew it was bad. I did it anyway.", "I'm sorry, I'm sorry, watch how good I'll be."],
+    discipline_incorrect: ["But I was GOOD. ... Wasn't I good? I'll be gooder.", "That wasn't me! ... Either way, I forgive you already."],
     tap: ["Yes!! Hello!!", "More of this.", "I have been so good.", "*spins once, availably*"],
     sick: ["I don't feel like fetching. That's how you know it's bad.", "My tail is at half mast.", "Stay close? Just... stay close."],
     medicine: ["I trusted you and it was GROSS and I still trust you.", "*swallows bravely, tail resuming*", "All better?? All better!!"],
@@ -963,6 +968,28 @@ export function pickLine(
   return null;
 }
 
+// --- Favorite-game excitement -------------------------------------------------
+// Said when the player picks THIS form's preferred game (roster.ts) — the little
+// "yes, this one, this is mine" payoff, fired on game start (see menus.ts). Only
+// forms with something distinctive to say are listed; a form with no bank stays
+// quiet, and the game just begins.
+const FORM_FAVGAME: Partial<Record<AdultForm, string[]>> = {
+  dog: [
+    "FETCH. We're doing FETCH. Best game. Best one.",
+    "The ball. Throw the ball. I was born for this.",
+    "Yes yes yes throw it throw it THROW IT.",
+  ],
+};
+
+export function favoriteGameLine(
+  form: AdultForm,
+  rng: () => number = Math.random,
+): string | null {
+  const bank = FORM_FAVGAME[form];
+  if (!bank || !bank.length) return null;
+  return bank[Math.floor(rng() * bank.length)];
+}
+
 // "The Audition": during Teen the leaning adult personality flickers through.
 // These are teen-voiced *hints* of each form — the kid trying the coat on and
 // finding it doesn't fit yet — never the adult's own lines verbatim, so the
@@ -1324,11 +1351,29 @@ const SNOW_LINES = [
   "*watches own breath, riveted*",
 ];
 
+// A wet day sounds like the general voice unless the adult form has its own take
+// on rain/snow — then that wins, the same way pickLine prefers the form bank.
+// Only forms with something distinctive are listed; the rest use the banks above.
+const FORM_WEATHER: Partial<Record<AdultForm, Partial<Record<"rain" | "snow", string[]>>>> = {
+  dog: {
+    rain: [
+      "Rain! Everything smells LOUDER. Best day.",
+      "The sky is throwing water and I can't fetch a single drop. I've tried.",
+    ],
+    snow: [
+      "SNOW. The ground went quiet and cold and I love it.",
+      "It's falling and it won't let me catch it. Rude. Magical. Rude.",
+    ],
+  },
+};
+
 export function weatherLine(
   kind: "rain" | "snow",
+  form: AdultForm | null = null,
   rng: () => number = Math.random,
 ): string {
-  const bank = kind === "snow" ? SNOW_LINES : RAIN_LINES;
+  const formBank = form ? FORM_WEATHER[form]?.[kind] : undefined;
+  const bank = formBank && formBank.length ? formBank : kind === "snow" ? SNOW_LINES : RAIN_LINES;
   return bank[Math.floor(rng() * bank.length)];
 }
 
