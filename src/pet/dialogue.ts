@@ -953,6 +953,14 @@ const ADULT: Record<AdultForm, Bank> = {
       "Fair. That was a bad commit.",
       "I'll revert it.",
     ],
+    discipline_incorrect: [
+      "That wasn't my commit. Check the blame.",
+      "Wasn't me. Run git blame; I'm in the clear.",
+    ],
+    call: [
+      "Do you have a second?",
+      "Can you take a look at this? I've been staring at it too long.",
+    ],
     sleep: [
       "Going offline. On-call is someone else's problem tonight.",
       "*sets status to away*",
@@ -1054,6 +1062,10 @@ const FORM_FAVGAME: Partial<Record<AdultForm, string[]>> = {
   cosmos: [
     "Hide and seek. I am always half-hidden anyway.",
     "Seek me. I may be several places. I usually am.",
+  ],
+  mole: [
+    "Higher or Lower. It's a binary search. I do this professionally.",
+    "Ah, binary search with extra steps. My specialty.",
   ],
 };
 
@@ -1531,6 +1543,16 @@ const FORM_WEATHER: Partial<Record<AdultForm, Partial<Record<"rain" | "snow", st
       "Each flake falls once. I've fallen for ages. We understand each other.",
     ],
   },
+  mole: {
+    rain: [
+      "Rain. Good. No reason to surface. Back to the tunnel.",
+      "It's raining, which means permission to stay heads-down.",
+    ],
+    snow: [
+      "Snow. The one weather worth closing the laptop for. Almost.",
+      "It's snowing. I surfaced. I looked. I went back in. Worth it.",
+    ],
+  },
 };
 
 export function weatherLine(
@@ -1836,6 +1858,23 @@ const FORM_RETIRE: Partial<Record<AdultForm, Partial<Record<RetireBeat, string[]
     departed: [
       "Gone back to the sky. Look for the light that wasn't there yesterday.",
       "Returned to the dark between the stars. I left it warmer. Because of you.",
+    ],
+  },
+  mole: {
+    restless: [
+      "I've been thinking about handing off my tickets. All of them. Forever.",
+      "There's a field out there with no standups. I dream about it.",
+    ],
+    ready: [
+      "I'm ready to go off-call. Permanently. Escort me out.",
+      "Ship it. Me, I mean. Ship me to the farm.",
+    ],
+    farewell: [
+      "Let's not make this a whole ceremony. A quiet merge. Walk me over.",
+    ],
+    departed: [
+      "Gone to the farm. Set my status to away. Permanently.",
+      "Off-call forever. The pager is someone else's now. So it goes.",
     ],
   },
 };
