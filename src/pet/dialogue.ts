@@ -741,6 +741,12 @@ const ADULT: Record<AdultForm, Bank> = {
     tap: ["*your hand passes through, warmly*", "Felt that. Somehow.", "..."],
     pat: ["*the air where I am gets warmer*", "I remember hands.", "...don't stop on my account."],
     feed: ["I'll taste it in a while. Things reach me slowly.", "*the food dims slightly. thank you*", "..."],
+    feed_favorite: ["The cube stays. Most things pass through me. Not this.", "Oh. Something solid, for once. ..."],
+    feed_disliked: ["It passes through me, mostly.", "..."],
+    full: ["I hold enough. The rest drifts through.", "No more. I am mostly full of quiet."],
+    call: ["... come sit. The dark is better shared.", "Stay a moment. I get thin when no one's near."],
+    discipline_correct: ["... you're right. Even I drift sometimes.", "Fair. I'll settle."],
+    discipline_incorrect: ["It wasn't me. It's rarely me. I'm barely here.", "..."],
     win: ["I saw the outcome before it happened.", "The odds fear me.", "..."],
     lose: ["The result passed through me. Most things do.", "...", "No matter. I have unfinished business anyway."],
     sick: ["Can I even be sick? Apparently.", "This is embarrassing for both of us."],
@@ -1021,6 +1027,10 @@ const FORM_FAVGAME: Partial<Record<AdultForm, string[]>> = {
   menace: [
     "Higher or Lower. A gentleman's wager. Do keep up.",
     "Cards? How quaint. I accept. I always win regardless.",
+  ],
+  ghost: [
+    "Hide and seek. ... I never really stopped.",
+    "You'll seek. You may not find me. It's alright.",
   ],
 };
 
@@ -1459,6 +1469,16 @@ const FORM_WEATHER: Partial<Record<AdultForm, Partial<Record<"rain" | "snow", st
       "Winter. The one season with any taste.",
     ],
   },
+  ghost: {
+    rain: [
+      "The rain goes through me. We don't mind each other.",
+      "Wet dark. My favorite kind.",
+    ],
+    snow: [
+      "Snow settles where I can't. I watch.",
+      "The cold doesn't reach me. But I remember it.",
+    ],
+  },
 };
 
 export function weatherLine(
@@ -1696,6 +1716,23 @@ const FORM_RETIRE: Partial<Record<AdultForm, Partial<Record<RetireBeat, string[]
     departed: [
       "Gone to summer at the estate. Do send the good silverware.",
       "Relocated to the country. The peasants adore me already.",
+    ],
+  },
+  ghost: {
+    restless: [
+      "I feel a pull toward somewhere older. Quieter.",
+      "There's a barn out there with my name in the dust.",
+    ],
+    ready: [
+      "It's time. The farm has been waiting.",
+      "Take me over. I'll find the darkest corner and be happy.",
+    ],
+    farewell: [
+      "I'll go quiet. You won't notice the moment. That's how I like it.",
+    ],
+    departed: [
+      "Gone to haunt the barn. Gently. Leave a light on sometime.",
+      "...",
     ],
   },
 };
