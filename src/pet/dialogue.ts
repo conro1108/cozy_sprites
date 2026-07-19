@@ -1592,6 +1592,24 @@ const FAREWELL_WALK_LINES = [
 // bank for it.
 type RetireBeat = "restless" | "ready" | "farewell" | "departed";
 const FORM_RETIRE: Partial<Record<AdultForm, Partial<Record<RetireBeat, string[]>>>> = {
+  dog: {
+    restless: [
+      "I keep looking at the horizon. It smells like adventure. And hay.",
+      "There's a big field out there. I can feel it. I want to guard it.",
+    ],
+    ready: [
+      "I'm ready! I think I'm ready. Are you ready? I'm ready.",
+      "Take me to the farm! I'll come back to visit. Promise promise promise.",
+    ],
+    farewell: [
+      "One more look. Okay, two. Okay, I love you, let's go.",
+      "I memorized your face. I already had it. Now extra.",
+    ],
+    departed: [
+      "Gone to guard the farm. Come visit — I'll smell you coming.",
+      "Went to the fields! Left you all my best smells. Miss you already.",
+    ],
+  },
   blob: {
     restless: [
       "I sense an ending approaching. A gentle one. With hay.",
