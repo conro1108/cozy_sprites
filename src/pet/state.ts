@@ -24,7 +24,7 @@ import type {
   Stage,
   Timeline,
 } from "./types";
-import { FOODS } from "./roster";
+import { ADULTS, FOODS } from "./roster";
 import { determineAdultForm } from "./evolution";
 import { cubeHumCredit, spriteWon } from "./games";
 import type { MatchResult } from "./games";
@@ -1187,7 +1187,7 @@ export const PAT_WINDOW_MS = 12_000;
 export const PAT_SATIATION = 5;
 
 /**
- * How much a pat delights each adult form, in character with ADULT_FOOD. A dog
+ * How much a pat delights each adult form, in character with the roster. A dog
  * lives for pats; a gremlin barely tolerates them; a ghost is a bit aloof; the
  * hum-cube is serenely indifferent. Non-adult stages use 1 (see patAffinity).
  */
@@ -1446,23 +1446,11 @@ export function rollIllness(rng: () => number = Math.random): IllnessId {
 }
 
 // --- Food preference lookups (re-exported for convenience) ------------------
+// Preferences live in one place — the roster (ADULTS). These just read it, so
+// the two can never drift.
 export function favoriteFood(form: AdultForm): FoodId {
-  return ADULT_FOOD[form].favorite;
+  return ADULTS[form].favorite;
 }
 export function dislikedFood(form: AdultForm): FoodId | null {
-  return ADULT_FOOD[form].disliked;
+  return ADULTS[form].disliked;
 }
-
-const ADULT_FOOD: Record<AdultForm, { favorite: FoodId; disliked: FoodId | null }> = {
-  dog: { favorite: "burger", disliked: "cube" },
-  blob: { favorite: "cake", disliked: "carrot" },
-  gremlin: { favorite: "cube", disliked: null },
-  scholar: { favorite: "carrot", disliked: "cake" },
-  office: { favorite: "salad", disliked: "cube" },
-  menace: { favorite: "cake", disliked: "burger" },
-  ghost: { favorite: "cube", disliked: "burger" },
-  humcube: { favorite: "cube", disliked: null },
-  carrot: { favorite: "carrot", disliked: "burger" },
-  cosmos: { favorite: "soup", disliked: null },
-  mole: { favorite: "cube", disliked: "soup" }, // a shape with no edge cases; a food with nothing but
-};
