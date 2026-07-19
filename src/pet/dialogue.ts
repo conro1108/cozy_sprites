@@ -674,6 +674,11 @@ const ADULT: Record<AdultForm, Bank> = {
     tap: ["Yes, what's the agenda.", "You have my attention until 2.", "This couldn't have been async?"],
     pat: ["...this is the best part of my quarter.", "*visibly decompresses*", "HR would call this inappropriate. Don't stop."],
     feed: ["Working lunch. Naturally.", "I'll eat at my desk. The desk is grass.", "Expensing this."],
+    feed_favorite: ["The desk salad. A classic. Sustains nobody, blames everyone.", "Salad. The lunch of the perpetually busy. Fitting."],
+    feed_disliked: ["I can't process this. Sending it back.", "A cube? That's outside my job description."],
+    full: ["I'm at capacity. As previously communicated.", "Plate's full. Literally and figuratively."],
+    discipline_correct: ["Fair. I'll note it in my own performance review.", "Understood. Adding it to the list of things I did wrong. It's a long list."],
+    discipline_incorrect: ["This is going to HR.", "Wrongfully flagged. Let's circle back."],
     win: ["Noted. Moving on.", "Great, a win. Anyway.", "Let's not make this weird."],
     lose: ["Figures.", "Circling back to my loss.", "As expected of a Monday."],
     sick: ["I'm taking a sick day. My first ever. Witness it.", "Symptoms submitted. Awaiting approval.", "Even my illness is behind schedule."],
@@ -1005,6 +1010,10 @@ const FORM_FAVGAME: Partial<Record<AdultForm, string[]>> = {
   scholar: [
     "Higher or Lower. A probability exercise. I have a model.",
     "Ah, my favorite. I've been meaning to test my priors.",
+  ],
+  office: [
+    "Would You Rather. The only meeting I enjoy. Icebreaker time.",
+    "Ah, a hypothetical. Finally, a use for my strategic thinking.",
   ],
 };
 
@@ -1423,6 +1432,16 @@ const FORM_WEATHER: Partial<Record<AdultForm, Partial<Record<"rain" | "snow", st
       "Snowfall rate: increasing. I've started a chart.",
     ],
   },
+  office: {
+    rain: [
+      "Rain. The commute — I mean, the grass — will be a nightmare.",
+      "Working through the weather. As always. Nobody notices.",
+    ],
+    snow: [
+      "Snow day? No. There are no days off in a meadow.",
+      "Snow. I'd call it beautiful but that's not on the agenda.",
+    ],
+  },
 };
 
 export function weatherLine(
@@ -1608,6 +1627,23 @@ const FORM_RETIRE: Partial<Record<AdultForm, Partial<Record<RetireBeat, string[]
     departed: [
       "Gone to conduct fieldwork. Indefinitely. It's called retirement.",
       "Relocated to the farm. My research continues.",
+    ],
+  },
+  office: {
+    restless: [
+      "I've been updating my LinkedIn. Status: pasture-curious.",
+      "I keep thinking about my exit interview. I'd have notes.",
+    ],
+    ready: [
+      "Ready to retire. My out-of-office is permanent now.",
+      "Walk me out. Security can watch. I've got a box.",
+    ],
+    farewell: [
+      "Walk slow. This is my last commute. I want to resent it properly.",
+    ],
+    departed: [
+      "OOO indefinitely. Please redirect all sighs to the barn.",
+      "Retired to the farm. Finally, a role with no meetings.",
     ],
   },
 };
