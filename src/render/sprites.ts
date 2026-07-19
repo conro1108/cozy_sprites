@@ -427,14 +427,16 @@ const SCHOLAR: BodyDef = {
   faceDx: 5,
   faceDy: 4,
   overlay: {
-    // Little wire-rim glasses around the dot eyes, hollow so every mood's
-    // eyes show through — same style the scholar-leaning teen wears.
+    // Little glasses over the dot eyes. The lenses are *filled* glass, not
+    // hollow rims: the face blits after the overlay, so the mood's eyes always
+    // sit on top — and a glance-slid eye leaves glass behind it, never a
+    // lens-shaped hole of body purple.
     rows: [
       "................",
       "................",
       "................",
       "....www.www.....",
-      "....w.w.w.w.....",
+      "....www.www.....",
       "....www.www.....",
       "................",
       "................",
@@ -803,10 +805,12 @@ const TEEN_ACCENTS: Partial<Record<AdultForm, Accent>> = {
       "................",
       "................",
       "....www.www.....",
-      "....w.w.w.w.....",
+      "....www.www.....",
       "....www.www.....",
     ],
-    palette: { w: "#dbe7ff" }, // studious little glasses (eyes show through)
+    // Studious little glasses — filled glass like the adult's, so the eyes
+    // (drawn after) sit on lens, and a glance never opens a hole to the body.
+    palette: { w: "#dbe7ff" },
   },
   menace: {
     rows: [

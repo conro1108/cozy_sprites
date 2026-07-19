@@ -37,16 +37,17 @@ export function postcardDate(now: number): string {
 }
 
 // Logical layout (1 unit = 1 art pixel), scaled by SCALE for export.
-const L_W = 120;
-const L_H = 100;
-const SCALE = 8;
-const BORDER = 5; // white frame, top and sides
-const BAND = 21; // the deeper polaroid band under the photo
+// 108×192 at ×10 = 1080×1920: exactly an Instagram story.
+const L_W = 108;
+const L_H = 192;
+const SCALE = 10;
+const BORDER = 6; // white frame, top and sides
+const BAND = 26; // the deeper polaroid band under the photo
 const SCENE_X = BORDER;
 const SCENE_Y = BORDER;
 const SCENE_W = L_W - BORDER * 2;
 const SCENE_H = L_H - BORDER - BAND;
-const HORIZON = SCENE_Y + 48; // where the grass meets the sky
+const HORIZON = SCENE_Y + 100; // where the grass meets the sky
 
 /** Compose the postcard scene at logical-pixel size. */
 function buildScenePx(opts: PostcardOpts): HTMLCanvasElement {
@@ -70,23 +71,26 @@ function buildScenePx(opts: PostcardOpts): HTMLCanvasElement {
   if (opts.night) {
     // Moon (with its crescent carved in sky color) and a few fixed stars.
     ctx.fillStyle = "#f3edd0";
-    fillDisc(ctx, SCENE_X + 16, SCENE_Y + 10, 4);
+    fillDisc(ctx, SCENE_X + 18, SCENE_Y + 13, 5);
     ctx.fillStyle = "#2b2552";
-    fillDisc(ctx, SCENE_X + 18, SCENE_Y + 9, 4);
+    fillDisc(ctx, SCENE_X + 21, SCENE_Y + 12, 5);
     ctx.fillStyle = "#fff";
-    for (const [sx, sy] of [[30, 6], [46, 12], [60, 5], [74, 14], [86, 8], [38, 20]]) {
+    for (const [sx, sy] of [
+      [34, 8], [52, 16], [70, 6], [86, 18], [24, 28], [62, 32], [44, 42], [80, 46], [14, 44],
+    ]) {
       ctx.fillRect(SCENE_X + sx, SCENE_Y + sy, 1, 1);
     }
   } else if (!overcast) {
     // Sun, top-left so the stamp keeps its corner.
     ctx.fillStyle = "#ffe9a3";
-    fillDisc(ctx, SCENE_X + 13, SCENE_Y + 9, 5);
+    fillDisc(ctx, SCENE_X + 16, SCENE_Y + 13, 6);
     ctx.fillStyle = "#fff2c8";
-    ctx.fillRect(SCENE_X + 10, SCENE_Y + 6, 3, 1);
+    ctx.fillRect(SCENE_X + 12, SCENE_Y + 9, 4, 1);
   }
-  // Clouds — white on a fair day, heavier gray on a wet one.
+  // Clouds — white on a fair day, heavier gray on a wet one. They keep below
+  // the header text's sky (drawn at export size over roughly rows 36-52).
   ctx.fillStyle = opts.night ? "#4a4478" : overcast ? "#dde3e7" : "#ffffff";
-  for (const [cx, cy] of overcast ? [[34, 8], [62, 14], [84, 6]] : [[52, 8], [80, 16]]) {
+  for (const [cx, cy] of overcast ? [[10, 24], [44, 60], [66, 28]] : [[26, 26], [58, 62]]) {
     ctx.fillRect(SCENE_X + cx, SCENE_Y + cy, 12, 3);
     ctx.fillRect(SCENE_X + cx + 2, SCENE_Y + cy - 2, 7, 2);
   }
@@ -103,16 +107,16 @@ function buildScenePx(opts: PostcardOpts): HTMLCanvasElement {
   ctx.fillStyle = opts.night ? "#3f5a3c" : "#9cc85a";
   ctx.fillRect(SCENE_X, HORIZON, SCENE_W, SCENE_Y + SCENE_H - HORIZON);
   ctx.fillStyle = opts.night ? "#38503a" : "#84b348";
-  for (let i = 0; i < 10; i++) {
+  for (let i = 0; i < 14; i++) {
     const gx = SCENE_X + ((i * 29 + 7) % SCENE_W);
     const gy = HORIZON + 3 + ((i * 11) % (SCENE_Y + SCENE_H - HORIZON - 6));
     ctx.fillRect(gx, gy, 2, 1);
   }
   const flowers: [number, number, string][] = [
-    [12, 12, "#e88bb0"],
-    [22, 18, "#fff"],
-    [92, 10, "#fff"],
-    [100, 17, "#e88bb0"],
+    [8, 20, "#e88bb0"],
+    [16, 44, "#fff"],
+    [76, 16, "#fff"],
+    [86, 40, "#e88bb0"],
   ];
   for (const [fx, fy, color] of flowers) {
     ctx.fillStyle = color;
@@ -122,24 +126,24 @@ function buildScenePx(opts: PostcardOpts): HTMLCanvasElement {
   }
 
   // The star of the card, posing dead center with its shadow under it.
-  const size = CELL * 3;
+  const size = CELL * 4;
   const px = SCENE_X + Math.round((SCENE_W - size) / 2);
-  const py = SCENE_Y + SCENE_H - size - 2;
+  const py = SCENE_Y + SCENE_H - size - 4;
   ctx.fillStyle = opts.night ? "rgba(20,30,20,0.4)" : "rgba(60,90,40,0.35)";
-  ctx.fillRect(px + 8, py + size - 2, size - 16, 2);
+  ctx.fillRect(px + 10, py + size - 2, size - 20, 2);
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(buildCreatureCanvas(opts.key, opts.mood), px, py, size, size);
 
   // Weather falls over the finished scene, just like the live meadow.
   if (opts.weather === "rain") {
     ctx.fillStyle = "rgba(182,212,236,0.7)";
-    for (let i = 0; i < 14; i++) {
-      ctx.fillRect(SCENE_X + ((i * 31 + 5) % SCENE_W), SCENE_Y + ((i * 23) % (SCENE_H - 4)), 1, 3);
+    for (let i = 0; i < 24; i++) {
+      ctx.fillRect(SCENE_X + ((i * 31 + 5) % SCENE_W), SCENE_Y + ((i * 41) % (SCENE_H - 4)), 1, 3);
     }
   } else if (opts.weather === "snow") {
     ctx.fillStyle = "rgba(255,255,255,0.9)";
-    for (let i = 0; i < 12; i++) {
-      ctx.fillRect(SCENE_X + ((i * 37 + 9) % SCENE_W), SCENE_Y + ((i * 29) % (SCENE_H - 2)), 1, 1);
+    for (let i = 0; i < 20; i++) {
+      ctx.fillRect(SCENE_X + ((i * 37 + 9) % SCENE_W), SCENE_Y + ((i * 47) % (SCENE_H - 2)), 1, 1);
     }
   }
 
@@ -176,30 +180,31 @@ export function buildPostcard(opts: PostcardOpts): HTMLCanvasElement {
 
   const mono = 'ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", monospace';
 
-  // Header over the sky. Outlined so it reads on any weather.
+  // Header over the sky, sitting below where story UIs park their chrome.
+  // Outlined so it reads on any weather.
   ctx.textAlign = "center";
-  ctx.font = `bold ${4.2 * SCALE}px ${mono}`;
+  ctx.font = `bold ${5 * SCALE}px ${mono}`;
   ctx.lineWidth = SCALE;
   ctx.lineJoin = "round"; // miter joins spike badly on stroked glyphs
   ctx.strokeStyle = opts.night ? "#1c1838" : "#4a7a8c";
   ctx.fillStyle = "#ffffff";
-  const headY = (SCENE_Y + 9) * SCALE;
+  const headY = (SCENE_Y + 40) * SCALE;
   ctx.strokeText("GREETINGS FROM", out.width / 2, headY);
   ctx.fillText("GREETINGS FROM", out.width / 2, headY);
-  ctx.strokeText("THE MEADOW", out.width / 2, headY + 5.2 * SCALE);
-  ctx.fillText("THE MEADOW", out.width / 2, headY + 5.2 * SCALE);
+  ctx.strokeText("THE MEADOW", out.width / 2, headY + 6.2 * SCALE);
+  ctx.fillText("THE MEADOW", out.width / 2, headY + 6.2 * SCALE);
 
   // The band: name big, subtitle and date quiet.
   const bandTop = (L_H - BAND) * SCALE;
   ctx.textAlign = "left";
   ctx.fillStyle = "#3a3630";
-  ctx.font = `bold ${6 * SCALE}px ${mono}`;
-  ctx.fillText(opts.name, BORDER * SCALE, bandTop + 9.5 * SCALE);
-  ctx.font = `${3.6 * SCALE}px ${mono}`;
+  ctx.font = `bold ${7 * SCALE}px ${mono}`;
+  ctx.fillText(opts.name, BORDER * SCALE, bandTop + 11 * SCALE);
+  ctx.font = `${4.2 * SCALE}px ${mono}`;
   ctx.fillStyle = "#8a8478";
-  ctx.fillText(opts.subtitle, BORDER * SCALE, bandTop + 15.5 * SCALE);
+  ctx.fillText(opts.subtitle, BORDER * SCALE, bandTop + 18.5 * SCALE);
   ctx.textAlign = "right";
-  ctx.fillText(opts.date, (L_W - BORDER) * SCALE, bandTop + 15.5 * SCALE);
+  ctx.fillText(opts.date, (L_W - BORDER) * SCALE, bandTop + 18.5 * SCALE);
 
   return out;
 }
