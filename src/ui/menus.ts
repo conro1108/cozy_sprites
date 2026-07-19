@@ -10,6 +10,8 @@ import { ageLabel } from "../pet/format";
 import { formatDebugReport } from "../pet/debug";
 import { MAX_HEARTS, TIMELINE_SPEED, getSkyMode, isNight, retirementPhase } from "../pet/state";
 import type { SkyMode } from "../pet/state";
+import { getSeasonMode, setSeasonMode } from "./season";
+import type { SeasonMode } from "./season";
 import { DEV_STAT_RANGE } from "../pet/devtools";
 import type { DevAction, DevHidden, DevStat } from "../pet/devtools";
 import { explainForms, mostPlayed } from "../pet/evolution";
@@ -67,6 +69,9 @@ export interface MenuCtx {
   resetFarm(): void;
   /** Pull a Dev Tools lever (timeline switch, forced event). */
   devAction(action: DevAction): void;
+  /** Repaint the scene now — for cosmetic Dev levers (e.g. the season pin)
+   *  that live outside PetState and so don't flow through devAction. */
+  refresh(): void;
 }
 
 let root: HTMLElement;
@@ -2114,7 +2119,7 @@ export function openDevTools(ctx: MenuCtx): void {
     parent.appendChild(row);
   };
 
-  drawer("Timeline & sky", (body) => {
+  drawer("Timeline, sky & season", (body) => {
     // Timeline: real wall-clock pacing, or everything at demo speed.
     const tlWrap = document.createElement("div");
     tlWrap.className = "notify-settings";
@@ -2180,6 +2185,45 @@ export function openDevTools(ctx: MenuCtx): void {
     skyWrap.append(skyLabel, skyRow);
     body.appendChild(skyWrap);
     paintSky();
+
+    // Season: pin the meadow to a season instead of the calendar. Unlike the
+    // sky, this one persists (it's a localStorage override, see season.ts), so
+    // a pinned season survives reload until set back to Clock. Purely cosmetic
+    // — it doesn't touch PetState, so it repaints via refresh() not devAction.
+    const seasonWrap = document.createElement("div");
+    seasonWrap.className = "notify-settings";
+    const seasonLabel = document.createElement("p");
+    seasonLabel.className = "muted";
+    seasonLabel.textContent = "Season";
+    const seasonRow = document.createElement("div");
+    seasonRow.className = "notify-row";
+    const paintSeason = () => {
+      seasonRow.querySelectorAll("button").forEach((b) => {
+        b.classList.toggle("active", b.dataset.season === getSeasonMode());
+      });
+    };
+    const SEASON_LABELS: Record<SeasonMode, string> = {
+      auto: "Clock",
+      spring: "Spring",
+      summer: "Summer",
+      fall: "Fall",
+      winter: "Winter",
+    };
+    for (const m of ["auto", "spring", "summer", "fall", "winter"] as const) {
+      const b = document.createElement("button");
+      b.className = "notify-opt";
+      b.dataset.season = m;
+      b.textContent = SEASON_LABELS[m];
+      b.addEventListener("click", () => {
+        setSeasonMode(m);
+        ctx.refresh();
+        paintSeason();
+      });
+      seasonRow.appendChild(b);
+    }
+    seasonWrap.append(seasonLabel, seasonRow);
+    body.appendChild(seasonWrap);
+    paintSeason();
   });
 
   drawer("Become", (body) => {

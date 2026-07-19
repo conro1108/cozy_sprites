@@ -1293,6 +1293,7 @@ const ctx = {
     farm = [];
   },
   devAction: doDevAction,
+  refresh: render,
 };
 
 // --- Utils ------------------------------------------------------------------

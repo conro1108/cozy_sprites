@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { seasonToday } from "./season";
+import { getSeasonMode, seasonToday, setSeasonMode } from "./season";
 
 // The node test env has no localStorage; season only needs this much of one.
 const store = new Map<string, string>();
@@ -45,5 +45,26 @@ describe("seasonToday", () => {
     // Junk values fall through to the real calendar.
     localStorage.setItem("cozy-sprites-season", "monsoon");
     expect(seasonToday(new Date(2026, 6, 18))).toBe("summer");
+  });
+});
+
+describe("the season mode lever", () => {
+  const summer = new Date(2026, 6, 18); // real season here is summer
+
+  it("pins the season and reports it back", () => {
+    setSeasonMode("winter");
+    expect(getSeasonMode()).toBe("winter");
+    expect(seasonToday(summer)).toBe("winter");
+  });
+
+  it("clears back to the calendar on auto", () => {
+    setSeasonMode("fall");
+    setSeasonMode("auto");
+    expect(getSeasonMode()).toBe("auto");
+    expect(seasonToday(summer)).toBe("summer");
+  });
+
+  it("reads auto when nothing is pinned", () => {
+    expect(getSeasonMode()).toBe("auto");
   });
 });
