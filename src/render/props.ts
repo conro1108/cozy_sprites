@@ -59,7 +59,11 @@ const PROPS: Record<PropName, PropDef> = {
       "rrr.www.ppp",
       ".r.g.w.g.p.",
       ".g.g.g.g.g.",
-      "gggggggggggg",
+      // Was twelve cells against everyone else's eleven; the rasterizer sizes
+      // the canvas from the first row and silently dropped the overflow, so it
+      // never showed here. Caught by The Farm's props.test.ts on its vendored
+      // copy; trimmed to what the art was always drawing.
+      "ggggggggggg",
     ],
     palette: { g: "#5a9440", r: "#e06a7c", w: "#f6f1dc", p: "#c98add" },
   },

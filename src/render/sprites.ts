@@ -508,7 +508,11 @@ const MENACE: BodyDef = {
     "..wkBBBBBBBkw...",
     "..wwkSBBBSkww...",
     "...wkSSSSSkw....",
-    "....kkkkkk......",
+    // Was six pixels at cols 4–9 under sides sitting at 4 and 10: the bottom-left
+    // corner stacked two darks and the bottom-right none, so she read as leaning.
+    // Five at 5–9 lets both corners taper, like every other round body here.
+    // (Fixed first in The Farm's vendored copy; this restores the two to matching.)
+    ".....kkkkk......",
     "................",
     "................",
   ],
