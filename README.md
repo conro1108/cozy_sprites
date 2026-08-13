@@ -11,9 +11,9 @@ not told the formula; you learn it by playing.
 **Play it: [cozy-sprites.vercel.app](https://cozy-sprites.vercel.app)** — add it
 to your home screen and it behaves like an app (PWA, works offline).
 
-| | |
-|---|---|
-| ![A new egg](shots/title.png) | ![Night in the meadow](shots/night.png) |
+| | | |
+|---|---|---|
+| ![An adult, thriving](shots/pet.png) | ![Fetch](shots/fetch.png) | ![Night](shots/night.png) |
 
 ## Run it
 
