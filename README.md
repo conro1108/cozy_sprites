@@ -8,6 +8,13 @@ what you feed it, which games you play, how you discipline it, whether you let
 it sleep — quietly steers which of ten adult personalities it becomes. You're
 not told the formula; you learn it by playing.
 
+**Play it: [cozy-sprites.vercel.app](https://cozy-sprites.vercel.app)** — add it
+to your home screen and it behaves like an app (PWA, works offline).
+
+| | |
+|---|---|
+| ![A new egg](shots/title.png) | ![Night in the meadow](shots/night.png) |
+
 ## Run it
 
 ```bash
